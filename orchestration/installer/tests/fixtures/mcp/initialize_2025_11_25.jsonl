@@ -1,0 +1,3 @@
+{"send": {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "fixture", "version": "1"}}}, "expect": {"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-11-25", "capabilities": {"tools": {}}, "serverInfo": {"name": "brakes", "version": "$VERSION"}}}}
+{"send": {"jsonrpc": "2.0", "method": "notifications/initialized"}, "expect": null}
+{"send": {"jsonrpc": "2.0", "id": "p", "method": "ping"}, "expect": {"jsonrpc": "2.0", "id": "p", "result": {}}}

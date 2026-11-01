@@ -1,0 +1,409 @@
+//! Brownfield migration (SPEC-ci-baseline.md, Brownfield migration; T5, #775).
+//! A workflow is foreign when the installed lock does not record it, or records
+//! it `never-touch`. With a foreign workflow the generated one goes to
+//! `agentic-ci.yml`, every foreign workflow (and a project-owned actionlint
+//! configuration) is listed `never-touch`, and the switch of the required check
+//! is the `remote` item `github:switch-required-check` (decision #848) with its
+//! probe, after `check-reported`. The module declares only; nothing is deleted.
+//!
+//! Under `workflow: existing` with contributed jobs (#895) the jobs go to the
+//! separate `agentic-security.yml`, whose aggregate `agentic-required` joins the
+//! required checks through the `remote` item `github:add-agentic-required-check`.
+use super::{AGGREGATE_CHECK, CI_BASELINE, CONTRIBUTED_AGGREGATE_CHECK, render::WORKFLOW_PATH};
+use crate::{
+    Result,
+    engine::{
+        Context, Ownership, Rendered,
+        manual::{ManualStep, Owner, Probe},
+    },
+    host::desired::{Desired, RemoteWrite},
+    modules::repo_baseline::steps::default_branch,
+    refuse,
+};
+use serde_json::{Value, json};
+use std::collections::BTreeMap;
+use std::path::Path;
+
+/// The generated workflow next to a project's own.
+pub const BROWNFIELD_PATH: &str = ".github/workflows/agentic-ci.yml";
+/// Its `name:`, so the Actions tab tells the two apart.
+pub const BROWNFIELD_NAME: &str = "CI (brakes)";
+/// actionlint reads either file; a project-owned one is never rendered over.
+pub const ACTIONLINT_CONFIGS: [&str; 2] = [".github/actionlint.yaml", ".github/actionlint.yml"];
+/// The remote item and the step that gates it.
+pub const SWITCH: &str = "switch-required-check";
+pub const CHECK_REPORTED: &str = "check-reported";
+/// The separate workflow of the contributed jobs under `workflow: existing`.
+pub const SEPARATE_PATH: &str = ".github/workflows/agentic-security.yml";
+pub const SEPARATE_NAME: &str = "Security (brakes)";
+/// Its remote item and the step that gates it.
+pub const ADD_CHECK: &str = "add-agentic-required-check";
+pub const SEPARATE_REPORTED: &str = "agentic-required-reported";
+
+const WORKFLOWS_DIR: &str = ".github/workflows";
+
+/// True when the installed lock records `path` under a class other than `never-touch`.
+fn owned(cx: &Context<'_>, path: &str) -> bool {
+    cx.previous
+        .files
+        .get(path)
+        .is_some_and(|entry| entry.class != Ownership::NeverTouch)
+}
+
+/// The foreign `*.yml` / `*.yaml` files directly under `.github/workflows/`, sorted.
+pub fn foreign_workflows(cx: &Context<'_>) -> Result<Vec<String>> {
+    let entries = match std::fs::read_dir(cx.root.join(WORKFLOWS_DIR)) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return refuse(format!("ci-baseline: cannot list {WORKFLOWS_DIR}: {error}")),
+    };
+    let mut foreign = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let path = format!("{WORKFLOWS_DIR}/{name}");
+        let workflow = name.ends_with(".yml") || name.ends_with(".yaml");
+        if workflow && entry.file_type()?.is_file() && !owned(cx, &path) {
+            foreign.push(path);
+        }
+    }
+    foreign.sort();
+    Ok(foreign)
+}
+
+/// The project-owned actionlint configurations that exist.
+pub fn foreign_actionlint(cx: &Context<'_>) -> Vec<String> {
+    ACTIONLINT_CONFIGS
+        .iter()
+        .filter(|path| cx.root.join(path).is_file() && !owned(cx, path))
+        .map(|path| (*path).to_owned())
+        .collect()
+}
+
+/// The labels actionlint 1.7.12 knows and never reports as unknown, compared
+/// case-insensitively as actionlint does: its own self-hosted labels
+/// (`selfHostedRunnerPreset*Labels`) and the GitHub-hosted ones
+/// (`allGitHubHostedRunnerLabels`), both from `rule_runner_label.go` of the
+/// release `security/pins.rs` pins
+/// (https://github.com/rhysd/actionlint/blob/v1.7.12/rule_runner_label.go).
+/// The list moves with the actionlint pin; a test holds the two together.
+pub const ACTIONLINT_KNOWN_RELEASE: &str = "1.7.12";
+
+/// The labels of [`ACTIONLINT_KNOWN_RELEASE`], as above.
+const ACTIONLINT_KNOWN: [&str; 36] = [
+    "self-hosted",
+    "linux",
+    "macos",
+    "windows",
+    "x64",
+    "arm",
+    "arm64",
+    "windows-latest",
+    "windows-latest-8-cores",
+    "windows-2025",
+    "windows-2025-vs2026",
+    "windows-2022",
+    "windows-11-arm",
+    "ubuntu-slim",
+    "ubuntu-latest",
+    "ubuntu-latest-4-cores",
+    "ubuntu-latest-8-cores",
+    "ubuntu-latest-16-cores",
+    "ubuntu-24.04",
+    "ubuntu-24.04-arm",
+    "ubuntu-22.04",
+    "ubuntu-22.04-arm",
+    "macos-latest",
+    "macos-latest-xlarge",
+    "macos-latest-large",
+    "macos-26-intel",
+    "macos-26-xlarge",
+    "macos-26-large",
+    "macos-26",
+    "macos-15-intel",
+    "macos-15-xlarge",
+    "macos-15-large",
+    "macos-15",
+    "macos-14-xlarge",
+    "macos-14-large",
+    "macos-14",
+];
+
+/// The custom labels the foreign workflows' jobs already run on, sorted and
+/// once each, for `.github/actionlint.yaml` (#1167, #1215): every label of a
+/// job's `runs-on`, scalar, list or `{group, labels}`, that actionlint does not
+/// already know, but expressions and text with control characters. Read, never
+/// invented; a workflow that does not read or parse adds none (actionlint
+/// reports it itself).
+pub fn custom_labels(root: &Path, foreign: &[String]) -> Vec<String> {
+    let known = |label: &str| {
+        ACTIONLINT_KNOWN
+            .iter()
+            .any(|k| k.eq_ignore_ascii_case(label))
+    };
+    let mut labels = std::collections::BTreeSet::new();
+    for path in foreign {
+        let Some(workflow) = std::fs::read_to_string(root.join(path))
+            .ok()
+            .and_then(|text| crate::auditor::workflows::parse(&text).ok())
+        else {
+            continue;
+        };
+        for job in workflow.jobs {
+            labels.extend(
+                job.runs_on
+                    .into_iter()
+                    .filter(|l| !known(l) && !l.contains("${{") && !l.trim().is_empty())
+                    // A label is one line; anything else could break the YAML it is written into.
+                    .filter(|l| !l.chars().any(char::is_control)),
+            );
+        }
+    }
+    labels.into_iter().collect()
+}
+
+/// Where the workflow goes: the filename the lock already records for this
+/// module (sticky), else `agentic-ci.yml` when a foreign workflow exists.
+pub fn workflow_path(cx: &Context<'_>, foreign: &[String]) -> &'static str {
+    let recorded = [WORKFLOW_PATH, BROWNFIELD_PATH].into_iter().find(|path| {
+        cx.previous
+            .files
+            .get(*path)
+            .is_some_and(|e| e.module == CI_BASELINE && e.class == Ownership::Managed)
+    });
+    match recorded {
+        Some(path) => path,
+        None if foreign.is_empty() => WORKFLOW_PATH,
+        None => BROWNFIELD_PATH,
+    }
+}
+
+/// `key: value` of a YAML line, the key unquoted, the value without a trailing
+/// comment or quotes.
+fn key_value(content: &str) -> Option<(&str, &str)> {
+    let (key, value) = content.split_once(':')?;
+    let value = value.split(" #").next().unwrap_or("").trim();
+    Some((
+        key.trim().trim_matches(['"', '\'']),
+        value.trim_matches(['"', '\'']),
+    ))
+}
+
+/// True when the workflow text has a job whose id or job-level `name:` is
+/// `AGGREGATE_CHECK`.
+pub fn has_required_job(text: &str) -> bool {
+    has_job_named(text, AGGREGATE_CHECK)
+}
+
+/// True when the workflow text has a job whose id or job-level `name:` is
+/// `check`. A line scanner over `jobs:`: job ids sit at the first indentation
+/// below it, job keys at the first indentation below a job id.
+pub fn has_job_named(text: &str, check: &str) -> bool {
+    let mut in_jobs = false;
+    let mut job_indent = None;
+    let mut key_indent = None;
+    for line in text.lines() {
+        let content = line.trim_start();
+        if content.is_empty() || content.starts_with('#') {
+            continue;
+        }
+        let indent = line.len() - content.len();
+        if indent == 0 {
+            in_jobs =
+                key_value(content).is_some_and(|(key, value)| key == "jobs" && value.is_empty());
+            job_indent = None;
+            continue;
+        }
+        if !in_jobs {
+            continue;
+        }
+        let jobs = *job_indent.get_or_insert(indent);
+        if indent <= jobs {
+            key_indent = None;
+            if key_value(content).is_some_and(|(key, _)| key == check) {
+                return true;
+            }
+            continue;
+        }
+        if indent == *key_indent.get_or_insert(indent)
+            && key_value(content).is_some_and(|(key, value)| key == "name" && value == check)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Refuses when a foreign workflow already has a `required` job: the check
+/// name the ruleset requires would be ambiguous.
+pub fn refuse_required_job(root: &Path, foreign: &[String]) -> Result<()> {
+    refuse_job_named(
+        root,
+        foreign,
+        AGGREGATE_CHECK,
+        &format!(
+            "rename that job, or answer workflow=existing with aggregate_check={AGGREGATE_CHECK}"
+        ),
+    )
+}
+
+/// Refuses when a foreign workflow already has an `agentic-required` job: the
+/// separate workflow's aggregate would be ambiguous.
+pub fn refuse_contributed_job(root: &Path, foreign: &[String]) -> Result<()> {
+    refuse_job_named(
+        root,
+        foreign,
+        CONTRIBUTED_AGGREGATE_CHECK,
+        "rename that job",
+    )
+}
+
+fn refuse_job_named(root: &Path, foreign: &[String], check: &str, remedy: &str) -> Result<()> {
+    for path in foreign {
+        let text = std::fs::read_to_string(root.join(path))
+            .or_else(|error| refuse(format!("ci-baseline: cannot read {path}: {error}")))?;
+        if has_job_named(&text, check) {
+            return refuse(format!(
+                "ci-baseline: {path} already has a job named {check}; the required check would be ambiguous; {remedy}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The `never-touch` declarations of `paths`.
+pub fn never_touch(paths: &[String]) -> Vec<Rendered> {
+    paths
+        .iter()
+        .map(|path| declared(path, Ownership::NeverTouch))
+        .collect()
+}
+
+/// The lock entry of the switch: class `remote`, no content.
+pub fn remote_items() -> Vec<Rendered> {
+    vec![declared(&format!("github:{SWITCH}"), Ownership::Remote)]
+}
+
+/// The lock entry that requires `agentic-required`: class `remote`, no content.
+pub fn separate_remote_items() -> Vec<Rendered> {
+    vec![declared(&format!("github:{ADD_CHECK}"), Ownership::Remote)]
+}
+
+fn declared(path: &str, class: Ownership) -> Rendered {
+    Rendered {
+        path: path.to_owned(),
+        class,
+        content: None,
+        scaffold: None,
+    }
+}
+
+pub(crate) fn remote(id: &str, args: Value) -> Probe {
+    Probe::Remote {
+        id: id.to_owned(),
+        args: serde_json::from_value::<BTreeMap<String, Value>>(args).unwrap_or_default(),
+    }
+}
+
+/// `agentic-required-reported` and the remote item that adds `agentic-required`
+/// to the required checks, for a repository at `root`; the project's own check
+/// stays required. The item waits for the check to have reported.
+pub fn separate_steps(root: &Path) -> Vec<ManualStep> {
+    let branch = default_branch(root);
+    let check = CONTRIBUTED_AGGREGATE_CHECK;
+    let rules = format!(
+        "{{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == \"required_status_checks\" then .parameters.required_status_checks |= (. + [{{\"context\": \"{check}\"}}] | unique_by(.context)) else . end))}}"
+    );
+    vec![
+        ManualStep {
+            id: SEPARATE_REPORTED.to_owned(),
+            title: format!("CI reports {check} on {branch}"),
+            owner: Owner::Platform,
+            instructions: format!(
+                "Nothing to run: wait until {check} has reported on {branch} ({SEPARATE_PATH})."
+            ),
+            probe: remote(
+                "check-run-reported",
+                json!({ "contexts": [check], "branch": branch }),
+            ),
+            after: None,
+        },
+        ManualStep {
+            id: ADD_CHECK.to_owned(),
+            title: format!("Remote item: the default branch also requires the {check} check"),
+            owner: Owner::Owner,
+            instructions: format!(
+                "gh api repos/{{owner}}/{{repo}}/rulesets/<id> | jq '{rules}' | gh api -X PUT repos/{{owner}}/{{repo}}/rulesets/<id> --input -\n\
+                 # with classic branch protection instead of a ruleset:\n\
+                 gh api -X POST repos/{{owner}}/{{repo}}/branches/{branch}/protection/required_status_checks/contexts -f 'contexts[]={check}'"
+            ),
+            probe: remote(
+                "required-check",
+                json!({ "branch": branch, "check": check }),
+            ),
+            after: Some(SEPARATE_REPORTED.to_owned()),
+        },
+    ]
+}
+
+/// `check-reported` and the switch, for a repository at `root`. The switch
+/// waits for `required` to have reported on the default branch, so it never
+/// requires a check nobody reports.
+pub fn steps(root: &Path) -> Vec<ManualStep> {
+    let branch = default_branch(root);
+    let rules = format!(
+        "{{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == \"required_status_checks\" then .parameters.required_status_checks = [{{\"context\": \"{AGGREGATE_CHECK}\"}}] else . end))}}"
+    );
+    vec![
+        ManualStep {
+            id: CHECK_REPORTED.to_owned(),
+            title: format!("CI reports {AGGREGATE_CHECK} on {branch}"),
+            owner: Owner::Platform,
+            instructions: format!(
+                "Nothing to run: wait until {AGGREGATE_CHECK} has reported on {branch} ({BROWNFIELD_PATH})."
+            ),
+            probe: remote(
+                "check-run-reported",
+                json!({ "contexts": [AGGREGATE_CHECK], "branch": branch }),
+            ),
+            after: None,
+        },
+        ManualStep {
+            id: SWITCH.to_owned(),
+            title: format!(
+                "Remote item: the default branch requires only the {AGGREGATE_CHECK} check"
+            ),
+            owner: Owner::Owner,
+            instructions: format!(
+                "gh api repos/{{owner}}/{{repo}}/rulesets/<id> | jq '{rules}' | gh api -X PUT repos/{{owner}}/{{repo}}/rulesets/<id> --input -\n\
+                 # with classic branch protection instead of a ruleset:\n\
+                 gh api -X PATCH repos/{{owner}}/{{repo}}/branches/{branch}/protection/required_status_checks -f 'contexts[]={AGGREGATE_CHECK}'"
+            ),
+            probe: remote(
+                "ruleset-required-checks",
+                json!({ "branch": branch, "checks": [AGGREGATE_CHECK] }),
+            ),
+            after: Some(CHECK_REPORTED.to_owned()),
+        },
+    ]
+}
+
+/// The desired state of both remote items (#902; SPEC-ci-baseline.md): the
+/// switch leaves `required` the only required check of the default branch of
+/// `root`; the addition adds `agentic-required` to the others. Only the items
+/// the lock records are classified, so declaring both is safe.
+pub fn remote_writes(root: &Path) -> Vec<RemoteWrite> {
+    let branch = default_branch(root);
+    let checks = |id: &str, check: &str, keep_others: bool| RemoteWrite {
+        id: id.to_owned(),
+        desired: Desired::RequiredChecks {
+            branch: branch.clone(),
+            checks: vec![check.to_owned()],
+            keep_others,
+        },
+    };
+    vec![
+        checks(SWITCH, AGGREGATE_CHECK, false),
+        checks(ADD_CHECK, CONTRIBUTED_AGGREGATE_CHECK, true),
+    ]
+}

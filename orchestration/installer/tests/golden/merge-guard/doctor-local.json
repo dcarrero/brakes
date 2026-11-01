@@ -1,0 +1,12 @@
+{
+  "hook": {
+    "present": true,
+    "registered": false,
+    "unchanged": true
+  },
+  "mode": null,
+  "probed_at": null,
+  "repository": null,
+  "rule": "merge-guard",
+  "server": null
+}

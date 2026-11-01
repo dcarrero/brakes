@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Set up Go",
+    "uses": {
+      "repo": "actions/setup-go",
+      "sha": "b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+      "version": "v7.0.0"
+    },
+    "with": {
+      "cache": "false",
+      "go-version-file": "services/worker/go.mod"
+    }
+  },
+  {
+    "name": "Restore Go module and build caches",
+    "uses": {
+      "repo": "actions/cache/restore",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "key": "${{ runner.os }}-go-${{ hashFiles('services/worker/go.sum') }}",
+      "path": "~/go/pkg/mod\n~/.cache/go-build"
+    }
+  },
+  {
+    "name": "Download and verify modules",
+    "run": "go mod download && go mod verify",
+    "working-directory": "services/worker",
+    "env": {
+      "GOFLAGS": "-mod=readonly"
+    }
+  },
+  {
+    "name": "Save Go module and build caches",
+    "uses": {
+      "repo": "actions/cache/save",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "key": "${{ runner.os }}-go-${{ hashFiles('services/worker/go.sum') }}",
+      "path": "~/go/pkg/mod\n~/.cache/go-build"
+    },
+    "if": "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+  }
+]

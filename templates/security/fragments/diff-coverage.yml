@@ -1,0 +1,22 @@
+name: diff-coverage
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: {{timeout}}
+steps:
+  - name: Check out
+    if: {{checkout_if}}
+    uses: {{checkout}}
+    with:
+      fetch-depth: "0"
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    if: github.event_name == 'pull_request'
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- diff-coverage
+{{bypass_variable}}
+{{steps}}

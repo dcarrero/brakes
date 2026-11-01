@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gemba-app/brakes/blob/main/templates/repo-baseline/service.schema.json",
+  "title": "Service card",
+  "description": "The card every repository keeps at .agent-setup/service.yaml (SPEC-repo-baseline.md). The auditor validates it: owner required and never unknown; criticality mirrors .agent-setup/project.json#criticality, which decides the required level; the operational fields are nullable URLs or repository paths that the profile may require.",
+  "type": "object",
+  "required": ["name", "owner", "tier", "criticality"],
+  "properties": {
+    "name": {
+      "description": "The service or repository name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "description": "GitHub login or team accountable for the service; never unknown.",
+      "type": "string",
+      "minLength": 1,
+      "not": { "enum": ["unknown"] }
+    },
+    "tier": {
+      "description": "1 critical, 2 important, 3 internal.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "criticality": {
+      "description": "What a failure exposes, as .agent-setup/project.json#criticality declares it (the auditor reads the profile, and doctor warns when the card differs); customers raises the required level to at least Silver, personal-data-or-payments one more level.",
+      "enum": ["internal", "customers", "personal-data-or-payments"]
+    },
+    "runbook": {
+      "description": "URL or repository path of the runbook.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "dashboard": {
+      "description": "URL or repository path of the service dashboard.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "alerts": {
+      "description": "URL or repository path of the alert definitions.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "slo": {
+      "description": "URL or repository path of the service level objectives.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "on_call": {
+      "description": "Person, rotation or the word owner.",
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "security_contact": {
+      "description": "Where SECURITY.md sends vulnerability reports.",
+      "type": ["string", "null"],
+      "minLength": 1
+    }
+  }
+}

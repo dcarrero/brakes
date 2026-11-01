@@ -1,0 +1,10 @@
+# comment
+[[IgnoredVulns]]
+id = "GO-2026-0001"
+ignoreUntil = 2026-11-09
+reason = "see #731"
+
+[[IgnoredVulns]]
+id = "GHSA-xxxx-yyyy-zzzz"
+ignoreUntil = "2026-11-10"
+reason = "no issue named here"

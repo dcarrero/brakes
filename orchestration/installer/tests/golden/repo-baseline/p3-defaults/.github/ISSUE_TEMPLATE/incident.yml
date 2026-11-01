@@ -1,0 +1,55 @@
+name: Incident
+description: Unplanned production impact that needs coordinated response.
+title: "[Incident] "
+labels:
+  - incident
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Anyone who sees impact may open an incident. Set severity from user-visible impact, not from the cause, and do not lower it during the incident.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "SEV-1: service unavailable for all users; data loss or corruption; security compromise"
+        - "SEV-2: major feature degraded for many users; significant revenue or safety risk"
+        - "SEV-3: partial degradation; workaround exists; limited users or non-critical path"
+        - "SEV-4: minor issue; no user impact; informational or cosmetic"
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who is affected and how, as users see it.
+    validations:
+      required: true
+  - type: input
+    id: start-time
+    attributes:
+      label: Start time (UTC)
+      placeholder: "2026-01-31 14:05 UTC"
+    validations:
+      required: true
+  - type: input
+    id: commander
+    attributes:
+      label: Incident commander
+      description: The person who owns the response.
+    validations:
+      required: true
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Mitigation in progress
+      description: The current step of the mitigation ladder (flag off, rollback, restart or scale, business fallback).
+    validations:
+      required: false
+  - type: input
+    id: next-update
+    attributes:
+      label: Next update time (UTC)
+    validations:
+      required: true

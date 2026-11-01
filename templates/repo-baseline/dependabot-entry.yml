@@ -1,0 +1,11 @@
+  - package-ecosystem: "{{ecosystem}}"
+    directory: "{{directory}}"
+    schedule:
+      interval: "{{interval}}"
+    cooldown:
+      default-days: 7
+    groups:
+      compatible-updates:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 2

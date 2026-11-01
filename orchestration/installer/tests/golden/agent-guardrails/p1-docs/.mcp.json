@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "docs": {
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@4.4.4"
+      ],
+      "command": "npx"
+    }
+  }
+}

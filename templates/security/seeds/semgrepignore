@@ -1,0 +1,37 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# A root .semgrepignore replaces Semgrep's built-in default ignore list; it does
+# not extend it. The block below restates the defaults of Semgrep CE 1.182.0
+# (src/targeting/default.semgrepignore), so `sast` scans what it scanned before
+# this file existed. These entries need no inventory entry; any other path added
+# here is a bypass and needs an `allowlist` entry whose target is
+# `.semgrepignore#<path>` (docs/agent-setup/security-gates.md).
+
+# Administrative folder or file used by popular version control systems
+.git
+.svn
+.hg
+_darcs
+CVS
+
+# Paths to files and folders that are typically large and ignorable
+build/
+vendor/
+dist/
+*.min.js
+.env/
+.tox/
+
+# Package managers
+node_modules/
+.npm/
+.yarn/
+.venv/
+_opam/
+_build/
+_cargo/
+
+# Common test paths
+test/
+tests/
+testsuite/
+*_test.go

@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "ready": true,
+  "findings": [],
+  "steps": [
+    {
+      "id": "hooks-installed",
+      "module": "security",
+      "title": "Install the pre-commit hook in this clone",
+      "owner": "owner",
+      "state": "verified",
+      "evidence": ".git/hooks/pre-commit exists",
+      "error": null
+    },
+    {
+      "id": "private-vulnerability-reporting",
+      "module": "security",
+      "title": "Enable private vulnerability reporting",
+      "owner": "owner",
+      "state": "verified",
+      "evidence": "enabled: true",
+      "error": null
+    },
+    {
+      "id": "secret-scanning",
+      "module": "security",
+      "title": "Enable secret scanning and push protection",
+      "owner": "owner",
+      "state": "failed",
+      "evidence": null,
+      "error": "HTTP 422: Secret scanning is not available for this repository on its current plan"
+    }
+  ],
+  "modules": [
+    {
+      "id": "ci-baseline",
+      "version": "0.0.0"
+    },
+    {
+      "id": "security",
+      "version": "1.0.0"
+    },
+    {
+      "id": "setup-core",
+      "version": "1.3.0"
+    },
+    {
+      "id": "stack-packs",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "purpose": "Fixture repository for the auditor's measures.",
+  "commands": { "verify": "true" },
+  "criticality": "customers",
+  "audit": { "agent_accounts": ["aps-codex"] }
+}

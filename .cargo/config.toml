@@ -1,0 +1,7 @@
+# Every process Cargo runs here (tests, the binaries they spawn, `cargo run`) reads the
+# synthetic test configuration through the configuration's XDG lookup step
+# (SPEC-product-boundary.md, "Configuration contract"; decision 2026-10-30, #1051).
+# `force`: CI runners and many shells already set XDG_CONFIG_HOME. A binary built with
+# BRAKES_EMBEDDED_CONFIG ignores it: an embedded file wins.
+[env]
+XDG_CONFIG_HOME = { value = "orchestration/installer/tests/fixtures/config", relative = true, force = true }

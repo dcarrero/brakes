@@ -1,0 +1,201 @@
+# A synthetic brownfield Rust workflow: a scope job that tiers the change, lint and
+# four test shards on a self-managed Linux label, one aggregate check over them, macOS
+# only after a push to main, and a push-only x86_64 job on a GitHub-hosted runner.
+name: Rust
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  scope:
+    # Pull requests that touch only documentation are tier `docs`; anything else,
+    # any other event and any failure to list the files is `full`.
+    name: Scope
+    runs-on: example-linux-2
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.scope.outputs.tier }}
+      macos: ${{ steps.scope.outputs.macos }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          tier=full
+          macos=true
+          if [ "$EVENT" = pull_request ] && files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")" && [ -n "$files" ]; then
+            tier=docs
+            macos=false
+            while IFS= read -r file; do
+              case "$file" in
+                docs/*|*.md) ;;
+                *) tier=full; macos=true ;;
+              esac
+            done <<< "$files"
+          fi
+          echo "tier=$tier" >> "$GITHUB_OUTPUT"
+          echo "macos=$macos" >> "$GITHUB_OUTPUT"
+  lint:
+    name: Rust lint (linux)
+    needs: scope
+    runs-on: example-linux-2
+    timeout-minutes: 15
+    steps:
+      - if: needs.scope.outputs.tier == 'docs'
+        run: echo "Documentation-only change; lint skipped."
+      - if: needs.scope.outputs.tier != 'docs'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - if: needs.scope.outputs.tier != 'docs'
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          toolchain: 1.99.0
+          components: rustfmt, clippy
+      - if: needs.scope.outputs.tier != 'docs'
+        # Restored on every run, saved only from main pushes: a PR cannot poison it.
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: lint
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - if: needs.scope.outputs.tier != 'docs'
+        name: Check formatting
+        run: cargo fmt --all -- --check
+      - if: needs.scope.outputs.tier != 'docs'
+        name: Check lints
+        run: cargo clippy --locked --all-targets -- -D warnings
+  shard:
+    name: Rust shard ${{ matrix.shard }}/4 (linux)
+    needs: scope
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    runs-on: example-linux-2
+    timeout-minutes: 15
+    steps:
+      - if: needs.scope.outputs.tier == 'docs'
+        run: echo "Documentation-only change; shard skipped."
+      - if: needs.scope.outputs.tier != 'docs'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - if: needs.scope.outputs.tier != 'docs'
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          toolchain: 1.99.0
+      - if: needs.scope.outputs.tier != 'docs'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - if: needs.scope.outputs.tier != 'docs'
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        with:
+          tool: nextest
+      - if: needs.scope.outputs.tier != 'docs'
+        name: Test (shard)
+        run: cargo nextest run --locked --partition count:${{ matrix.shard }}/4
+  linux:
+    # The required check `Rust (linux)`: one stable name over lint and every shard.
+    name: Rust (linux)
+    if: always()
+    needs: [scope, lint, shard]
+    runs-on: example-linux-2
+    timeout-minutes: 5
+    steps:
+      - env:
+          TIER: ${{ needs.scope.outputs.tier }}
+          RESULTS: ${{ needs.scope.result }} ${{ needs.lint.result }} ${{ needs.shard.result }}
+        run: |
+          if [ "$TIER" != full ] && [ "$TIER" != docs ]; then
+            echo "Scope did not decide a tier ($RESULTS); refusing to pass."; exit 1
+          fi
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "Rust (linux) failed: results are $RESULTS"; exit 1
+            fi
+          done
+  macos:
+    # On a pull request the check reports the skip from a Linux runner; on a push to
+    # main the suite runs on a self-managed macOS label.
+    name: Rust (macos)
+    needs: scope
+    runs-on: ${{ github.event_name == 'push' && 'example-macos' || 'example-linux-2' }}
+    timeout-minutes: 40
+    env:
+      RUN_MACOS: ${{ github.event_name == 'push' && needs.scope.outputs.macos != 'false' }}
+    steps:
+      - if: env.RUN_MACOS != 'true'
+        run: echo "Rust (macos) runs on pushes to main only; this event is ${{ github.event_name }}."
+      - if: env.RUN_MACOS == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - if: env.RUN_MACOS == 'true'
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          toolchain: 1.99.0
+          components: rustfmt, clippy
+      - if: env.RUN_MACOS == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: macos
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - if: env.RUN_MACOS == 'true'
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        with:
+          tool: nextest
+      - if: env.RUN_MACOS == 'true'
+        name: Check formatting
+        run: cargo fmt --all -- --check
+      - if: env.RUN_MACOS == 'true'
+        name: Check lints
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - if: env.RUN_MACOS == 'true'
+        name: Test
+        run: cargo nextest run --locked
+      - if: env.RUN_MACOS == 'true'
+        name: Build release binary
+        run: cargo build --locked --release
+  linux-x86_64:
+    # The self-managed runners are arm64: the x86_64 release artifact is built once per
+    # change on a GitHub-hosted runner, after it reaches main.
+    name: Rust (linux x86_64)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          toolchain: 1.99.0
+      - name: Test
+        run: cargo test --locked
+      - name: Build release binary
+        run: |
+          cargo build --locked --release
+          cp target/release/example-app example-app
+          sha256sum example-app > example-app.sha256
+      - name: Upload the release binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: example-app-x86_64-unknown-linux-gnu-${{ github.sha }}
+          path: |
+            example-app
+            example-app.sha256
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,3 @@
+orchestration/prompts/** -text
+# Scripted stdin and byte-exact transcripts: blank lines and the "> " prompt are content.
+orchestration/installer/tests/golden/tui/** -whitespace

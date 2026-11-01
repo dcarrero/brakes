@@ -1,0 +1,10 @@
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum-core = "0.5"
+
+[dev-dependencies]
+axum = "0.8"

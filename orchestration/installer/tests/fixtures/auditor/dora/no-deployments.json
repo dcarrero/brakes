@@ -1,0 +1,14 @@
+{
+ "default_branch": "main",
+ "replies": {
+  "repos/example-owner/state-machine/deployments?environment=production&per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  },
+  "repos/example-owner/state-machine/issues?state=closed&labels=incident&since=2026-09-30T00%3A00%3A00Z&per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  }
+ },
+ "repo": "example-owner/state-machine"
+}

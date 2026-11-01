@@ -1,0 +1,53 @@
+{
+  "owner": {
+    "host": "github",
+    "name": "example-owner",
+    "kind": "user"
+  },
+  "repositories": [
+    {
+      "id": {
+        "host": "github",
+        "owner": "example-owner",
+        "project": null,
+        "name": "archived-notes"
+      },
+      "visibility": "public",
+      "default_branch": "master",
+      "archived": true,
+      "fork": false,
+      "pushed_at": "2024-01-02T03:04:05Z",
+      "language": null
+    },
+    {
+      "id": {
+        "host": "github",
+        "owner": "example-owner",
+        "project": null,
+        "name": "example"
+      },
+      "visibility": "private",
+      "default_branch": "main",
+      "archived": false,
+      "fork": false,
+      "pushed_at": "2026-10-27T09:00:00Z",
+      "language": "Rust"
+    },
+    {
+      "id": {
+        "host": "github",
+        "owner": "example-owner",
+        "project": null,
+        "name": "forked-tool"
+      },
+      "visibility": "public",
+      "default_branch": "main",
+      "archived": false,
+      "fork": true,
+      "pushed_at": null,
+      "language": "Python"
+    }
+  ],
+  "stopped": null,
+  "unread": []
+}

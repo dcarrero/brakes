@@ -1,0 +1,21 @@
+name: cross-review
+needs: [scope, cross-review-model]
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: {{timeout}}
+permissions:
+  pull-requests: write
+cache-mode: none
+steps:
+  - name: Gate on blocking findings
+    if: github.event_name == 'pull_request'
+    env:
+      BLOCKING: {{blocking}}
+      FINDINGS: "${{ needs.cross-review-model.outputs.verdict }}"
+      GH_REPO: "${{ github.repository }}"
+      GH_TOKEN: "${{ github.token }}"
+      PR_NUMBER: "${{ github.event.pull_request.number }}"
+      REVIEWER: {{family}}
+      VERDICT_MAX_BYTES: "{{max_bytes}}"
+    run: |
+{{gate}}

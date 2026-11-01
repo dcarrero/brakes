@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "osv-outage-2026-10", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "OSV API outage", "issue": "#1",
+      "owner": "example-owner", "created": "2026-10-01", "expires": "2026-10-20" }
+  ]
+}

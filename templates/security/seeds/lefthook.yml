@@ -1,0 +1,17 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# The installer never runs `lefthook install`: installing a hook writes under
+# .git/, which is the owner's step (docs/agent-setup/security-gates.md).
+# Tools on PATH: gitleaks {{gitleaks_version}} (commit {{gitleaks_rev}}), the release
+# CI pins; pre-commit-hooks {{hooks_version}} for detect-private-key,
+# check-added-large-files and check-merge-conflict{{actionlint_tool}}.
+pre-commit:
+  commands:
+    gitleaks:
+      run: gitleaks git --pre-commit --redact --staged --verbose
+    detect-private-key:
+      run: detect-private-key {staged_files}
+    check-added-large-files:
+      run: check-added-large-files {staged_files}
+    check-merge-conflict:
+      run: check-merge-conflict {staged_files}
+{{actionlint}}

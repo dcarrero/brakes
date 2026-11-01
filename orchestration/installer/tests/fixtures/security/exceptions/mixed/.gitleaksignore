@@ -1,0 +1,2 @@
+tests/fixtures/fake.pem:private-key:3
+tests/fixtures/other.pem:private-key:1

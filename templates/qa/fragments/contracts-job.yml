@@ -1,0 +1,32 @@
+name: qa-contracts
+needs: scope
+runs-on: {{runner}}
+timeout-minutes: 10
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      fetch-depth: "2"
+      persist-credentials: "false"
+{{install_steps}}
+  - name: Lint the contracts
+{{work_dir}}    env:
+{{check_env}}
+      QA_STAGE: lint
+    run: |
+{{check}}
+  - name: Compare the contracts with the base
+    if: github.event_name == 'pull_request'
+{{work_dir}}    env:
+{{check_env}}
+      QA_STAGE: compat
+      PR_LABELS: "${{ toJSON(github.event.pull_request.labels.*.name) }}"
+    run: |
+{{check}}
+  - name: Upload the contracts report
+    if: always()
+    uses: {{upload_artifact}}
+    with:
+      name: qa-contracts
+      path: ${{ runner.temp }}/qa/contracts/
+      retention-days: "7"

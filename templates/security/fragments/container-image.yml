@@ -1,0 +1,42 @@
+name: container-scan
+needs: [scope, {{image_job}}]
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: 15
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- container-scan
+{{bypass_variable}}
+  - name: Install trivy
+    if: steps.bypass.outputs.id == ''
+    env:
+{{trivy_env}}
+    run: |
+{{install_tool}}
+  - name: Scan the image with trivy
+    if: steps.bypass.outputs.id == ''
+    env:
+      IMAGE_REF: "${{ needs.{{image_job}}.outputs.{{image_output}} }}"
+      SEVERITY: "{{severity}}"
+    run: |
+      trivy --version
+      trivy image --scanners vuln --exit-code 1 --severity "$SEVERITY" --ignorefile .trivyignore.yaml "$IMAGE_REF"
+  - name: Scan for secrets with trivy, locations only
+    if: steps.bypass.outputs.id == ''
+    env:
+      IMAGE_REF: "${{ needs.{{image_job}}.outputs.{{image_output}} }}"
+      SEVERITY: "{{severity}}"
+    run: |
+      status=0
+      trivy image --scanners secret --exit-code 1 --severity "$SEVERITY" --ignorefile .trivyignore.yaml --format json --output trivy-secrets.json "$IMAGE_REF" || status=$?
+      set -- trivy trivy-secrets.json "$status"
+{{scanner_findings}}

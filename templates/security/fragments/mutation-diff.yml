@@ -1,0 +1,24 @@
+name: mutation-diff
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+permissions:
+  contents: read
+timeout-minutes: {{timeout}}
+steps:
+  - name: Check out
+    if: github.event_name == 'pull_request'
+    uses: {{checkout}}
+    with:
+      fetch-depth: "0"
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    if: github.event_name == 'pull_request'
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- mutation-diff
+{{bypass_variable}}
+{{steps}}

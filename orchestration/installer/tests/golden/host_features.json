@@ -1,0 +1,35 @@
+{
+  "repository": "example-owner/example",
+  "features": {
+    "visibility": "private",
+    "plan_hint": "free",
+    "rulesets": {
+      "unavailable": {
+        "reason": "403: Upgrade to GitHub Pro or make this repository public to enable this feature."
+      }
+    },
+    "environments": "available",
+    "branch_protection": {
+      "unavailable": {
+        "reason": "403: Upgrade to GitHub Pro or make this repository public to enable this feature."
+      }
+    },
+    "required_reviewers": {
+      "unknown": {
+        "reason": "200: no environment has a required_reviewers rule, so the feature was not observed"
+      }
+    },
+    "dependabot_alerts": "available",
+    "secret_scanning": {
+      "unknown": {
+        "reason": "200: security_and_analysis is not visible to this token"
+      }
+    },
+    "workflow_lockfile": "available",
+    "merge_queue": {
+      "unavailable": {
+        "reason": "403: Upgrade to GitHub Pro or make this repository public to enable this feature."
+      }
+    }
+  }
+}

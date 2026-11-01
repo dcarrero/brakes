@@ -1,0 +1,6 @@
+name: "analytics"
+version: "1.0.0"
+config-version: 2
+profile: "analytics"
+require-dbt-version: ">=1.12.0"
+model-paths: ["models"]

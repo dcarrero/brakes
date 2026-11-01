@@ -1,0 +1,26 @@
+[package]
+name = "brakes"
+version = "0.5.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+description = "Conservative personal-repository setup and read-only diagnosis"
+license = "Apache-2.0"
+
+[features]
+# The installer's own content (guides, conventions, decisions index and the
+# managed AGENTS.md block): this repository's layer 1 and 2, not the product
+# (SPEC-product-boundary.md, plan T7). On here; the product builds without it.
+default = []
+setup-core = []
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.10.9"
+url = "2.5.8"
+chrono = { version = "0.4.45", default-features = false, features = ["std"] }
+yaml-rust2 = { version = "0.13.0", default-features = false }
+
+[dev-dependencies]
+tempfile = "3.23.0"

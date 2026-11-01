@@ -1,0 +1,26 @@
+# A brownfield verify.yml: one job reading commands.verify with jq.
+name: verify
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: example-linux-2
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run the declared verify command
+        run: |
+          cmd="$(jq -er '.commands.verify' .agent-setup/project.json)"
+          echo "verify: $cmd"
+          bash -euo pipefail -c "$cmd"

@@ -1,0 +1,16 @@
+[
+  {
+    "name": "a2-autonomy-policy-check",
+    "commit": {
+      "sha": "5537864a0912be43f4a9327619f6b79f9f5f2cec"
+    },
+    "protected": false
+  },
+  {
+    "name": "main",
+    "commit": {
+      "sha": "36675625c6052bc5c3286dcbc5d0a0d44b2ecfa1"
+    },
+    "protected": true
+  }
+]

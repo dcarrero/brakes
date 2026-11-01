@@ -1,0 +1,5 @@
+WARNING: Merge guard hook is not registered in .claude/settings.json (PreToolUse, matcher Bash, onFailure block)
+WARNING: security.secrets-gate: No secrets gate: no gitleaks job and secret scanning off
+WARNING: security.sast-gate: No static analysis job in CI
+STEP [pending:merge-guard] hook-registered — .claude/settings.json is absent
+Configuration ready. Runtime/agent behavior has not been verified.

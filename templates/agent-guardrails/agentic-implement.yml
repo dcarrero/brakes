@@ -1,0 +1,189 @@
+# brakes agent-guardrails: unattended issue to pull request
+# (SPEC-agent-guardrails.md, "Unattended issue → pull request"). Managed: change it with
+# `brakes configure <repo> agent-guardrails --set unattended…`, never by hand.
+# A person with write access labels an issue `{{label}}`. `implement` runs the agent
+# with a read-only token on the branch agent/<issue>, on the issue as it was when
+# labelled, and hands its commits over as a git bundle; `publish` runs no agent: it pushes agent/<issue> and opens the pull
+# request. GitHub holds the runs of a pull request opened with the workflow token until
+# a person with write access approves them; the required check, cross-review and the
+# ruleset then apply to it as to any other pull request. The agent can merge nothing.
+# Both jobs declare `cache-mode: none`: no cache entry reaches the agent and none
+# leaves it ("CI hardening for agent workflows", 2026-10-29). The agent runs as
+# {{model_user}}, a user without sudo, on its own copy, and only that user's egress
+# is closed (#971).
+name: agentic-implement
+on:
+  issues:
+    types: [labeled]
+permissions: {}
+concurrency:
+  group: agentic-implement-${{ github.event.issue.number }}
+  cancel-in-progress: false
+jobs:
+  implement:
+    name: implement
+    if: "github.event.label.name == '{{label}}'"
+    runs-on: {{runner}}
+    timeout-minutes: {{timeout}}
+    permissions:
+      contents: read # the checkout; the agent's token cannot push
+      issues: read # the agent reads the issue it implements
+    cache-mode: none
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+    outputs:
+      base: ${{ steps.branch.outputs.base }}
+      changed: ${{ steps.bundle.outputs.changed }}
+    steps:
+      - name: Check out the default branch
+        uses: {{checkout}}
+        with:
+          persist-credentials: "false"
+      - name: Limit the model's egress
+        env:
+{{egress_env}}
+        run: |
+{{egress}}
+      - id: branch
+        name: Start agent/<issue> at the default branch
+        env:
+          ISSUE: "${{ github.event.issue.number }}"
+        run: |
+          set -euo pipefail
+          echo "base=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          git switch -c "agent/$ISSUE"
+      - name: Keep the issue as labelled
+        env:
+          ISSUE_BODY: "${{ github.event.issue.body }}"
+          ISSUE_TITLE: "${{ github.event.issue.title }}"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/agentic-issue"
+          printf '# %s\n\n%s\n' "$ISSUE_TITLE" "$ISSUE_BODY" >"$RUNNER_TEMP/agentic-issue/issue.md"
+{{actor}}
+{{bwrap}}
+{{install}}
+{{proxy}}
+      - name: Give the model its own copy
+        env:
+          MODEL_USER: {{model_user}}
+          MODEL_CONTEXT: "${{ runner.temp }}/agentic-issue"
+          MODEL_GIT_NAME: "{{git_name}}"
+          MODEL_GIT_EMAIL: "{{git_email}}"
+        run: |
+{{copy}}
+      - name: Prove the model's limit again
+        env:
+{{check_env}}
+        run: |
+{{egress}}
+      - id: agent
+        name: Implement with claude
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: {{dummy_token}}
+          PROMPT: |
+{{prompt}}
+        run: |
+{{agent_run}}
+      - id: bundle
+        name: Bundle the agent's commits
+        env:
+          BASE: "${{ steps.branch.outputs.base }}"
+          BUNDLE_MAX_BYTES: "104857600"
+        run: |
+          set -euo pipefail
+          # Nothing the model started keeps running; it bundles its own commits, and
+          # the runner takes the bundle only as a regular file, read as the model's
+          # user within a time and a size cap, never running git in a repository
+          # whose configuration the model controls.
+          for _ in $(seq 1 20); do
+            pgrep -u {{model_user}} >/dev/null || break
+            sudo pkill -KILL -u {{model_user}} || true
+            sleep 0.5
+          done
+          if pgrep -u {{model_user}} >/dev/null; then
+            echo "::error::agentic-implement: processes of {{model_user}} are still running; nothing is published"
+            exit 1
+          fi
+          changed=$(sudo --preserve-env=BASE -u {{model_user}} -H -- env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 bash -s <<'MODEL'
+          set -euo pipefail
+          cd /home/{{model_user}}/work
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "agentic-implement: uncommitted changes are not published; the agent commits its work" >&2
+          fi
+          if [ "$(git rev-list --count "$BASE..HEAD")" = "0" ]; then
+            echo "agentic-implement: the agent made no commit; nothing to publish" >&2
+            echo false
+            exit 0
+          fi
+          git bundle create /home/{{model_user}}/agent.bundle HEAD "^$BASE" >&2
+          echo true
+          MODEL
+          )
+          if [ "$changed" != "true" ]; then
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! sudo -u {{model_user}} -H -- sh -c '[ -f /home/{{model_user}}/agent.bundle ] && [ ! -L /home/{{model_user}}/agent.bundle ]'; then
+            echo "::error::agentic-implement: the bundle is not a regular file; nothing is published"
+            exit 1
+          fi
+          # Read as the model's user, written by the runner.
+          # shellcheck disable=SC2024
+          timeout 60 sudo -u {{model_user}} -H -- head -c "$((BUNDLE_MAX_BYTES + 1))" /home/{{model_user}}/agent.bundle >"$RUNNER_TEMP/agent.bundle"
+          if [ "$(stat -c %s "$RUNNER_TEMP/agent.bundle")" -gt "$BUNDLE_MAX_BYTES" ]; then
+            echo "::error::agentic-implement: the bundle is over $BUNDLE_MAX_BYTES bytes; nothing is published"
+            exit 1
+          fi
+          echo "changed=true" >>"$GITHUB_OUTPUT"
+      - name: Hand the commits to publish
+        if: steps.bundle.outputs.changed == 'true'
+        uses: {{upload}}
+        with:
+          name: agent-commits
+          path: "${{ runner.temp }}/agent.bundle"
+          if-no-files-found: error
+          retention-days: "1"
+  publish:
+    name: publish
+    needs: implement
+    if: needs.implement.outputs.changed == 'true'
+    runs-on: {{runner}}
+    timeout-minutes: {{publish_timeout}}
+    permissions:
+      contents: write # push agent/<issue>; the ruleset keeps the default branch
+      pull-requests: write # open the pull request; it cannot pass the required check alone
+    cache-mode: none
+    steps:
+      - name: Check out the agent's base
+        uses: {{checkout}}
+        with:
+          ref: "${{ needs.implement.outputs.base }}"
+          persist-credentials: "false"
+      - name: Receive the agent's commits
+        uses: {{download}}
+        with:
+          name: agent-commits
+          path: "${{ runner.temp }}/agent-commits"
+      - name: Push agent/<issue> and open the pull request
+        env:
+          BASE: "${{ needs.implement.outputs.base }}"
+          DEFAULT_BRANCH: "${{ github.event.repository.default_branch }}"
+          GH_TOKEN: "${{ github.token }}"
+          ISSUE: "${{ github.event.issue.number }}"
+          ISSUE_TITLE: "${{ github.event.issue.title }}"
+          RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        run: |
+          set -euo pipefail
+          bundle="$RUNNER_TEMP/agent-commits/agent.bundle"
+          git bundle verify "$bundle"
+          git fetch --no-tags "$bundle" HEAD
+          head="$(git rev-parse FETCH_HEAD)"
+          if ! git merge-base --is-ancestor "$BASE" "$head"; then
+            echo "::error::agentic-implement: the agent's commits do not descend from $BASE; nothing is published"
+            exit 1
+          fi
+          branch="agent/$ISSUE"
+          git push "https://x-access-token:${GH_TOKEN}@${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY}.git" "$head:refs/heads/$branch"
+          body="$(printf 'Closes #%s\n\nOpened by agentic-implement (%s) from the commits of an unattended agent run.\n\nGitHub holds the checks of a pull request opened with the workflow token until a person with write access approves them (Approve workflows to run); the required check, cross-review and the ruleset then apply as to any pull request.\n' "$ISSUE" "$RUN_URL")"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base "$DEFAULT_BRANCH" --head "$branch" --title "$ISSUE_TITLE" --body "$body"

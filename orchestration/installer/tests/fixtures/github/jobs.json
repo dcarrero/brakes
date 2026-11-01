@@ -1,0 +1,38 @@
+{
+  "total_count": 3,
+  "jobs": [
+    {
+      "id": 123074173632,
+      "name": "scripts-test",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-28T20:14:35Z",
+      "completed_at": "2026-10-28T20:15:15Z",
+      "labels": [
+        "example-runner-2"
+      ]
+    },
+    {
+      "id": 123074174225,
+      "name": "detect-changes",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-28T20:14:37Z",
+      "completed_at": "2026-10-28T20:15:20Z",
+      "labels": [
+        "example-runner-2"
+      ]
+    },
+    {
+      "id": 123074736583,
+      "name": "backend-schema-check",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-28T20:15:38Z",
+      "completed_at": "2026-10-28T20:16:25Z",
+      "labels": [
+        "example-runner-2"
+      ]
+    }
+  ]
+}

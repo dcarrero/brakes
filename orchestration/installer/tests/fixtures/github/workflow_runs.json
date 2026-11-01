@@ -1,0 +1,48 @@
+{
+  "total_count": 3,
+  "workflow_runs": [
+    {
+      "id": 40764044137,
+      "name": "CI",
+      "head_sha": "78dd601c60db56eb04084c9ce07804c4498b18a2",
+      "head_branch": "feat/example-feature-1575",
+      "event": "pull_request",
+      "status": "in_progress",
+      "conclusion": null,
+      "run_attempt": 1,
+      "created_at": "2026-10-28T20:31:28Z",
+      "updated_at": "2026-10-28T20:32:47Z",
+      "pull_requests": [
+        {
+          "number": 1592
+        }
+      ]
+    },
+    {
+      "id": 40761452906,
+      "name": "CI",
+      "head_sha": "6141bf5d00dc182822b69611ed4e29bf608fd9fd",
+      "head_branch": "main",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "created_at": "2026-10-28T20:14:17Z",
+      "updated_at": "2026-10-28T20:26:28Z",
+      "pull_requests": []
+    },
+    {
+      "id": 40755548423,
+      "name": "CI",
+      "head_sha": "2d5096b9686e3542137bde78490f7d15a6756b26",
+      "head_branch": "feat/example-fix-1574",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 2,
+      "created_at": "2026-10-28T19:34:43Z",
+      "updated_at": "2026-10-28T19:59:25Z",
+      "pull_requests": []
+    }
+  ]
+}

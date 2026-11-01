@@ -1,0 +1,24 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# The PII declaration (docs/agent-setup/security-gates.md, "PII declaration"):
+# the owner's statement of which fields hold personal data, audited for shape
+# and presence by the pii-check step of security-gate and by doctor
+# (security.pii-declared), never for completeness. observability reads
+# `exclude_from` (logs, traces); the data modules read cdc and analytics; the
+# DSAR runbook (docs/runbooks/dsar.md) groups the fields by `erasure`.
+#
+# Every field has the seven keys. One field, as an example:
+#
+#   - path: users.email                   # <table>.<column>, <event>.<field> or <model>.<attribute>
+#     category: contact                   # identifier | contact | financial | health | location | biometric | behavioural | credentials
+#     purpose: account login and notices
+#     lawful_basis: contract              # consent | contract | legal-obligation | vital-interests | public-task | legitimate-interests
+#     retention: account lifetime + 30 days
+#     exclude_from: [logs, traces, analytics, cdc]
+#     erasure: delete                     # delete | anonymise | retain-legal (name the obligation in purpose)
+#
+# A `credentials` field must exclude logs and traces.
+schema: 1
+controller: "<legal entity>"
+dsar_contact: "<mailbox>"
+sla_days: 30
+fields: []

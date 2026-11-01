@@ -1,0 +1,8 @@
+# Code owners (brakes repo-baseline seed): yours to edit. Reviews of every
+# path, Dependabot's included, are requested from these owners. The lines
+# after the owner line name protected paths (the workflows, the held-out tests
+# and, when qa tests a web app, its screenshot baselines): where the ruleset
+# requires code-owner review, a change to them needs a code owner's approval.
+* @{{owner}}
+/.github/workflows/ @{{owner}}
+/{{heldout_dir}}/ @{{owner}}

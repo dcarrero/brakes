@@ -1,0 +1,13 @@
+{
+ "default_branch": "main",
+ "replies": {
+  "repos/example-owner/state-machine/actions/runs?per_page=100&page=1": {
+   "body": {
+    "total_count": 0,
+    "workflow_runs": []
+   },
+   "status": 200
+  }
+ },
+ "repo": "example-owner/state-machine"
+}

@@ -1,0 +1,25 @@
+name: Installers
+on: [push]
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Trivy by script
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.69.5
+      - name: Semgrep by pip
+        run: pip install semgrep
+      - name: Semgrep by hashes
+        run: pip install --require-hashes -r semgrep-requirements.txt
+      - name: gitleaks without a checksum
+        run: |
+          wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz
+          tar -xzf gitleaks_8.28.0_linux_x64.tar.gz gitleaks
+      - name: osv-scanner with a checksum
+        run: |
+          curl -sSfLo osv-scanner https://github.com/google/osv-scanner/releases/download/v2.2.3/osv-scanner_linux_amd64
+          echo "0000000000000000000000000000000000000000000000000000000000000000  osv-scanner" | sha256sum --check
+      - name: rustup is not a scanner
+        run: curl -sSf https://sh.rustup.rs | sh -s -- -y

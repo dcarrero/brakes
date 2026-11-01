@@ -1,0 +1,33 @@
+schema: 1
+controller: "Example Ltd"
+dsar_contact: "privacy@example.test"
+sla_days: 30
+fields:
+  - path: users.email                   # the login
+    category: contact
+    purpose: account login and notices
+    lawful_basis: contract
+    retention: account lifetime + 30 days
+    exclude_from: [logs, traces, analytics, cdc]
+    erasure: delete
+  - path: users.password_hash
+    category: credentials
+    purpose: authentication
+    lawful_basis: contract
+    retention: account lifetime
+    exclude_from: [logs, traces, analytics, cdc]
+    erasure: delete
+  - path: invoices.vat_id
+    category: financial
+    purpose: "legal obligation: tax records, 6 years"
+    lawful_basis: legal-obligation
+    retention: 6 years after the invoice
+    exclude_from: [logs, traces]
+    erasure: retain-legal
+  - path: events.ip
+    category: location
+    purpose: abuse detection
+    lawful_basis: legitimate-interests
+    retention: 90 days
+    exclude_from: [analytics]
+    erasure: anonymise

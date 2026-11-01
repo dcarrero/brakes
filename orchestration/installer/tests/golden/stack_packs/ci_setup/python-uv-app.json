@@ -1,0 +1,49 @@
+[
+  {
+    "name": "Install uv",
+    "uses": {
+      "repo": "astral-sh/setup-uv",
+      "sha": "07a047e608db84b3d8c06cd9a7c7dcc9c355c18e",
+      "version": "v10.3.2"
+    },
+    "with": {
+      "enable-cache": "false",
+      "version": "0.13.6"
+    }
+  },
+  {
+    "name": "Restore uv cache",
+    "uses": {
+      "repo": "actions/cache/restore",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "key": "${{ runner.os }}-uv-${{ hashFiles('apps/backend/uv.lock') }}",
+      "path": "~/.cache/uv"
+    }
+  },
+  {
+    "name": "Install Python",
+    "run": "uv python install",
+    "working-directory": "apps/backend"
+  },
+  {
+    "name": "Sync dependencies",
+    "run": "uv sync --frozen",
+    "working-directory": "apps/backend"
+  },
+  {
+    "name": "Save uv cache",
+    "uses": {
+      "repo": "actions/cache/save",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "key": "${{ runner.os }}-uv-${{ hashFiles('apps/backend/uv.lock') }}",
+      "path": "~/.cache/uv"
+    },
+    "if": "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+  }
+]

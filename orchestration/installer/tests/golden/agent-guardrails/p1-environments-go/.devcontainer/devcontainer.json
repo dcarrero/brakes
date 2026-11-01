@@ -1,0 +1,21 @@
+{
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "containerEnv": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "mounts": [
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume"
+  ],
+  "name": "Claude Code",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "remoteUser": "node",
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+  ],
+  "waitFor": "postStartCommand"
+}

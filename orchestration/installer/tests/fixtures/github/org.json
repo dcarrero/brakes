@@ -1,0 +1,11 @@
+{
+  "login": "example-org",
+  "type": "Organization",
+  "public_repos": 120,
+  "total_private_repos": 30,
+  "plan": {"name": "team"},
+  "two_factor_requirement_enabled": true,
+  "default_repository_permission": "read",
+  "members_can_create_public_repositories": false,
+  "web_commit_signoff_required": false
+}

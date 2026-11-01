@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GO-2026-0001"
+ignoreUntil = 2026-12-01
+reason = "see #731"

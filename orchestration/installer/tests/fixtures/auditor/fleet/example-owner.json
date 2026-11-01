@@ -1,0 +1,146 @@
+{
+ "replies": {
+  "repos/example-owner/example/collaborators?per_page=100&page=1": {
+   "body": [
+    {
+     "login": "example-owner",
+     "permissions": {
+      "admin": true,
+      "maintain": true,
+      "pull": true,
+      "push": true,
+      "triage": true
+     },
+     "role_name": "admin",
+     "type": "User"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-owner/example/contents/.agent-setup/lock.json?ref=main": {
+   "body": {
+    "content": "eyJzY2hlbWEiOiAxLCAibW9kdWxlcyI6IFtdfQ==",
+    "encoding": "base64",
+    "path": ".agent-setup/lock.json",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 28,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/example/contents/.agent-setup/project.json?ref=main": {
+   "body": {
+    "content": "ewogICJzY2hlbWEiOiAxLAogICJwdXJwb3NlIjogIkV4YW1wbGUgc2VydmljZSIsCiAgImNyaXRpY2FsaXR5IjogImludGVybmFsIiwKICAiY29tbWFuZHMiOiB7CiAgICAidmVyaWZ5IjogIm1ha2UgdmVyaWZ5IgogIH0sCiAgImNpIjogewogICAgInJlcXVpcmVkX2NoZWNrcyI6IFsKICAgICAgInZlcmlmeSIKICAgIF0sCiAgICAiY3ljbGVfYnVkZ2V0X21pbnV0ZXMiOiAxMAogIH0KfQ==",
+    "encoding": "base64",
+    "path": ".agent-setup/project.json",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 220,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/example/contents/.github/dependabot.yml?ref=main": {
+   "body": {
+    "content": "dmVyc2lvbjogMgp1cGRhdGVzOgogIC0gcGFja2FnZS1lY29zeXN0ZW06IGNhcmdvCiAgICBkaXJlY3Rvcnk6IC8KICAgIHNjaGVkdWxlOgogICAgICBpbnRlcnZhbDogd2Vla2x5CiAgICBjb29sZG93bjoKICAgICAgZGVmYXVsdC1kYXlzOiA3Cg==",
+    "encoding": "base64",
+    "path": ".github/dependabot.yml",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 139,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/example/contents/.github/workflows/verify.yml?ref=main": {
+   "body": {
+    "content": "bmFtZTogdmVyaWZ5Cm9uOiBbcHVzaCwgcHVsbF9yZXF1ZXN0XQpqb2JzOgogIHZlcmlmeToKICAgIHJ1bnMtb246IHVidW50dS1sYXRlc3QKICAgIHN0ZXBzOgogICAgICAtIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXRAMDhlYmEwYjI3ZTgyMDA3MWNkZTZkZjk0OWUwYmViOWJhNDkwNjk1NQogICAgICAtIHJ1bjogbWFrZSB2ZXJpZnkK",
+    "encoding": "base64",
+    "path": ".github/workflows/verify.yml",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 189,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/example/contents/.github/workflows?ref=main": {
+   "body": [
+    {
+     "name": "verify.yml",
+     "path": ".github/workflows/verify.yml",
+     "sha": "1111111111111111111111111111111111111111",
+     "size": 189,
+     "type": "file"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-owner/example/contents/AGENTS.md?ref=main": {
+   "body": {
+    "content": "IyBFeGFtcGxlCg==",
+    "encoding": "base64",
+    "path": "AGENTS.md",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 10,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "user": {
+   "body": {
+    "login": "example-owner",
+    "owned_private_repos": 2,
+    "public_repos": 2,
+    "type": "User"
+   },
+   "status": 200
+  },
+  "user/repos?affiliation=owner&per_page=100&page=1": {
+   "body": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "fork": false,
+     "full_name": "example-owner/example",
+     "language": "Rust",
+     "pushed_at": "2026-10-27T09:00:00Z",
+     "visibility": "private"
+    },
+    {
+     "archived": true,
+     "default_branch": "master",
+     "fork": false,
+     "full_name": "example-owner/archived-notes",
+     "language": null,
+     "pushed_at": "2024-01-02T03:04:05Z",
+     "visibility": "public"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "fork": false,
+     "full_name": "example-owner/example-corp-notes",
+     "language": null,
+     "pushed_at": null,
+     "visibility": "private"
+    },
+    {
+     "archived": false,
+     "default_branch": "trunk",
+     "fork": false,
+     "full_name": "example-owner/brownfield",
+     "language": "Go",
+     "pushed_at": null,
+     "visibility": "public"
+    }
+   ],
+   "status": 200
+  },
+  "users/example-owner": {
+   "body": {
+    "login": "example-owner",
+    "public_repos": 2,
+    "type": "User"
+   },
+   "status": 200
+  }
+ }
+}

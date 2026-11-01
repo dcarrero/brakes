@@ -1,0 +1,19 @@
+schema: 2
+controller: "Example Ltd"
+dsar_contact: "privacy@example.test"
+sla_days: none
+fields:
+  - path: users.email
+    category: email
+    purpose: login
+    lawful_basis: because
+    retention: forever
+    exclude_from: [logs, metrics]
+    erasure: forget
+  - path: invoices.vat_id
+    category: financial
+    purpose: keep it
+    lawful_basis: legal-obligation
+    retention: 6 years
+    exclude_from: logs
+    erasure: retain-legal

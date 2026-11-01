@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "osv-outage-2026-11", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#731",
+      "owner": "example-owner", "created": "2026-11-03", "expires": "2026-11-20" },
+    { "id": "fixture-key", "kind": "allowlist", "target": ".gitleaksignore#tests/fixtures/fake.pem:private-key:3",
+      "reason": "fixture", "issue": "#702",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-05-01" },
+    { "id": "owner-bypass", "kind": "ruleset-bypass-actor", "target": "RepositoryRole:admin",
+      "reason": "fixture", "issue": "https://github.com/example-org/example-app/issues/648",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-02-01" },
+    { "id": "fixture-paths", "kind": "allowlist", "target": ".gitleaks.toml#paths:tests/fixtures/.*",
+      "reason": "fixture", "issue": "#702",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-05-01" },
+    { "id": "vendored", "kind": "allowlist", "target": ".semgrepignore#vendor/",
+      "reason": "fixture", "issue": "#702",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-05-01" }
+  ]
+}

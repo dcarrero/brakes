@@ -1,0 +1,25 @@
+NOT READY: Setup not installed: project profile missing
+NOT READY: Project purpose missing
+NOT READY: Verification command missing
+NOT READY: Setup lock missing
+WARNING: stack.unconfigured: a stack is detected that no stack-packs answers record
+stack-packs: proposals (nothing written; confirm with --set or --answers)
+  app `root` at `.`: stack rust
+    evidence: Cargo.toml (workspace), Cargo.lock
+    commands (project.json fields already declared are kept; proposed only for null):
+      build:  proposed  "cargo build --workspace --all-targets --locked"
+      test:   proposed  "cargo test --workspace --locked"
+      lint:   proposed  "cargo clippy --workspace --all-targets --locked -- -D warnings"
+      verify: proposed  "cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked"
+    seeds on apply: Dockerfile, .dockerignore
+  app `probe` at `tools/probe`: stack go
+    evidence: go.mod (go 1.23, toolchain go1.23.4), go.sum
+    commands (project.json fields already declared are kept; proposed only for null):
+      build:  proposed  "go build ./..."
+      test:   proposed  "go test ./..."
+      lint:   proposed  "go vet ./..."
+      verify: proposed  "go mod verify && go vet ./... && go test ./..."
+    seeds on apply: tools/probe/Dockerfile, tools/probe/.dockerignore
+WARNING: security.secrets-gate: No secrets gate: no gitleaks job and secret scanning off
+WARNING: security.deps-gate: No lockfile vulnerability scan in CI
+WARNING: security.sast-gate: No static analysis job in CI

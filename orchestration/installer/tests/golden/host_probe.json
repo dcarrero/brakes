@@ -1,0 +1,11 @@
+{
+  "repository": "example-owner/example",
+  "probe": "required-check",
+  "args": {
+    "branch": "main",
+    "check": "verify"
+  },
+  "state": "verified",
+  "evidence": "ruleset 42 \"main\" requires \"verify\"",
+  "error": null
+}

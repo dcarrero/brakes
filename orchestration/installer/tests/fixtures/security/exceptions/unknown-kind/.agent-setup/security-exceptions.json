@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "hotfix", "kind": "hotfix", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-11-20" }
+  ]
+}

@@ -1,0 +1,19 @@
+name: coverage-ratchet
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: {{timeout}}
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- coverage-ratchet
+{{bypass_variable}}
+{{coverage_steps}}

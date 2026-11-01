@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "merge-alone", "kind": "accepted-risk", "target": "posture.human-approval-required, posture.codeowners-review",
+      "reason": "fixture: the owner merges alone (#1217)", "issue": "#1217",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-11-01" },
+    { "id": "too-long", "kind": "accepted-risk", "target": "governance.codeowners-present",
+      "reason": "fixture: an accepted risk over the 365-day bound", "issue": "#1217",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-11-02" }
+  ]
+}

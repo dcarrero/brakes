@@ -1,0 +1,8 @@
+{
+  "findings": [
+    "WARNING: security.bypass-expired: Exception osv-outage-2026-10 expired on 2026-10-20"
+  ],
+  "level": {
+    "reached": null
+  }
+}

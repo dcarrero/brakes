@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "servers": [
+    {
+      "match": {
+        "args_contains": "@upstash/context7-mcp@4.4.4",
+        "command_in": [
+          "npx"
+        ]
+      },
+      "name": "docs",
+      "permissions": "read-only",
+      "purpose": "Library documentation lookup",
+      "transport": "stdio"
+    }
+  ]
+}

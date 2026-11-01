@@ -1,0 +1,14 @@
+[allowlist]
+description = "local"
+paths = [
+  '''tests/fixtures/.*''',
+  "docs/.*",
+]
+regexes = [
+  '''EXAMPLE_KEY_[A-Z]+''',
+]
+commits = []
+
+[[rules]]
+id = "custom"
+regex = '''custom-[a-z]+'''

@@ -1,0 +1,5 @@
+[
+  {"full_name": "example-owner/example", "visibility": "private", "default_branch": "main", "archived": false, "fork": false, "pushed_at": "2026-10-27T09:00:00Z", "language": "Rust"},
+  {"full_name": "example-owner/archived-notes", "visibility": "public", "default_branch": "master", "archived": true, "fork": false, "pushed_at": "2024-01-02T03:04:05Z", "language": null},
+  {"full_name": "example-owner/Forked-Tool", "visibility": "public", "default_branch": "main", "archived": false, "fork": true, "pushed_at": null, "language": "Python"}
+]

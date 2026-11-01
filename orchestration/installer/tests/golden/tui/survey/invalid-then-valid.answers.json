@@ -1,0 +1,10 @@
+{
+  "module": "survey",
+  "version": "1.0.0",
+  "answers": {
+    "cone": true,
+    "flavour": "chocolate",
+    "name": "demo",
+    "scoops": 3
+  }
+}

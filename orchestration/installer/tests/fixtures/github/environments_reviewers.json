@@ -1,0 +1,20 @@
+{
+  "total_count": 1,
+  "environments": [
+    {
+      "id": 25468712708,
+      "name": "production",
+      "protection_rules": [
+        {
+          "id": 3755,
+          "type": "required_reviewers",
+          "prevent_self_review": false,
+          "reviewers": [
+            {"type": "User", "reviewer": {"login": "example-owner", "type": "User"}}
+          ]
+        }
+      ],
+      "deployment_branch_policy": null
+    }
+  ]
+}

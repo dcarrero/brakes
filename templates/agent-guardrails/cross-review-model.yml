@@ -1,0 +1,61 @@
+name: cross-review-model
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: {{timeout}}
+permissions:
+{{permissions}}
+cache-mode: none
+outputs:
+  verdict: "${{ steps.review.outputs['{{output}}'] }}"
+steps:
+  - name: Refuse a pull request from a fork
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    run: |
+      echo "::error::cross-review: pull requests from forks are not reviewed: GitHub gives their runs no secrets, so the reviewer cannot run; push the branch to this repository"
+      exit 1
+  - name: Check out the head
+    if: github.event_name == 'pull_request'
+    uses: {{checkout}}
+    with:
+      ref: "${{ github.event.pull_request.head.sha }}"
+      fetch-depth: "0"
+      persist-credentials: "false"
+  - name: Limit the model's egress
+    if: github.event_name == 'pull_request'
+    env:
+{{egress_env}}
+    run: |
+{{egress}}
+  - name: Restore the instruction files from the base
+    if: github.event_name == 'pull_request'
+    env:
+      BASE_SHA: "${{ github.event.pull_request.base.sha }}"
+    run: |
+{{restore}}
+  - name: Write the pull request description for the reviewer
+    if: github.event_name == 'pull_request'
+    env:
+      PR_BODY: "${{ github.event.pull_request.body }}"
+      PR_TITLE: "${{ github.event.pull_request.title }}"
+      SCHEMA: '{{schema}}'
+    run: |
+      set -euo pipefail
+      mkdir -p "$RUNNER_TEMP/cross-review"
+      printf '# %s\n\n%s\n' "$PR_TITLE" "$PR_BODY" >"$RUNNER_TEMP/cross-review/pull-request.md"
+      printf '%s\n' "$SCHEMA" >"$RUNNER_TEMP/cross-review/schema.json"
+{{prepare}}
+  - name: Give the model its own copy
+    if: github.event_name == 'pull_request'
+    env:
+      MODEL_USER: {{model_user}}
+      MODEL_CONTEXT: "${{ runner.temp }}/cross-review"
+    run: |
+{{copy}}
+  - name: Prove the model's limit again
+    if: github.event_name == 'pull_request'
+    env:
+{{check_env}}
+    run: |
+{{egress}}
+{{review}}

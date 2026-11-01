@@ -1,0 +1,9 @@
+repo-baseline 1.0.0 — 4 questions (profile P1; recorded answers: none; preset: none)
+
+[1/4] approvals
+  checks-only: 0 approvals, no bypass actor (follows 'Never merge on red', administrators included). checks-only-owner-bypass: 0 approvals, repository admin bypasses; the auditor records it as a standing exception. one-approval: 1 approval, approval of the last push required, stale approvals dismissed, no bypass; agent identities are never bypass actors. review-app: like one-approval, the required check of a review App replaces the human approval; not available until the agent App exists (later slice).
+  1) checks-only  (default)
+  2) checks-only-owner-bypass
+  3) one-approval
+  4) review-app
+> 

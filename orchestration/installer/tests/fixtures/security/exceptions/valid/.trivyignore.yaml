@@ -1,0 +1,7 @@
+vulnerabilities:
+  - id: CVE-2026-1234
+    paths:
+      - "usr/lib/python3.12/site-packages/setuptools-58.1.0.dist-info/METADATA"
+    statement: "build-only dependency, see #702"
+    expired_at: 2026-12-01
+misconfigurations: []

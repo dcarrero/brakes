@@ -1,0 +1,3 @@
+[
+  {"id": 7, "name": "default-branch", "target": "branch", "source_type": "Organization", "enforcement": "active"}
+]

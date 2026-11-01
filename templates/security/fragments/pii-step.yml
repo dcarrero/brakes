@@ -1,0 +1,4 @@
+  - name: Check the PII declaration
+    if: ${{ !cancelled() }}
+    run: |
+{{pii_check}}

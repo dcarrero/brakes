@@ -1,0 +1,55 @@
+# A brownfield monorepo CI: change detection, one job per app and the
+# `all-checks-passed` gate over all of them.
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  detect-changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+            web:
+              - 'apps/web/**'
+  backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: make -C apps/backend verify
+  web:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true'
+    runs-on: [macos-14]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: make -C apps/web verify
+  all-checks-passed:
+    if: always()
+    needs: [detect-changes, backend, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
+          done

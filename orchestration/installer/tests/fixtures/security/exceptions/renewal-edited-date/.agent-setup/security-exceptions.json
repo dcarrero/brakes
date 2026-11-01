@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "fixture-key", "kind": "allowlist", "target": ".gitleaksignore#tests/fixtures/fake.pem:private-key:3",
+      "reason": "fixture", "issue": "#702",
+      "owner": "example-owner", "created": "2026-01-15", "expires": "2026-12-15" }
+  ]
+}

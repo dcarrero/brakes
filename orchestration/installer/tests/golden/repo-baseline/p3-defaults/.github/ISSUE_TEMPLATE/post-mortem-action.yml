@@ -1,0 +1,45 @@
+name: Post-mortem action
+description: One concrete change a post-mortem decided, with an owner and a due date.
+title: "[Post-mortem action] "
+labels:
+  - type:post-mortem-action
+body:
+  - type: input
+    id: post-mortem
+    attributes:
+      label: Post-mortem
+      description: Link to the post-mortem this action comes from.
+    validations:
+      required: true
+  - type: textarea
+    id: action
+    attributes:
+      label: Action
+      description: One concrete change, for example "add alert X with threshold Y and runbook Z", not "improve monitoring".
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Owner
+    validations:
+      required: true
+  - type: input
+    id: due-date
+    attributes:
+      label: Due date
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
+  - type: dropdown
+    id: converted-into
+    attributes:
+      label: Converted into
+      options:
+        - alert
+        - SLO
+        - runbook
+        - standard
+        - test
+    validations:
+      required: true

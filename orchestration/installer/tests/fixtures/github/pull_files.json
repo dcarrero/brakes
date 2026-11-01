@@ -1,0 +1,35 @@
+[
+  {
+    "filename": "docs/orchestration-technical-contract.md",
+    "status": "modified"
+  },
+  {
+    "filename": "orchestration/src/codex.rs",
+    "status": "modified"
+  },
+  {
+    "filename": "orchestration/src/core.rs",
+    "status": "modified"
+  },
+  {
+    "filename": "orchestration/src/main.rs",
+    "status": "modified"
+  },
+  {
+    "filename": "orchestration/src/process.rs",
+    "status": "modified"
+  },
+  {
+    "filename": "orchestration/src/provider.rs",
+    "status": "added"
+  },
+  {
+    "filename": "orchestration/src/runner.rs",
+    "status": "renamed",
+    "previous_filename": "orchestration/src/codex_runner.rs"
+  },
+  {
+    "filename": "orchestration/tests/codex_live_launch.rs",
+    "status": "modified"
+  }
+]

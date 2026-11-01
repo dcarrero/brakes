@@ -1,0 +1,211 @@
+{
+ "replies": {
+  "repos/example-owner/bronze": {
+   "body": {
+    "archived": false,
+    "default_branch": "main",
+    "fork": false,
+    "full_name": "example-owner/bronze",
+    "id": 1001,
+    "name": "bronze",
+    "private": true,
+    "security_and_analysis": {
+     "dependabot_security_updates": {
+      "status": "enabled"
+     }
+    },
+    "visibility": "private"
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/actions/runs?branch=main&event=push&status=completed&per_page=100&page=1": {
+   "body": {
+    "total_count": 1,
+    "workflow_runs": [
+     {
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:00:00Z",
+      "event": "push",
+      "head_branch": "main",
+      "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "id": 101,
+      "name": "verify",
+      "path": ".github/workflows/verify.yml",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-10-27T10:05:00Z"
+     }
+    ]
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/branches/main/protection": {
+   "body": {
+    "allow_deletions": {
+     "enabled": false
+    },
+    "allow_force_pushes": {
+     "enabled": false
+    },
+    "enforce_admins": {
+     "enabled": true
+    },
+    "required_linear_history": {
+     "enabled": false
+    },
+    "required_status_checks": {
+     "checks": [
+      {
+       "context": "required"
+      }
+     ],
+     "contexts": [
+      "required"
+     ],
+     "strict": false
+    }
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/branches?per_page=100&page=1": {
+   "body": [
+    {
+     "commit": {
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     "name": "main",
+     "protected": true
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/.agent-setup/project.json?ref=main": {
+   "body": {
+    "content": "eyJwdXJwb3NlIjogIkEgc21hbGwgc2VydmljZSIsICJjcml0aWNhbGl0eSI6ICJpbnRlcm5hbCIsICJjb21tYW5kcyI6IHsidmVyaWZ5IjogIm1ha2UgdmVyaWZ5In0sICJjaSI6IHsicmVxdWlyZWRfY2hlY2tzIjogWyJ2ZXJpZnkiXSwgImN5Y2xlX2J1ZGdldF9taW51dGVzIjogMTB9fQ==",
+    "encoding": "base64",
+    "path": ".agent-setup/project.json",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 163,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/.github/ISSUE_TEMPLATE?ref=main": {
+   "body": [
+    {
+     "name": "bug.yml",
+     "path": ".github/ISSUE_TEMPLATE/bug.yml",
+     "sha": "2222222222222222222222222222222222222222",
+     "size": 10,
+     "type": "file"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/.github/dependabot.yml?ref=main": {
+   "body": {
+    "content": "dmVyc2lvbjogMgp1cGRhdGVzOgogIC0gcGFja2FnZS1lY29zeXN0ZW06IGdvbW9kCiAgICBkaXJlY3Rvcnk6IC8KICAgIHNjaGVkdWxlOgogICAgICBpbnRlcnZhbDogd2Vla2x5CiAgICBjb29sZG93bjoKICAgICAgZGVmYXVsdC1kYXlzOiA3Cg==",
+    "encoding": "base64",
+    "path": ".github/dependabot.yml",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 139,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/.github/pull_request_template.md?ref=main": {
+   "body": {
+    "content": "IyMgV2h5Cg==",
+    "encoding": "base64",
+    "path": ".github/pull_request_template.md",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 7,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/.github/workflows/verify.yml?ref=main": {
+   "body": {
+    "content": "bmFtZTogdmVyaWZ5Cm9uOiBbcHVzaCwgcHVsbF9yZXF1ZXN0XQpqb2JzOgogIHZlcmlmeToKICAgIHJ1bnMtb246IHVidW50dS1sYXRlc3QKICAgIHN0ZXBzOgogICAgICAtIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXRAMDhlYmEwYjI3ZTgyMDA3MWNkZTZkZjk0OWUwYmViOWJhNDkwNjk1NQogICAgICAtIHJ1bjogbWFrZSB2ZXJpZnkK",
+    "encoding": "base64",
+    "path": ".github/workflows/verify.yml",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 189,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/.github/workflows?ref=main": {
+   "body": [
+    {
+     "name": "verify.yml",
+     "path": ".github/workflows/verify.yml",
+     "sha": "1111111111111111111111111111111111111111",
+     "size": 189,
+     "type": "file"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-owner/bronze/contents/service.yaml?ref=main": {
+   "body": {
+    "content": "bmFtZTogYnJvbnplCm93bmVyOiBqb3NlcGVyZXphZ3VlcmEK",
+    "encoding": "base64",
+    "path": "service.yaml",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 36,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/dependabot/alerts?state=open&per_page=100": {
+   "body": [],
+   "status": 200
+  },
+  "repos/example-owner/bronze/environments?per_page=100&page=1": {
+   "body": {
+    "environments": [],
+    "total_count": 0
+   },
+   "status": 200
+  },
+  "repos/example-owner/bronze/rulesets?per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  },
+  "repos/example-owner/bronze/secret-scanning/alerts?state=open&hide_secret=true&per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  },
+  "user": {
+   "body": {
+    "login": "example-owner",
+    "owned_private_repos": 0,
+    "public_repos": 1,
+    "type": "User"
+   },
+   "status": 200
+  },
+  "user/repos?affiliation=owner&per_page=100&page=1": {
+   "body": [
+    {
+     "archived": false,
+     "default_branch": "main",
+     "fork": false,
+     "full_name": "example-owner/bronze",
+     "language": "Go",
+     "pushed_at": null,
+     "visibility": "public"
+    }
+   ],
+   "status": 200
+  },
+  "users/example-owner": {
+   "body": {
+    "login": "example-owner",
+    "type": "User"
+   },
+   "status": 200
+  }
+ }
+}

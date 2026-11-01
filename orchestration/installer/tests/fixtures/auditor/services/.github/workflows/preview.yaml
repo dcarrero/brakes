@@ -1,0 +1,9 @@
+name: preview
+on: pull_request
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment:
+      name: preview
+    steps:
+      - run: echo preview

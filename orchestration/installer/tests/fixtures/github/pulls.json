@@ -1,0 +1,62 @@
+[
+  {
+    "number": 822,
+    "title": "feat(#788): exceptions-check.sh, the SECURITY_BYPASS step and the agreement test",
+    "state": "closed",
+    "draft": false,
+    "updated_at": "2026-10-28T16:29:11Z",
+    "created_at": "2026-10-28T14:13:16Z",
+    "merged_at": "2026-10-28T16:29:09Z",
+    "closed_at": "2026-10-28T16:29:09Z",
+    "merge_commit_sha": "817af378ed772c64c5e2d2526dbc234c423d02c9",
+    "user": {
+      "login": "example-owner"
+    },
+    "head": {
+      "sha": "c9dac70654a690c1021a7a8ea82bf66d190ff450"
+    },
+    "base": {
+      "ref": "main"
+    }
+  },
+  {
+    "number": 820,
+    "title": "feat(#787): the bypass inventory model and the native exception files",
+    "state": "closed",
+    "draft": false,
+    "updated_at": "2026-10-28T16:22:21Z",
+    "created_at": "2026-10-28T14:07:23Z",
+    "merged_at": "2026-10-28T16:22:17Z",
+    "closed_at": "2026-10-28T16:22:17Z",
+    "merge_commit_sha": "65680e86673afc2093c312eca4fa5903e06ed55d",
+    "user": {
+      "login": "example-owner"
+    },
+    "head": {
+      "sha": "277dfb4d64beb240bd216409be37b015929760b1"
+    },
+    "base": {
+      "ref": "main"
+    }
+  },
+  {
+    "number": 819,
+    "title": "feat(#735): the Stop→verify hook template and its sh tests",
+    "state": "closed",
+    "draft": false,
+    "updated_at": "2026-10-28T16:15:43Z",
+    "created_at": "2026-10-28T14:05:43Z",
+    "merged_at": "2026-10-28T16:15:40Z",
+    "closed_at": "2026-10-28T16:15:40Z",
+    "merge_commit_sha": "5a9bee2c77578ffe9d193a335731fade0322b82e",
+    "user": {
+      "login": "example-owner"
+    },
+    "head": {
+      "sha": "5c7b710976a63eccf435946ac84ea6e5c7c21d17"
+    },
+    "base": {
+      "ref": "main"
+    }
+  }
+]

@@ -1,0 +1,2 @@
+# Trivy ignore file; every entry needs expired_at and an issue in statement.
+vulnerabilities: []

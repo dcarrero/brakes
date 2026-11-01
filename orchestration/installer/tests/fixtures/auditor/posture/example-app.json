@@ -1,0 +1,312 @@
+{
+ "default_branch": "main",
+ "replies": {
+  "orgs/example-org": {
+   "body": {
+    "default_repository_permission": "read",
+    "login": "example-org",
+    "members_can_create_public_repositories": true,
+    "two_factor_requirement_enabled": false,
+    "web_commit_signoff_required": false
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app": {
+   "body": {
+    "default_branch": "main",
+    "private": true
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/actions/secrets?per_page=100&page=1": {
+   "body": {
+    "secrets": [
+     {
+      "created_at": "2026-07-18T11:24:44Z",
+      "name": "ANTHROPIC_API_KEY",
+      "updated_at": "2026-07-18T11:24:44Z"
+     },
+     {
+      "created_at": "2026-10-27T13:58:59Z",
+      "name": "ASC_PRIVATE_KEY",
+      "updated_at": "2026-10-27T13:58:59Z"
+     },
+     {
+      "created_at": "2026-07-17T20:14:28Z",
+      "name": "AUTOPILOT_GH_TOKEN",
+      "updated_at": "2026-10-15T08:27:51Z"
+     },
+     {
+      "created_at": "2026-07-19T08:40:51Z",
+      "name": "DEEPINFRA_API_KEY",
+      "updated_at": "2026-10-17T08:05:28Z"
+     },
+     {
+      "created_at": "2026-07-20T11:25:58Z",
+      "name": "SENTRY_API_TOKEN",
+      "updated_at": "2026-07-20T11:25:58Z"
+     },
+     {
+      "created_at": "2026-07-24T14:01:01Z",
+      "name": "SENTRY_WRITE_TOKEN",
+      "updated_at": "2026-07-24T14:01:01Z"
+     }
+    ],
+    "total_count": 6
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/branches/main/protection": {
+   "body": {
+    "allow_deletions": {
+     "enabled": false
+    },
+    "allow_force_pushes": {
+     "enabled": false
+    },
+    "allow_fork_syncing": {
+     "enabled": false
+    },
+    "block_creations": {
+     "enabled": false
+    },
+    "enforce_admins": {
+     "enabled": true,
+     "url": "https://api.github.com/repos/example-org/example-app/branches/main/protection/enforce_admins"
+    },
+    "lock_branch": {
+     "enabled": false
+    },
+    "required_conversation_resolution": {
+     "enabled": true
+    },
+    "required_linear_history": {
+     "enabled": false
+    },
+    "required_pull_request_reviews": {
+     "dismiss_stale_reviews": false,
+     "require_code_owner_reviews": false,
+     "require_last_push_approval": false,
+     "required_approving_review_count": 0,
+     "url": "https://api.github.com/repos/example-org/example-app/branches/main/protection/required_pull_request_reviews"
+    },
+    "required_signatures": {
+     "enabled": false,
+     "url": "https://api.github.com/repos/example-org/example-app/branches/main/protection/required_signatures"
+    },
+    "required_status_checks": {
+     "checks": [
+      {
+       "app_id": 15368,
+       "context": "all-checks-passed"
+      }
+     ],
+     "contexts": [
+      "all-checks-passed"
+     ],
+     "contexts_url": "https://api.github.com/repos/example-org/example-app/branches/main/protection/required_status_checks/contexts",
+     "strict": true,
+     "url": "https://api.github.com/repos/example-org/example-app/branches/main/protection/required_status_checks"
+    },
+    "url": "https://api.github.com/repos/example-org/example-app/branches/main/protection"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/branches?per_page=100&page=1": {
+   "body": [
+    {
+     "commit": {
+      "sha": "45f838d697a72597278ff4ed8c2b76e1e9647d5c",
+      "url": "https://api.github.com/repos/example-org/example-app/commits/45f838d697a72597278ff4ed8c2b76e1e9647d5c"
+     },
+     "name": "docs/example-state",
+     "protected": false,
+     "protection": {
+      "enabled": false,
+      "required_status_checks": {
+       "checks": [],
+       "contexts": [],
+       "enforcement_level": "off"
+      }
+     },
+     "protection_url": "https://api.github.com/repos/example-org/example-app/branches/docs/example-state/protection"
+    },
+    {
+     "commit": {
+      "sha": "6680ba0692404d8fbc9948908445b5db27edf008",
+      "url": "https://api.github.com/repos/example-org/example-app/commits/6680ba0692404d8fbc9948908445b5db27edf008"
+     },
+     "name": "docs/267-example-proposal",
+     "protected": false,
+     "protection": {
+      "enabled": false,
+      "required_status_checks": {
+       "checks": [],
+       "contexts": [],
+       "enforcement_level": "off"
+      }
+     },
+     "protection_url": "https://api.github.com/repos/example-org/example-app/branches/docs/267-example-proposal/protection"
+    },
+    {
+     "commit": {
+      "sha": "913c7b6b4d3e622ff634e296a9faceb70f27049e",
+      "url": "https://api.github.com/repos/example-org/example-app/commits/913c7b6b4d3e622ff634e296a9faceb70f27049e"
+     },
+     "name": "feat/example-reminders",
+     "protected": false,
+     "protection": {
+      "enabled": false,
+      "required_status_checks": {
+       "checks": [],
+       "contexts": [],
+       "enforcement_level": "off"
+      }
+     },
+     "protection_url": "https://api.github.com/repos/example-org/example-app/branches/feat/example-reminders/protection"
+    },
+    {
+     "commit": {
+      "sha": "9e49076146c8a4a5965b9d567cd2e4c470545bfd",
+      "url": "https://api.github.com/repos/example-org/example-app/commits/9e49076146c8a4a5965b9d567cd2e4c470545bfd"
+     },
+     "name": "feat/855-example-read-only",
+     "protected": false,
+     "protection": {
+      "enabled": false,
+      "required_status_checks": {
+       "checks": [],
+       "contexts": [],
+       "enforcement_level": "off"
+      }
+     },
+     "protection_url": "https://api.github.com/repos/example-org/example-app/branches/feat/855-example-read-only/protection"
+    },
+    {
+     "commit": {
+      "sha": "65a43b4654c3e91007338225279a4e40ad10530f",
+      "url": "https://api.github.com/repos/example-org/example-app/commits/65a43b4654c3e91007338225279a4e40ad10530f"
+     },
+     "name": "main",
+     "protected": true,
+     "protection": {
+      "enabled": true,
+      "required_status_checks": {
+       "checks": [
+        {
+         "app_id": 15368,
+         "context": "all-checks-passed"
+        }
+       ],
+       "contexts": [
+        "all-checks-passed"
+       ],
+       "enforcement_level": "everyone"
+      }
+     },
+     "protection_url": "https://api.github.com/repos/example-org/example-app/branches/main/protection"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-org/example-app/dependabot/alerts?state=open&per_page=100": {
+   "message": "Dependabot alerts are disabled for this repository.",
+   "status": 403
+  },
+  "repos/example-org/example-app/environments/production/deployment-branch-policies?per_page=100&page=1": {
+   "body": {
+    "branch_policies": [
+     {
+      "id": 64542142,
+      "name": "main",
+      "node_id": "MDE2OkdhdGVCcmFuY2hQb2xpY3k2NDU0MjE0Mg==",
+      "type": "branch"
+     }
+    ],
+    "total_count": 1
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/environments?per_page=100&page=1": {
+   "body": {
+    "environments": [
+     {
+      "can_admins_bypass": true,
+      "created_at": "2026-10-27T14:11:51Z",
+      "deployment_branch_policy": {
+       "custom_branch_policies": true,
+       "protected_branches": false
+      },
+      "html_url": "https://github.com/example-org/example-app/deployments/activity_log?environments_filter=production",
+      "id": 25468712708,
+      "name": "production",
+      "node_id": "EN_kwDOSrtGSc8AAAAF7g23BA",
+      "protection_rules": [
+       {
+        "id": 70288645,
+        "node_id": "GA_kwDOSrtGSc4EMIUF",
+        "type": "branch_policy"
+       }
+      ],
+      "updated_at": "2026-10-27T14:11:51Z",
+      "url": "https://api.github.com/repos/example-org/example-app/environments/production"
+     }
+    ],
+    "total_count": 1
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/git/commits/45f838d697a72597278ff4ed8c2b76e1e9647d5c": {
+   "body": {
+    "committer": {
+     "date": "2026-09-26T08:07:54Z"
+    },
+    "sha": "45f838d697a72597278ff4ed8c2b76e1e9647d5c"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/git/commits/6680ba0692404d8fbc9948908445b5db27edf008": {
+   "body": {
+    "committer": {
+     "date": "2026-10-01T16:28:16Z"
+    },
+    "sha": "6680ba0692404d8fbc9948908445b5db27edf008"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/git/commits/913c7b6b4d3e622ff634e296a9faceb70f27049e": {
+   "body": {
+    "committer": {
+     "date": "2026-10-28T20:19:05Z"
+    },
+    "sha": "913c7b6b4d3e622ff634e296a9faceb70f27049e"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/git/commits/9e49076146c8a4a5965b9d567cd2e4c470545bfd": {
+   "body": {
+    "committer": {
+     "date": "2026-10-01T17:12:29Z"
+    },
+    "sha": "9e49076146c8a4a5965b9d567cd2e4c470545bfd"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/rulesets?per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  },
+  "repos/example-org/example-app/secret-scanning/alerts?state=open&hide_secret=true&per_page=100&page=1": {
+   "message": "Secret scanning is disabled on this repository.",
+   "status": 404
+  },
+  "users/example-org": {
+   "body": {
+    "login": "example-org",
+    "type": "Organization"
+   },
+   "status": 200
+  }
+ },
+ "repo": "example-org/example-app"
+}

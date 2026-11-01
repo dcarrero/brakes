@@ -1,0 +1,4 @@
+  - repo: {{actionlint_repo}}
+    rev: {{actionlint_rev}}  # frozen: v{{actionlint_version}}
+    hooks:
+      - id: actionlint

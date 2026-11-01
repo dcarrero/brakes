@@ -1,0 +1,82 @@
+{
+ "recorded": [
+  "posture/example-app",
+  "ci-health/example-app",
+  "dora/example-app"
+ ],
+ "replies": {
+  "orgs/example-org/repos?type=all&per_page=100&page=1": {
+   "body": [
+    {
+     "archived": true,
+     "default_branch": "main",
+     "fork": false,
+     "full_name": "example-org/old-prototype",
+     "language": "TypeScript",
+     "pushed_at": "2025-03-01T10:00:00Z",
+     "visibility": "private"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "fork": false,
+     "full_name": "example-org/example-app",
+     "language": "Python",
+     "pushed_at": "2026-10-28T08:00:00Z",
+     "visibility": "private"
+    },
+    {
+     "archived": false,
+     "default_branch": "main",
+     "fork": false,
+     "full_name": "example-org/docs-site",
+     "language": "HTML",
+     "pushed_at": "2026-06-01T08:00:00Z",
+     "visibility": "public"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-org/example-app/contents/.agent-setup/project.json?ref=main": {
+   "body": {
+    "content": "eyJjaSI6IHsicmVxdWlyZWRfY2hlY2tzIjogWyJhbGwtY2hlY2tzLXBhc3NlZCJdLCAiY3ljbGVfYnVkZ2V0X21pbnV0ZXMiOiAyMH19",
+    "encoding": "base64",
+    "path": ".agent-setup/project.json",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 78,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/contents/.github/workflows/ci.yml?ref=main": {
+   "body": {
+    "content": "IyBTaGFwZWQgbGlrZSBtZW5vcGx1cydzIGNpLnltbDogbW9ub3JlcG8gY2hhbmdlIGRldGVjdGlvbiwgb25lIGpvYiBwZXIgYXBwIGFuZAojIHRoZSBgYWxsLWNoZWNrcy1wYXNzZWRgIGdhdGUgb3ZlciBhbGwgb2YgdGhlbS4KbmFtZTogQ0kKb246CiAgcHVsbF9yZXF1ZXN0OgogIHB1c2g6CiAgICBicmFuY2hlczogW21haW5dCmpvYnM6CiAgZGV0ZWN0LWNoYW5nZXM6CiAgICBydW5zLW9uOiB1YnVudHUtMjQuMDQKICAgIHRpbWVvdXQtbWludXRlczogNQogICAgb3V0cHV0czoKICAgICAgYmFja2VuZDogJHt7IHN0ZXBzLmZpbHRlci5vdXRwdXRzLmJhY2tlbmQgfX0KICAgICAgd2ViOiAke3sgc3RlcHMuZmlsdGVyLm91dHB1dHMud2ViIH19CiAgICBzdGVwczoKICAgICAgLSB1c2VzOiBhY3Rpb25zL2NoZWNrb3V0QHY0CiAgICAgIC0gaWQ6IGZpbHRlcgogICAgICAgIHVzZXM6IGRvcm55L3BhdGhzLWZpbHRlckBkZTkwY2M2ZmIzOGZjMDk2M2FkNzJiMjEwZjFmMjg0Y2Q2OGNlYTM2ICMgdjMuMC4yCiAgICAgICAgd2l0aDoKICAgICAgICAgIGZpbHRlcnM6IHwKICAgICAgICAgICAgYmFja2VuZDoKICAgICAgICAgICAgICAtICdhcHBzL2JhY2tlbmQvKionCiAgICAgICAgICAgIHdlYjoKICAgICAgICAgICAgICAtICdhcHBzL3dlYi8qKicKICBiYWNrZW5kOgogICAgbmVlZHM6IGRldGVjdC1jaGFuZ2VzCiAgICBpZjogbmVlZHMuZGV0ZWN0LWNoYW5nZXMub3V0cHV0cy5iYWNrZW5kID09ICd0cnVlJwogICAgcnVucy1vbjogdWJ1bnR1LTI0LjA0CiAgICB0aW1lb3V0LW1pbnV0ZXM6IDIwCiAgICBzdGVwczoKICAgICAgLSB1c2VzOiBhY3Rpb25zL2NoZWNrb3V0QHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIHBlcnNpc3QtY3JlZGVudGlhbHM6IGZhbHNlCiAgICAgIC0gcnVuOiBtYWtlIC1DIGFwcHMvYmFja2VuZCB2ZXJpZnkKICB3ZWI6CiAgICBuZWVkczogZGV0ZWN0LWNoYW5nZXMKICAgIGlmOiBuZWVkcy5kZXRlY3QtY2hhbmdlcy5vdXRwdXRzLndlYiA9PSAndHJ1ZScKICAgIHJ1bnMtb246IFttYWNvcy0xNF0KICAgIHN0ZXBzOgogICAgICAtIHVzZXM6IGFjdGlvbnMvY2hlY2tvdXRAdjQKICAgICAgICB3aXRoOgogICAgICAgICAgcGVyc2lzdC1jcmVkZW50aWFsczogZmFsc2UKICAgICAgLSBydW46IG1ha2UgLUMgYXBwcy93ZWIgdmVyaWZ5CiAgYWxsLWNoZWNrcy1wYXNzZWQ6CiAgICBpZjogYWx3YXlzKCkKICAgIG5lZWRzOiBbZGV0ZWN0LWNoYW5nZXMsIGJhY2tlbmQsIHdlYl0KICAgIHJ1bnMtb246IHVidW50dS0yNC4wNAogICAgdGltZW91dC1taW51dGVzOiA1CiAgICBzdGVwczoKICAgICAgLSBlbnY6CiAgICAgICAgICBSRVNVTFRTOiAke3sgam9pbihuZWVkcy4qLnJlc3VsdCwgJyAnKSB9fQogICAgICAgIHJ1bjogfAogICAgICAgICAgZm9yIHIgaW4gJFJFU1VMVFM7IGRvCiAgICAgICAgICAgIGNhc2UgIiRyIiBpbiBzdWNjZXNzfHNraXBwZWQpIDs7ICopIGV4aXQgMSA7OyBlc2FjCiAgICAgICAgICBkb25lCg==",
+    "encoding": "base64",
+    "path": ".github/workflows/ci.yml",
+    "sha": "0000000000000000000000000000000000000000",
+    "size": 1501,
+    "type": "file"
+   },
+   "status": 200
+  },
+  "repos/example-org/example-app/contents/.github/workflows?ref=main": {
+   "body": [
+    {
+     "name": "ci.yml",
+     "path": ".github/workflows/ci.yml",
+     "sha": "1111111111111111111111111111111111111111",
+     "size": 1501,
+     "type": "file"
+    }
+   ],
+   "status": 200
+  },
+  "user": {
+   "body": {
+    "login": "example-owner",
+    "type": "User"
+   },
+   "status": 200
+  }
+ }
+}

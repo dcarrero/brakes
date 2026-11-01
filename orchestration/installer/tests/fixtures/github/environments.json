@@ -1,0 +1,18 @@
+{
+  "total_count": 1,
+  "environments": [
+    {
+      "id": 25468712708,
+      "name": "production",
+      "protection_rules": [
+        {
+          "type": "branch_policy"
+        }
+      ],
+      "deployment_branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      }
+    }
+  ]
+}

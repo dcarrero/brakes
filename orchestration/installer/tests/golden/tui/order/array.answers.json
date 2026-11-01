@@ -1,0 +1,13 @@
+{
+  "module": "order",
+  "version": "1.0.0",
+  "answers": {
+    "delivery": false,
+    "note": "none",
+    "size": "small",
+    "toppings": [
+      "sauce",
+      "nuts"
+    ]
+  }
+}

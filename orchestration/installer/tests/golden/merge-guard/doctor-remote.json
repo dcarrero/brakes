@@ -1,0 +1,77 @@
+[
+  {
+    "hook": {
+      "present": true,
+      "registered": false,
+      "unchanged": true
+    },
+    "mode": "light",
+    "probed_at": "2026-10-28T10:12:00Z",
+    "repository": "example-owner/example",
+    "rule": "merge-guard",
+    "server": {
+      "admins_enforced": true,
+      "bypass_actors": [],
+      "kind": "classic",
+      "protected": true,
+      "required": [
+        "all-checks-passed"
+      ]
+    }
+  },
+  {
+    "hook": {
+      "present": true,
+      "registered": false,
+      "unchanged": true
+    },
+    "mode": "full",
+    "probed_at": "2026-10-28T10:12:00Z",
+    "repository": "example-owner/example",
+    "rule": "merge-guard",
+    "server": {
+      "admins_enforced": false,
+      "bypass_actors": [],
+      "kind": "none",
+      "protected": false,
+      "required": []
+    }
+  },
+  {
+    "hook": {
+      "present": true,
+      "registered": false,
+      "unchanged": true
+    },
+    "mode": "full",
+    "probed_at": "2026-10-28T10:12:00Z",
+    "repository": "example-owner/example",
+    "rule": "merge-guard",
+    "server": {
+      "admins_enforced": false,
+      "bypass_actors": [
+        "RepositoryRole 5"
+      ],
+      "kind": "ruleset",
+      "protected": false,
+      "required": [
+        "all-checks-passed"
+      ]
+    }
+  },
+  {
+    "hook": {
+      "present": true,
+      "registered": false,
+      "unchanged": true
+    },
+    "mode": "full",
+    "probed_at": "2026-10-28T10:12:00Z",
+    "repository": "example-owner/example",
+    "rule": "merge-guard",
+    "server": {
+      "error": "GitHub read failed (HTTP 403)",
+      "protected": false
+    }
+  }
+]

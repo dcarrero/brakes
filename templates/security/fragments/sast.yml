@@ -1,0 +1,28 @@
+name: sast
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: 15
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- sast
+{{bypass_variable}}
+  - name: Scan with Semgrep CE {{semgrep_version}}
+    if: steps.bypass.outputs.id == ''
+    env:
+      SEMGREP_IMAGE: "{{semgrep_image}}"
+    run: |
+      docker run --rm -v "$PWD:/src" "$SEMGREP_IMAGE" semgrep --version
+      status=0
+      docker run --rm -v "$PWD:/src" "$SEMGREP_IMAGE" semgrep scan --metrics=off --error --quiet --json --output semgrep.json --severity ERROR {{semgrep_configs}} || status=$?
+      set -- semgrep semgrep.json "$status"
+{{scanner_findings}}

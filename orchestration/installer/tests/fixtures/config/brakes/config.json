@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "host": {
+    "kind": "github",
+    "hostname": "github.com"
+  },
+  "owner": "example-owner",
+  "write_allowlist": [
+    "example-owner/*",
+    "example-org/*"
+  ],
+  "identity_denylist": [
+    "example-corp"
+  ],
+  "runners": {
+    "linux": {
+      "name": "example-cloud",
+      "label": "example-cloud-2"
+    },
+    "macos": {
+      "name": "example-mac",
+      "label": "example-mac"
+    }
+  },
+  "presets_dir": null,
+  "schema_base_url": "https://github.com/gemba-app/brakes/blob/main/templates/",
+  "reusable_callee": "example-owner/workflows"
+}

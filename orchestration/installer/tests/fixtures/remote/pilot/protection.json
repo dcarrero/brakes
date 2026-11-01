@@ -1,0 +1,22 @@
+{
+ "allow_deletions": {
+  "enabled": false
+ },
+ "allow_force_pushes": {
+  "enabled": false
+ },
+ "enforce_admins": {
+  "enabled": true
+ },
+ "required_status_checks": {
+  "checks": [
+   {
+    "context": "verify"
+   }
+  ],
+  "contexts": [
+   "verify"
+  ],
+  "strict": true
+ }
+}

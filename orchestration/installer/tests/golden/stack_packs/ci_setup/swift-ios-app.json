@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Select Xcode",
+    "run": "sudo xcode-select -s \"/Applications/Xcode_$(cat .xcode-version).app\" && xcodebuild -version",
+    "working-directory": "apps/ios"
+  }
+]

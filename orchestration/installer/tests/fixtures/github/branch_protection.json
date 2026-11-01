@@ -1,0 +1,41 @@
+{
+  "required_status_checks": {
+    "strict": false,
+    "contexts": [
+      "test / verify",
+      "build",
+      "promote",
+      "Rust (linux)",
+      "Rust (macos)"
+    ],
+    "checks": [
+      {
+        "context": "test / verify"
+      },
+      {
+        "context": "build"
+      },
+      {
+        "context": "promote"
+      },
+      {
+        "context": "Rust (linux)"
+      },
+      {
+        "context": "Rust (macos)"
+      }
+    ]
+  },
+  "enforce_admins": {
+    "enabled": true
+  },
+  "required_linear_history": {
+    "enabled": false
+  },
+  "allow_force_pushes": {
+    "enabled": false
+  },
+  "allow_deletions": {
+    "enabled": false
+  }
+}

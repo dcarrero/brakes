@@ -1,0 +1,22 @@
+# A merge guard that reads other checks instead of needing them: it can pass
+# while they are still pending, which let a red pull request through once.
+name: Merge guard
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - run: make verify
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if gh pr checks "$PR" | grep -v pass | grep -v guard; then exit 1; fi

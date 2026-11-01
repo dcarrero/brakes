@@ -1,0 +1,5 @@
+{
+  "purpose": "Fixture repository for the auditor's report.",
+  "commands": { "verify": "true" },
+  "audit": { "agent_accounts": ["aps-codex"] }
+}

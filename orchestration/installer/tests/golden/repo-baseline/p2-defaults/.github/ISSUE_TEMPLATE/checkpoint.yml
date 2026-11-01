@@ -1,0 +1,43 @@
+name: Checkpoint
+description: A go / no-go review of the outcome after a group of slices.
+title: "[Checkpoint] "
+labels:
+  - type:checkpoint
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome checked
+      description: The outcome this checkpoint verifies.
+    validations:
+      required: true
+  - type: input
+    id: slices
+    attributes:
+      label: Slices covered
+      description: Issue numbers of the slices this checkpoint covers, for example "#12, #15".
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: The commands run and their results.
+    validations:
+      required: true
+  - type: dropdown
+    id: decision
+    attributes:
+      label: Go / no-go
+      options:
+        - Go
+        - No-go
+    validations:
+      required: true
+  - type: textarea
+    id: if-no-go
+    attributes:
+      label: What changes if no-go
+      description: The plan change, new slices or dropped scope a no-go leads to.
+    validations:
+      required: false

@@ -1,0 +1,3 @@
+[[IgnoredVulns]]
+id = "GO-2026-0001"
+reason = "see #731"

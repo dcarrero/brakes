@@ -1,0 +1,41 @@
+name: qa-web
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: 20
+container:
+  image: {{playwright_image}}
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+{{setup_steps}}
+  - name: Check the web tests' lockfile
+    working-directory: {{web_dir}}
+    env:
+      QA_WEB_DIR: {{web_dir}}
+    run: |
+      if [ ! -f package-lock.json ]; then
+        echo "::error::qa-web: $QA_WEB_DIR/package-lock.json missing; run npm install locally and commit it"
+        exit 1
+      fi
+{{npm_ci}}  - name: Install Chromium for Playwright
+    working-directory: {{web_dir}}
+    run: |
+      npx playwright install chromium
+  - name: Run the web tests
+    working-directory: {{web_dir}}
+    env:
+{{web_env}}
+    run: |
+{{web_run}}
+  - name: Upload the web report
+    if: always()
+    uses: {{upload_artifact}}
+    with:
+      name: qa-web
+      path: |
+        {{report_dir}}playwright-report/
+        {{report_dir}}test-results/
+      retention-days: "7"

@@ -1,0 +1,243 @@
+{
+  "apply": "adopt --apply lands in a later slice",
+  "changes": true,
+  "lines": [
+    {
+      "line": "SEED .agent-setup/service.schema.json [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .agent-setup/service.yaml [seed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .claude/hooks/merge_guard.sh [managed:merge-guard]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .github/ISSUE_TEMPLATE/checkpoint.yml [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .github/ISSUE_TEMPLATE/config.yml [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .github/ISSUE_TEMPLATE/incident.yml [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .github/ISSUE_TEMPLATE/post-mortem-action.yml [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .github/ISSUE_TEMPLATE/task.yml [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED .github/SECURITY.md [seed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "PROPOSE .github/pull_request_template.md: existing file (1 line) → managed block of repo-baseline appended",
+      "verb": "PROPOSE"
+    },
+    {
+      "line": "SEED .github/rulesets/main.json [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "ADD [managed-block:setup-core] AGENTS.md",
+      "verb": "ADD"
+    },
+    {
+      "line": "SEED CLAUDE.md [managed-block:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/adr-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/architecture.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/cd.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/ci.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/code-style.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/containers.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/contract-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/contracts.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/decisions.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/delivery-profile-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/delivery.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/domain.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/e2e.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/incidents.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/index.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/observability.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/operations.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/patterns.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/postmortem-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/principles.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/project-context-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/review-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/rfc-template.md [managed:repo-baseline]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/runbook-template.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/security.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/task.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/testing.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "SEED docs/agent-setup/workflow.md [managed:setup-core]",
+      "verb": "SEED"
+    },
+    {
+      "line": "PROPOSE .github/dependabot.yml: existing file (6 lines) → seed of repo-baseline (16 lines), not written",
+      "verb": "PROPOSE"
+    },
+    {
+      "line": "PROPOSE .github/workflows/ci.yml: existing file → module security not planned: ci-baseline: .github/workflows/ci.yml already has a job named required; the required check would be ambiguous; rename that job, or answer workflow=existing with aggregate_check=required",
+      "verb": "PROPOSE"
+    },
+    {
+      "line": "PROPOSE .github/workflows/ci.yml: existing file → module ci-baseline not planned: ci-baseline: .github/workflows/ci.yml already has a job named required; the required check would be ambiguous; rename that job, or answer workflow=existing with aggregate_check=required",
+      "verb": "PROPOSE"
+    },
+    {
+      "line": "STEP [pending:merge-guard] hook-registered — Register the merge guard hook",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [unavailable:repo-baseline] check-reported — CI reports the required checks on main",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [blocked:repo-baseline] classic-protection-retire — Remote item: no classic branch protection on main",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [unavailable:repo-baseline] dependabot-alerts — Remote item: Dependabot alerts enabled",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [unavailable:repo-baseline] dependabot-security-updates — Remote item: Dependabot security updates enabled",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [unavailable:repo-baseline] labels — Remote item: the standard labels exist with their colors",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [unavailable:repo-baseline] repo-settings — Remote item: squash-only merges, branch cleanup, auto-merge and update branch",
+      "verb": "STEP"
+    },
+    {
+      "line": "STEP [blocked:repo-baseline] ruleset-main — Remote item: the default-branch ruleset is active and equals .github/rulesets/main.json",
+      "verb": "STEP"
+    }
+  ],
+  "modules": [
+    "setup-core",
+    "repo-baseline"
+  ],
+  "proposals": [
+    {
+      "exists": "existing file (1 line)",
+      "path": ".github/pull_request_template.md",
+      "would": "managed block of repo-baseline appended"
+    },
+    {
+      "exists": "existing file (6 lines)",
+      "path": ".github/dependabot.yml",
+      "would": "seed of repo-baseline (16 lines), not written"
+    },
+    {
+      "exists": "existing file",
+      "path": ".github/workflows/ci.yml",
+      "would": "module security not planned: ci-baseline: .github/workflows/ci.yml already has a job named required; the required check would be ambiguous; rename that job, or answer workflow=existing with aggregate_check=required"
+    },
+    {
+      "exists": "existing file",
+      "path": ".github/workflows/ci.yml",
+      "would": "module ci-baseline not planned: ci-baseline: .github/workflows/ci.yml already has a job named required; the required check would be ambiguous; rename that job, or answer workflow=existing with aggregate_check=required"
+    }
+  ],
+  "repo": "example-owner/adopt-fixture",
+  "schema": 1,
+  "waiting": []
+}

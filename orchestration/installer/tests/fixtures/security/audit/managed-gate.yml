@@ -1,0 +1,38 @@
+name: CI
+on: [pull_request, push]
+permissions:
+  contents: read
+jobs:
+  security-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Install gitleaks
+        run: |
+          curl -fsSL -o gitleaks.tar.gz "$URL"
+          actual=$(sha256sum gitleaks.tar.gz | cut -d' ' -f1)
+          [ "$actual" = "$SHA256" ]
+      - name: Scan for secrets with gitleaks
+        run: |
+          if [ -n "$range" ]; then
+            echo "history: $range"
+            gitleaks git --redact --log-opts "$range" .
+          else
+            echo "history: full"
+            gitleaks git --redact .
+          fi
+  deps-scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Scan lockfiles with OSV-Scanner
+        run: osv-scanner scan source --recursive .
+  sast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Scan with Semgrep CE 1.182.0
+        env:
+          SEMGREP_IMAGE: "docker.io/semgrep/semgrep:1.182.0@sha256:4a34048c04fef049f71665047f074cffb00cc3d89482f965a5cd151d589237af"
+        run: |
+          docker run --rm -v "$PWD:/src" "$SEMGREP_IMAGE" semgrep scan --metrics=off --error --severity ERROR --config p/default

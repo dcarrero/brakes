@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "wrapper-jar", "kind": "allowlist", "target": "binary-artifacts#gradle/wrapper/gradle-wrapper.jar",
+      "reason": "fixture: a tracked binary security.binary-artifacts reports (#973)", "issue": "#973",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-05-01" },
+    { "id": "fixture-elf", "kind": "allowlist", "target": "binary-artifacts#tests/fixtures/tool",
+      "reason": "fixture: an entry over the 365-day bound is bypass-expired, not accepted", "issue": "#973",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-12-01" }
+  ]
+}

@@ -1,0 +1,77 @@
+name: Task
+description: One slice of work with its definition of ready and done.
+title: "[Task] "
+labels:
+  - type:task
+  - status:backlog
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in what is known before work starts. Branch, changes, checks executed and lessons belong to the handoff comment on this issue, not to this form.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome and acceptance criteria
+      description: What is true when this task is done, as observable criteria.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and exclusions
+      description: What this task changes and what it explicitly leaves out.
+    validations:
+      required: false
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources and relevant conventions
+      description: Specs, decisions, guides and conventions that govern the work.
+    validations:
+      required: false
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions, provenance and open questions
+      description: Decisions already taken, where they come from, and what is still open.
+    validations:
+      required: false
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: The exact commands that prove the outcome.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Issue numbers this task waits for, for example "#12, #15"; "none" when there are none.
+    validations:
+      required: false
+  - type: checkboxes
+    id: definition-of-ready
+    attributes:
+      label: Definition of ready
+      description: Work starts when every box is checked.
+      options:
+        - label: The spec or decision is linked
+        - label: Dependencies are named
+        - label: The acceptance criteria are observable
+        - label: The verification command is named
+        - label: The slice fits in 400 changed lines or less, or it is split
+  - type: checkboxes
+    id: definition-of-done
+    attributes:
+      label: Definition of done
+      description: The task closes when every box is checked.
+      options:
+        - label: The verification output is attached
+        - label: Docs and decisions are updated in the same PR
+        - label: The migration is backwards-compatible, or there is none
+        - label: Every flag touched was tested in both states
+        - label: The flag is removed, or its removal issue is linked with a date
+        - label: A handoff comment is posted if the work spans sessions

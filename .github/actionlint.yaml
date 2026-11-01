@@ -1,0 +1,18 @@
+# This repository's workflows run on GitHub-hosted runners, which actionlint knows.
+# The goldens' runner labels come from the test configuration; a label there that is
+# not GitHub-hosted is declared here under `self-hosted-runner`.
+self-hosted-runner:
+  labels:
+    - example-cloud-2
+    - example-mac
+# The goldens of agent-guardrails declare `cache-mode: none`, a job key GitHub
+# enforces and actionlint 1.7.12 rejects (rhysd/actionlint#762). This one message is
+# ignored for the goldens and for the never-run pins workflow, whose agent job
+# declares the key, and leaves with the actionlint bump that accepts it.
+paths:
+  templates/*/goldens/*.yml:
+    ignore:
+      - 'unexpected key "cache-mode"'
+  .github/workflows/stack-packs-pins.yml:
+    ignore:
+      - 'unexpected key "cache-mode"'

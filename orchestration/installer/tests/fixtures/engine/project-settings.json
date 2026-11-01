@@ -1,0 +1,56 @@
+{
+  "permissions": {
+    "ask": [
+      "Bash(gh pr edit * --add-label human-approved)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/main_checkout_guard.py\" session-start",
+            "timeout": 60,
+            "statusMessage": "Updating the main checkout"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/main_checkout_guard.py\" pre-edit",
+            "timeout": 30,
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/merge_guard.sh\"",
+            "timeout": 60,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/main_checkout_guard.py\" stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

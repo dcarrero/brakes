@@ -1,0 +1,1 @@
+# Keeps the supervisor's clock and process rules in ../clippy.toml (#523) out of this crate.

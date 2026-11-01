@@ -1,0 +1,10 @@
+{
+  "module": "repo-baseline",
+  "version": "1.0.0",
+  "answers": {
+    "approvals": "checks-only",
+    "bypass_actors": [],
+    "codeowners": true,
+    "dependency_updates": "renovate"
+  }
+}

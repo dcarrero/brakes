@@ -1,0 +1,48 @@
+{
+ "workflow_runs": [
+  {
+   "conclusion": "failure",
+   "created_at": "2026-10-30T02:48:59Z",
+   "event": "pull_request",
+   "head_branch": "brakes/pilot-948",
+   "head_sha": "b9b8673f9d9562126745914a8f669356de831fdf",
+   "id": 40993864399,
+   "name": "CI (brakes)",
+   "pull_requests": [
+    {
+     "number": 34
+    }
+   ],
+   "status": "completed",
+   "workflow_id": 401313925
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-10-30T02:48:59Z",
+   "event": "pull_request",
+   "head_branch": "brakes/pilot-948",
+   "head_sha": "b9b8673f9d9562126745914a8f669356de831fdf",
+   "id": 40993864351,
+   "name": "verify",
+   "pull_requests": [
+    {
+     "number": 34
+    }
+   ],
+   "status": "completed",
+   "workflow_id": 393077184
+  },
+  {
+   "conclusion": "success",
+   "created_at": "2026-10-28T12:40:36Z",
+   "event": "push",
+   "head_branch": "main",
+   "head_sha": "d4acd8f9a6677414d7476f566cdf5d95ba85c18e",
+   "id": 40689773178,
+   "name": "verify",
+   "pull_requests": [],
+   "status": "completed",
+   "workflow_id": 393077184
+  }
+ ]
+}

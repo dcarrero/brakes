@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "month-13", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-13-01", "expires": "2026-11-20" },
+    { "id": "feb-30", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-02-01", "expires": "2026-02-30" },
+    { "id": "slashes", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "03/11/2026", "expires": "2026-11-20" },
+    { "id": "both-bad", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-1-1", "expires": "20261120" }
+  ]
+}

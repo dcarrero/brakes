@@ -1,0 +1,5 @@
+vulnerabilities:
+  - id: CVE-2026-1234
+    statement: "see #702"
+    expired_at: 2027-01-01
+    severity: HIGH

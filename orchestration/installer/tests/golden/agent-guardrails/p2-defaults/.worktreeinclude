@@ -1,0 +1,13 @@
+# .worktreeinclude: gitignored files Claude Code copies into every worktree it
+# creates (`claude --worktree`, subagent worktrees, desktop parallel sessions).
+# Syntax: `.gitignore` patterns, one per line. Only files that match a pattern and
+# are gitignored are copied, so tracked files are never duplicated.
+#
+# Never list `.env` files, `secrets/` or key files here, even though the vendor's
+# example does: a worktree per agent multiplies every secret it copies. Give each
+# worktree its credentials through the environment or a secret manager instead.
+# `doctor` reports a `.worktreeinclude` that lists one of them.
+#
+# List the local, non-secret files a fresh checkout needs to build and test, such as
+# a generated local configuration. This file is the project's: the installer seeds
+# it once and never rewrites it.

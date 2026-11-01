@@ -1,0 +1,19 @@
+{
+  "preset": "personal-vps",
+  "description": "One person with agents; services on one VPS with Docker Compose behind a reverse proxy; the owner is the only human with merge rights.",
+  "modules": {
+    "ci-baseline": {
+      "merge_queue": false
+    },
+    "repo-baseline": {
+      "approvals": "checks-only",
+      "codeowners": false
+    }
+  },
+  "no_answers": {
+    "agent-guardrails": "Nothing here follows from the deployment shape: protected_paths already follows the maturity profile (workflows denied to agents in P2 and P3); review_family names the account that holds a model key; mcp_servers are owner decisions (credentials plus untrusted content); unattended_prompt, spec_dir and agent_app_slug belong to the repository or its organisation.",
+    "qa": "Every answer is the repository's own: the commands that start its API or web, their local URLs, its OpenAPI or AsyncAPI contracts and its monorepo apps; the installer never invents a command.",
+    "security": "The free gate (gitleaks, OSV-Scanner, Semgrep CE, Trivy) is the default for every shape and CodeQL only follows a purchase of Code Security; pii, coverage and mutation follow the repository's criticality and stack packs.",
+    "stack-packs": "Every app answer (path, stack, container, toolchain pin, port, healthcheck, binary) is the repository's; the default distroless runtime family suits every shape, and dhi refuses until its images are pinned."
+  }
+}

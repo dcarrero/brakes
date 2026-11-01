@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Set up Java",
+    "uses": {
+      "repo": "actions/setup-java",
+      "sha": "b843ebf9b913146b38da2eaa7aeddf76074ae1ad",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "distribution": "temurin",
+      "java-version-file": "apps/android/.java-version"
+    }
+  },
+  {
+    "name": "Set up Gradle",
+    "uses": {
+      "repo": "gradle/actions/setup-gradle",
+      "sha": "3f5f9adaf7d9fecd50b5935e54106014257a94e6",
+      "version": "v6.4.0"
+    },
+    "with": {
+      "cache-read-only": "${{ !(github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}",
+      "validate-wrappers": "true"
+    }
+  }
+]

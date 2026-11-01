@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "servers": [
+    {
+      "match": {
+        "args_contains": "@upstash/context7-mcp@4.4.4",
+        "command_in": [
+          "npx"
+        ]
+      },
+      "name": "docs",
+      "permissions": "read-only",
+      "purpose": "Library documentation lookup",
+      "transport": "stdio"
+    },
+    {
+      "match": {
+        "args_contains": "@playwright/mcp@0.0.41",
+        "command_in": [
+          "npx"
+        ]
+      },
+      "name": "browser",
+      "permissions": "read-only",
+      "purpose": "Drive the local web app in a browser",
+      "transport": "stdio"
+    },
+    {
+      "match": {
+        "url": "https://tracker.example/mcp"
+      },
+      "name": "tracker",
+      "permissions": "read-write",
+      "purpose": "File bugs in the in-house tracker, which has no CLI or API",
+      "transport": "http"
+    }
+  ]
+}

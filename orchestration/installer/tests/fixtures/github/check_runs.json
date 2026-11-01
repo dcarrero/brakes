@@ -1,0 +1,35 @@
+{
+  "total_count": 3,
+  "check_runs": [
+    {
+      "id": 123083204248,
+      "name": "backup",
+      "status": "completed",
+      "conclusion": "skipped",
+      "app": {
+        "slug": "github-actions"
+      },
+      "completed_at": "2026-10-28T20:31:10Z"
+    },
+    {
+      "id": 123083127459,
+      "name": "release",
+      "status": "completed",
+      "conclusion": "skipped",
+      "app": {
+        "slug": "github-actions"
+      },
+      "completed_at": "2026-10-28T20:31:10Z"
+    },
+    {
+      "id": 123083125880,
+      "name": "web",
+      "status": "completed",
+      "conclusion": "success",
+      "app": {
+        "slug": "github-actions"
+      },
+      "completed_at": "2026-10-28T20:31:18Z"
+    }
+  ]
+}

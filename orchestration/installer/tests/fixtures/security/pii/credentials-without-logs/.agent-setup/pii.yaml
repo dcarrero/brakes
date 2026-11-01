@@ -1,0 +1,12 @@
+schema: 1
+controller: "Example Ltd"
+dsar_contact: "privacy@example.test"
+sla_days: 30
+fields:
+  - path: users.password_hash
+    category: credentials
+    purpose: authentication
+    lawful_basis: contract
+    retention: account lifetime
+    exclude_from: [traces, analytics]
+    erasure: delete

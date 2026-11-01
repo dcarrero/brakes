@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "bare-number", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "731",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "hash-only", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "gh-prefix", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "GH-731",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "url-ok", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "https://github.com/example-org/example-app/issues/1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-11-20" }
+  ]
+}

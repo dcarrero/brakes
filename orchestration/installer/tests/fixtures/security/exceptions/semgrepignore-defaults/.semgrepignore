@@ -1,0 +1,8 @@
+# Semgrep CE's defaults, kept explicit: they need no inventory entry.
+.git
+node_modules/
+tests/
+*_test.go
+
+# Project paths: each one is a bypass and must be registered.
+docs/generated/

@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "id": "job-31", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-12-02" },
+    { "id": "job-30", "kind": "job-bypass", "target": "deps-scan",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-12-01" },
+    { "id": "allow-366", "kind": "allowlist", "target": ".gitleaksignore#a",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-11-02" },
+    { "id": "allow-365", "kind": "allowlist", "target": ".gitleaksignore#b",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-11-01" },
+    { "id": "actor-365", "kind": "ruleset-bypass-actor", "target": "RepositoryRole:admin",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2027-11-01" },
+    { "id": "coverage-40", "kind": "coverage-reset", "target": ".agent-setup/coverage.json",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-12-11" },
+    { "id": "continue-31", "kind": "continue-on-error", "target": "ci.yml#lint",
+      "reason": "fixture", "issue": "#1",
+      "owner": "example-owner", "created": "2026-11-01", "expires": "2026-12-02" }
+  ]
+}

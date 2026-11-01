@@ -1,0 +1,11 @@
+{
+  "repo": "example-owner/example-app",
+  "default_branch": "main",
+  "recorded": "2026-10-29, read-only gh api",
+  "replies": {
+    "repos/example-owner/example-app/issues?state=open&labels=type%3Apost-mortem-action&per_page=100&page=1": {
+      "status": 200,
+      "body": []
+    }
+  }
+}

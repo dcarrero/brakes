@@ -1,0 +1,3 @@
+[
+  {"id": 42, "name": "main", "target": "branch", "source_type": "Repository", "enforcement": "active"}
+]

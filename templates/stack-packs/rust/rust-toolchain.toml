@@ -1,0 +1,4 @@
+# brakes stack-packs (rust) — seed: yours to edit.
+[toolchain]
+channel = "{{tools.rust}}"
+components = ["clippy", "rustfmt"]

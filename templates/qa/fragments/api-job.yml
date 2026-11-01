@@ -1,0 +1,53 @@
+name: qa-api
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: {{timeout}}
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+{{setup_steps}}
+  - name: Install hurl
+    env:
+{{hurl_env}}
+    run: |
+{{install_tool}}
+  - id: start
+    name: Start the API
+{{start_dir}}    env:
+      QA_START: {{api_start}}
+      QA_NAME: api
+    run: |
+{{start_app}}
+  - id: ready
+    name: Wait until the API is ready
+    env:
+      QA_API_URL: {{api_url}}
+      QA_DIR: {{qa_dir}}
+    run: |
+      hurl --version
+      {{hurl_ready}}
+  - name: Run the API tests
+    env:
+      QA_API_URL: {{api_url}}
+      QA_DIR: {{qa_dir}}
+    run: |
+      {{hurl_run}}
+  - name: Stop the API
+    if: always() && steps.start.outcome == 'success'
+    env:
+      QA_NAME: api
+      QA_FAILED: "${{ steps.ready.outcome == 'failure' && '1' || '0' }}"
+    run: |
+{{stop_app}}
+  - name: Upload the QA report
+    if: always()
+    uses: {{upload_artifact}}
+    with:
+      name: qa-api
+      path: |
+        ${{ runner.temp }}/qa/hurl-junit.xml
+        ${{ runner.temp }}/qa/api.log
+      retention-days: "7"

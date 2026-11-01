@@ -1,0 +1,29 @@
+name: sast
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: 15
+permissions:
+  contents: read
+  security-events: write
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- sast
+{{bypass_variable}}
+  - name: Initialize CodeQL
+    if: steps.bypass.outputs.id == ''
+    uses: {{codeql_init}}
+    with:
+      languages: {{codeql_languages}}
+  - name: Analyze with CodeQL
+    if: steps.bypass.outputs.id == ''
+    uses: {{codeql_analyze}}

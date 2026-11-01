@@ -1,0 +1,55 @@
+[
+  {
+    "name": "Install pnpm",
+    "uses": {
+      "repo": "pnpm/action-setup",
+      "sha": "ea17c68df8912ef543352723c149a84f56e3d413",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "run_install": "false"
+    }
+  },
+  {
+    "name": "Set up Node",
+    "uses": {
+      "repo": "actions/setup-node",
+      "sha": "949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "version": "v7.1.0"
+    },
+    "with": {
+      "node-version-file": "apps/web/.nvmrc",
+      "package-manager-cache": "false"
+    }
+  },
+  {
+    "name": "Restore pnpm store",
+    "uses": {
+      "repo": "actions/cache/restore",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "key": "${{ runner.os }}-pnpm-${{ hashFiles('apps/web/pnpm-lock.yaml') }}",
+      "path": "~/.local/share/pnpm/store"
+    }
+  },
+  {
+    "name": "Install dependencies",
+    "run": "pnpm install --frozen-lockfile",
+    "working-directory": "apps/web"
+  },
+  {
+    "name": "Save pnpm store",
+    "uses": {
+      "repo": "actions/cache/save",
+      "sha": "55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+      "version": "v6.1.0"
+    },
+    "with": {
+      "key": "${{ runner.os }}-pnpm-${{ hashFiles('apps/web/pnpm-lock.yaml') }}",
+      "path": "~/.local/share/pnpm/store"
+    },
+    "if": "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+  }
+]

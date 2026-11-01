@@ -1,0 +1,22 @@
+{
+  "name": "<app-name>",
+  "url": "<homepage-url>",
+  "description": "Identity of coding agents: pushes branches, opens pull requests and comments. Never a ruleset bypass actor.",
+  "public": false,
+  "hook_attributes": {
+    "url": "<homepage-url>",
+    "active": false
+  },
+  "default_events": [],
+  "default_permissions": {
+    "contents": "write",
+    "pull_requests": "write",
+    "issues": "write",
+    "checks": "read",
+    "statuses": "read",
+    "actions": "read",
+    "metadata": "read"
+  },
+  "request_oauth_on_install": false,
+  "setup_on_update": false
+}

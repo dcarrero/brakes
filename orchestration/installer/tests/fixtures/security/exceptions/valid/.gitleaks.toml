@@ -1,0 +1,11 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "registered in .agent-setup/security-exceptions.json"
+paths = [
+  '''tests/fixtures/.*''',
+]
+regexes = []

@@ -1,0 +1,72 @@
+{
+ "default_branch": "main",
+ "replies": {
+  "repos/example-owner/state-machine": {
+   "body": {
+    "default_branch": "main",
+    "private": false
+   },
+   "status": 200
+  },
+  "repos/example-owner/state-machine/actions/secrets?per_page=100&page=1": {
+   "body": {
+    "secrets": [],
+    "total_count": 0
+   },
+   "status": 200
+  },
+  "repos/example-owner/state-machine/branches/main/protection": {
+   "message": "Branch not protected",
+   "status": 404
+  },
+  "repos/example-owner/state-machine/branches?per_page=100&page=1": {
+   "body": [
+    {
+     "commit": {
+      "sha": "73b1dc653e49c2cc968781c441186ef47b93cc08",
+      "url": "https://api.github.com/repos/example-owner/state-machine/commits/73b1dc653e49c2cc968781c441186ef47b93cc08"
+     },
+     "name": "main",
+     "protected": false,
+     "protection": {
+      "enabled": false,
+      "required_status_checks": {
+       "checks": [],
+       "contexts": [],
+       "enforcement_level": "off"
+      }
+     },
+     "protection_url": "https://api.github.com/repos/example-owner/state-machine/branches/main/protection"
+    }
+   ],
+   "status": 200
+  },
+  "repos/example-owner/state-machine/dependabot/alerts?state=open&per_page=100": {
+   "message": "Dependabot alerts are disabled for this repository.",
+   "status": 403
+  },
+  "repos/example-owner/state-machine/environments?per_page=100&page=1": {
+   "body": {
+    "environments": [],
+    "total_count": 0
+   },
+   "status": 200
+  },
+  "repos/example-owner/state-machine/rulesets?per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  },
+  "repos/example-owner/state-machine/secret-scanning/alerts?state=open&hide_secret=true&per_page=100&page=1": {
+   "body": [],
+   "status": 200
+  },
+  "users/example-owner": {
+   "body": {
+    "login": "example-owner",
+    "type": "User"
+   },
+   "status": 200
+  }
+ },
+ "repo": "example-owner/state-machine"
+}

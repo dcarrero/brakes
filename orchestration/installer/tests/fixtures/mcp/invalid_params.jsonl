@@ -1,0 +1,10 @@
+{"send": {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {}}, "expect": {"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "Invalid params: tools/call needs a tool name"}}}
+{"send": {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "delete_everything"}}, "expect": {"jsonrpc": "2.0", "id": 2, "error": {"code": -32602, "message": "Unknown tool: delete_everything"}}}
+{"send": {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "get_questions", "arguments": []}}, "expect": {"jsonrpc": "2.0", "id": 3, "error": {"code": -32602, "message": "Invalid params: tools/call arguments must be an object"}}}
+{"send": {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "get_questions", "arguments": {}}}, "expect": {"jsonrpc": "2.0", "id": 4, "result": {"isError": true, "content": [{"type": "text", "text": "REFUSED: get_questions needs `module`"}]}}}
+{"send": {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "get_questions", "arguments": {"module": "nothing"}}}, "expect": {"jsonrpc": "2.0", "id": 5, "result": {"isError": true, "content": [{"type": "text", "text": "REFUSED: Unknown module id: nothing"}]}}}
+{"send": {"jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": {"name": "list_modules", "arguments": {"verbose": true}}}, "expect": {"jsonrpc": "2.0", "id": 6, "result": {"isError": true, "content": [{"type": "text", "text": "REFUSED: list_modules takes no argument `verbose`"}]}}}
+{"send": {"jsonrpc": "2.0", "id": 7, "method": "initialize", "params": {}}, "expect": {"jsonrpc": "2.0", "id": 7, "error": {"code": -32602, "message": "Invalid params: initialize needs a protocolVersion"}}}
+{"send_raw": "{not json", "expect": {"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "Parse error"}}}
+{"send": [{"jsonrpc": "2.0", "id": 8, "method": "ping"}], "expect": {"jsonrpc": "2.0", "id": null, "error": {"code": -32600, "message": "Invalid Request"}}}
+{"send": {"jsonrpc": "2.0", "id": null, "method": "ping"}, "expect": {"jsonrpc": "2.0", "id": null, "error": {"code": -32600, "message": "Invalid Request"}}}

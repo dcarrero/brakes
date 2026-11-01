@@ -1,0 +1,7 @@
+{
+  "purpose": "fixture",
+  "commands": {
+    "verify": "true"
+  },
+  "criticality": "personal-data-or-payments"
+}

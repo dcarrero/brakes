@@ -1,0 +1,29 @@
+name: deps-scan
+needs: scope
+if: needs.scope.outputs.tier != 'docs'
+runs-on: {{runner}}
+timeout-minutes: 10
+steps:
+  - name: Check out
+    uses: {{checkout}}
+    with:
+      persist-credentials: "false"
+  - id: bypass
+    name: Apply a registered bypass
+    env:
+      SECURITY_BYPASS: "${{ vars.SECURITY_BYPASS }}"
+      SECURITY_BYPASS_MAX_DAYS: "{{bypass_max_days}}"
+    run: |
+      set -- deps-scan
+{{bypass_variable}}
+  - name: Install osv-scanner
+    if: steps.bypass.outputs.id == ''
+    env:
+{{osv_env}}
+    run: |
+{{install_tool}}
+  - name: Scan dependencies with osv-scanner
+    if: steps.bypass.outputs.id == ''
+    run: |
+      osv-scanner --version
+      osv-scanner scan source --config osv-scanner.toml {{osv_lockfiles}}

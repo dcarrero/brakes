@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "ready": true,
+  "findings": [],
+  "steps": [
+    {
+      "id": "qa-api-reported",
+      "module": "qa",
+      "title": "CI reports qa-api on main",
+      "owner": "platform",
+      "state": "unavailable",
+      "evidence": "remote probe `check-run-reported` runs only with doctor --remote",
+      "error": null
+    },
+    {
+      "id": "qa-web-baseline",
+      "module": "qa",
+      "title": "Generate the screenshot baseline on Linux",
+      "owner": "project",
+      "state": "blocked",
+      "evidence": "waits for step `qa-web-lockfile` (pending)",
+      "error": null
+    },
+    {
+      "id": "qa-web-lockfile",
+      "module": "qa",
+      "title": "Commit the web lockfile",
+      "owner": "project",
+      "state": "pending",
+      "evidence": "qa/web/package-lock.json is absent",
+      "error": null
+    }
+  ],
+  "modules": [
+    {
+      "id": "qa",
+      "version": "1.0.0"
+    }
+  ]
+}

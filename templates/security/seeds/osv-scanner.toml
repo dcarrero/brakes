@@ -1,0 +1,8 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# OSV-Scanner reads it in CI (deps-scan). Every ignored vulnerability needs an
+# expiry and an issue, or security-gate fails (docs/agent-setup/security-gates.md):
+#
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2026-12-01
+# reason = "no fixed version yet; tracked in #123"

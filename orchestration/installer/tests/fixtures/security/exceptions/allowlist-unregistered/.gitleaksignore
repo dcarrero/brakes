@@ -1,0 +1,3 @@
+# fingerprints
+tests/fixtures/fake.pem:private-key:3
+  README.md:generic-api-key:12

@@ -1,0 +1,54 @@
+name: CI
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  qa-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install hurl
+        run: |
+          curl -fsSLo hurl.tar.gz "https://github.com/Orange-OpenSource/hurl/releases/download/8.1.0/hurl-8.1.0-x86_64-unknown-linux-gnu.tar.gz"
+          echo "0000000000000000000000000000000000000000000000000000000000000000  hurl.tar.gz" | sha256sum --check --strict
+          tar -xzf hurl.tar.gz
+      - name: API smoke
+        run: hurl --test --report-junit hurl-junit.xml --variable base_url=http://127.0.0.1:8080 qa/api/*.hurl
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: qa-api
+          path: hurl-junit.xml
+          retention-days: 7
+  qa-web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: npm ci
+        working-directory: qa/web
+      - run: npx playwright install --with-deps chromium
+        working-directory: qa/web
+      - run: npx playwright test
+        working-directory: qa/web
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: qa-web
+          path: |
+            qa/web/playwright-report/
+            qa/web/test-results/
+          retention-days: 7
+  required:
+    if: always()
+    needs: [qa-api, qa-web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - run: echo done

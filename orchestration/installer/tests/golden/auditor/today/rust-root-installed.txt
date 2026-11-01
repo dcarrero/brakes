@@ -1,0 +1,17 @@
+NOT READY: Project purpose missing
+NOT READY: Verification command missing
+WARNING: Merge guard hook is not registered in .claude/settings.json (PreToolUse, matcher Bash, onFailure block)
+WARNING: stack.unconfigured: a stack is detected that no stack-packs answers record
+stack-packs: proposals (nothing written; confirm with --set or --answers)
+  app `root` at `.`: stack rust
+    evidence: Cargo.toml (workspace, rust-version = "1.85"), Cargo.lock
+    commands (project.json fields already declared are kept; proposed only for null):
+      build:  proposed  "cargo build --workspace --all-targets --locked"
+      test:   proposed  "cargo test --workspace --locked"
+      lint:   proposed  "cargo clippy --workspace --all-targets --locked -- -D warnings"
+      verify: proposed  "cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked"
+    seeds on apply: Dockerfile, .dockerignore
+WARNING: security.secrets-gate: No secrets gate: no gitleaks job and secret scanning off
+WARNING: security.deps-gate: No lockfile vulnerability scan in CI
+WARNING: security.sast-gate: No static analysis job in CI
+STEP [pending:merge-guard] hook-registered — .claude/settings.json is absent

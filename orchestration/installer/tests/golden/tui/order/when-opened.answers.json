@@ -1,0 +1,13 @@
+{
+  "module": "order",
+  "version": "1.0.0",
+  "answers": {
+    "address": "Main St 1",
+    "delivery": true,
+    "note": "none",
+    "size": "large",
+    "toppings": [
+      "sprinkles"
+    ]
+  }
+}

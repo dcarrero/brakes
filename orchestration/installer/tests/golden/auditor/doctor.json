@@ -1,0 +1,1402 @@
+{
+  "schema": 1,
+  "ready": true,
+  "findings": [
+    "WARNING: Merge guard hook is not registered"
+  ],
+  "steps": [],
+  "modules": [],
+  "audited_at": "2026-10-28",
+  "blocks": {
+    "agents": "complete",
+    "baseline": "complete",
+    "ci": "partial",
+    "ci_health": "partial",
+    "dora": "unavailable",
+    "governance": "partial",
+    "operations": "partial",
+    "posture": "partial",
+    "qa": "complete",
+    "security": "partial",
+    "stack": "complete"
+  },
+  "budget": {
+    "api_calls": 18,
+    "exhausted": false,
+    "limit": 60
+  },
+  "counters": {
+    "cost_per_change": {
+      "evidence": [],
+      "reason": "workflow runs of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/runs?per_page=100&page=1)",
+      "unit": "minutes",
+      "value": null
+    },
+    "post_merge_corrections": {
+      "evidence": [],
+      "reason": "no pull request merged 2026-08-31..2026-09-28 to judge",
+      "unit": "percent",
+      "value": null
+    }
+  },
+  "level": {
+    "accepted": null,
+    "findings": [],
+    "reached": null,
+    "required": "Bronze",
+    "standard": "accepted",
+    "unverified_from": null
+  },
+  "next_level": {
+    "gap": [
+      "baseline.criticality-declared",
+      "ci-health.workflow-exists",
+      "posture.default-branch-protected",
+      "posture.no-open-secret-scanning-alerts"
+    ],
+    "level": "Basic"
+  },
+  "profile": {
+    "id": "P1",
+    "measures": {
+      "criticality": {
+        "evidence": [
+          "project.json#criticality undeclared (audited as internal)"
+        ],
+        "tier": "internal",
+        "value": "undeclared"
+      },
+      "deployable_services": {
+        "evidence": [
+          "environments: production"
+        ],
+        "tier": "single",
+        "value": 1
+      },
+      "humans_with_merge": {
+        "evidence": [
+          "collaborators: example-owner (admin)"
+        ],
+        "tier": "P1",
+        "value": 1
+      },
+      "merge_cadence_per_week": {
+        "evidence": [
+          "3 merged PRs 2026-09-30..2026-10-28"
+        ],
+        "tier": "low",
+        "value": 0.75
+      }
+    },
+    "unverified": false
+  },
+  "repo": "example-owner/example",
+  "rules": [
+    {
+      "block": "baseline",
+      "evidence": [
+        "purpose: Fixture repository for the auditor's report."
+      ],
+      "id": "baseline.purpose-declared",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "commands.verify: true"
+      ],
+      "id": "baseline.verify-declared",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "criticality undeclared in .agent-setup/project.json (audited as internal)"
+      ],
+      "id": "baseline.criticality-declared",
+      "level": "Basic",
+      "reason": null,
+      "remediation": "manual step declare-criticality: Set `criticality` in .agent-setup/project.json to internal, customers or personal-data-or-payments.",
+      "required": true,
+      "status": "failed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.setup-installed",
+      "level": "Basic",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.conventions-resolved",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.profile-current",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.placeholder-guidance-reviewed",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.merge-guard-registered",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.guides-installed",
+      "level": "Basic",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.release-baseline",
+      "level": "Basic",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.managed-content-intact",
+      "level": "Basic",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.guides-verified",
+      "level": "Basic",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.entrypoints-current",
+      "level": "Basic",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [],
+      "id": "baseline.decisions-index-current",
+      "level": "Bronze",
+      "reason": "setup not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.remote-readable",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.branch-protection-matches",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "baseline",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "baseline.ci-policy-met",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.default-branch-protected",
+      "level": "Basic",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.no-open-secret-scanning-alerts",
+      "level": "Basic",
+      "reason": "open secret-scanning alerts of example-owner/example was not found (404: Not Found: repos/example-owner/example/secret-scanning/alerts?state=open&hide_secret=true&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.required-check-enforced",
+      "level": "Bronze",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.no-unlisted-bypass-actors",
+      "level": "Bronze",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.human-approval-required",
+      "level": "Bronze",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": false,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.codeowners-review",
+      "level": "Bronze",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": false,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.serialised-merges",
+      "level": "Bronze",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": false,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.actions-pinned",
+      "level": "Bronze",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.no-stale-critical-alerts",
+      "level": "Bronze",
+      "reason": "open Dependabot alerts of example-owner/example was not found (404: Not Found: repos/example-owner/example/dependabot/alerts?state=open&per_page=100)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.no-repo-secrets-with-production",
+      "level": "Bronze",
+      "reason": "repository secret names of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/secrets?per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [
+        "production deploys only from main"
+      ],
+      "id": "posture.production-environment-guarded",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.stale-branches",
+      "level": "Bronze",
+      "reason": "branches of example-owner/example was not found (404: Not Found: repos/example-owner/example/branches?per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.org-2fa-required",
+      "level": "Gold",
+      "reason": "owner example-owner was not found (404: Not Found: users/example-owner)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "posture",
+      "evidence": [],
+      "id": "posture.repo-admins-are-owners",
+      "level": "Silver",
+      "reason": "owner example-owner was not found (404: Not Found: users/example-owner)",
+      "remediation": null,
+      "required": false,
+      "status": "unavailable"
+    },
+    {
+      "block": "ci-health",
+      "evidence": [
+        "no workflow under .github/workflows"
+      ],
+      "id": "ci-health.workflow-exists",
+      "level": "Basic",
+      "reason": null,
+      "remediation": "module ci-baseline",
+      "required": true,
+      "status": "failed"
+    },
+    {
+      "block": "ci-health",
+      "evidence": [],
+      "id": "ci-health.rerun-rate",
+      "level": "Silver",
+      "reason": "workflow runs of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/runs?per_page=100&page=1)",
+      "remediation": null,
+      "required": false,
+      "status": "unavailable"
+    },
+    {
+      "block": "ci-health",
+      "evidence": [],
+      "id": "ci-health.cancellation-rate",
+      "level": "Silver",
+      "reason": "workflow runs of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/runs?per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "ci-health",
+      "evidence": [
+        "ci.required_checks undeclared in .agent-setup/project.json",
+        "ci.cycle_budget_minutes undeclared in .agent-setup/project.json",
+        "CI minutes this month (a sample, not billing): unavailable: workflow runs of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/runs?per_page=100&page=1)"
+      ],
+      "id": "ci-health.minutes-budget",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": "manual step meet-ci-cycle-budget: Declare ci.required_checks and ci.cycle_budget_minutes in .agent-setup/project.json, then shard, cache or split jobs until the median cycle fits.",
+      "required": false,
+      "status": "failed"
+    },
+    {
+      "block": "dora",
+      "evidence": [],
+      "id": "dora.deployments-api-in-use",
+      "level": "Silver",
+      "reason": "production deployments of example-owner/example was not found (404: Not Found: repos/example-owner/example/deployments?environment=production&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "dora",
+      "evidence": [],
+      "id": "dora.time-to-restore",
+      "level": "Gold",
+      "reason": "issues of example-owner/example was not found (404: Not Found: repos/example-owner/example/issues?state=closed&labels=incident&since=2026-09-30T00%3A00%3A00Z&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "dora",
+      "evidence": [],
+      "id": "dora.deployment-frequency",
+      "level": "Silver",
+      "reason": "production deployments of example-owner/example was not found (404: Not Found: repos/example-owner/example/deployments?environment=production&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "dora",
+      "evidence": [],
+      "id": "dora.lead-time",
+      "level": "Silver",
+      "reason": "production deployments of example-owner/example was not found (404: Not Found: repos/example-owner/example/deployments?environment=production&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "dora",
+      "evidence": [],
+      "id": "dora.change-failure-rate",
+      "level": "Silver",
+      "reason": "production deployments of example-owner/example was not found (404: Not Found: repos/example-owner/example/deployments?environment=production&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.post-deploy-smoke",
+      "level": "Silver",
+      "reason": "waits for module delivery",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.rollback-evidence",
+      "level": "Silver",
+      "reason": "waits for module delivery",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.uptime-footprint",
+      "level": "Silver",
+      "reason": "waits for module observability",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.incidents-bounded",
+      "level": "Silver",
+      "reason": "waits for module incidents",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.runbook-per-alert",
+      "level": "Silver",
+      "reason": "waits for module incidents",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.slo-burn-rate-validated",
+      "level": "Gold",
+      "reason": "waits for module incidents",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.backup-age-within-rpo",
+      "level": "Gold",
+      "reason": "waits for module continuity",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "operations",
+      "evidence": [],
+      "id": "operations.restore-drill-fresh",
+      "level": "Gold",
+      "reason": "waits for module continuity",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "governance",
+      "evidence": [
+        "neither .github/dependabot.yml nor renovate.json configures dependency updates"
+      ],
+      "id": "governance.dependency-updates-with-cooldown",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": "module repo-baseline",
+      "required": true,
+      "status": "failed"
+    },
+    {
+      "block": "governance",
+      "evidence": [
+        "no service card: .agent-setup/service.yaml, service.yaml or catalog-info.yaml"
+      ],
+      "id": "governance.service-card-owner",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": "module repo-baseline",
+      "required": true,
+      "status": "failed"
+    },
+    {
+      "block": "governance",
+      "evidence": [
+        "no CODEOWNERS in .github/, the root or docs/"
+      ],
+      "id": "governance.codeowners-present",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": "module repo-baseline",
+      "required": false,
+      "status": "failed"
+    },
+    {
+      "block": "governance",
+      "evidence": [
+        "no pull request template in .github/, the root or docs/",
+        "no issue form (.yml) under .github/ISSUE_TEMPLATE"
+      ],
+      "id": "governance.pr-template-and-issue-forms",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": "module repo-baseline",
+      "required": true,
+      "status": "failed"
+    },
+    {
+      "block": "governance",
+      "evidence": [],
+      "id": "governance.no-expired-bypass",
+      "level": "Silver",
+      "reason": "no bypass registered: .agent-setup/security-exceptions.json absent",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "governance",
+      "evidence": [],
+      "id": "governance.postmortem-actions-closed",
+      "level": "Gold",
+      "reason": "issues of example-owner/example was not found (404: Not Found: repos/example-owner/example/issues?state=open&labels=type%3Apost-mortem-action&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "governance",
+      "evidence": [],
+      "id": "governance.adr-state-known",
+      "level": "Gold",
+      "reason": "no decision file declared in .agent-setup/project.json conventions",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "governance",
+      "evidence": [],
+      "id": "governance.no-expired-flags",
+      "level": "Gold",
+      "reason": "waits for module flags",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "governance",
+      "evidence": [],
+      "id": "governance.cost-tags",
+      "level": "Gold",
+      "reason": "waits for module iac",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "governance",
+      "evidence": [],
+      "id": "governance.no-persistent-oversizing",
+      "level": "Gold",
+      "reason": "waits for module k8s",
+      "remediation": null,
+      "required": false,
+      "status": "unavailable"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.command-missing",
+      "level": "Basic",
+      "reason": "ci-baseline not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.aggregate-present",
+      "level": "Basic",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.job-timeouts",
+      "level": "Basic",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.permissions-least",
+      "level": "Bronze",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.workflow-lint",
+      "level": "Bronze",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.no-self-hosted-label",
+      "level": "Bronze",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.hosted-macos",
+      "level": "Bronze",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.dependabot-actions",
+      "level": "Bronze",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.heldout-present",
+      "level": "Silver",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.protected-paths-gate",
+      "level": "Silver",
+      "reason": "no workflow under .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.heldout-properties",
+      "level": "Silver",
+      "reason": "heldout_properties is not true and no workflow has a heldout-properties job",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.project-ci-stale",
+      "level": "Bronze",
+      "reason": "ci-baseline not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.required-is-aggregate",
+      "level": "Silver",
+      "reason": "protection of branch main in example-owner/example was not found (404: Not Found: repos/example-owner/example/branches/main/protection)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.main-red",
+      "level": "Silver",
+      "reason": "no workflow under .github/workflows declares a job named required",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "ci",
+      "evidence": [],
+      "id": "ci.minutes-month",
+      "level": "Gold",
+      "reason": "workflow runs of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/runs?status=completed&created=%3E%3D2026-09-28&per_page=100&page=1)",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.secrets-gate",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.secrets-full-history",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.deps-gate",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.scanner-unpinned",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.trivy-compromised-version",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.bypass-inventory-valid",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none",
+        "SECURITY_BYPASS is unset"
+      ],
+      "id": "security.bypass-unregistered",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.bypass-expired",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "secret scanning not reported, push protection not reported",
+        "risk secret-scanning-unavailable-on-plan: a private repository needs Secret Protection (Team or Enterprise), which the installer never assumes; security-gate is the gate"
+      ],
+      "id": "security.secret-scanning",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.private-vulnerability-reporting",
+      "level": "Bronze",
+      "reason": "a private repository: private vulnerability reporting is required on public repositories only",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.scanner-stale",
+      "level": "Gold",
+      "reason": "no workflow pins a scanner by checksum or digest",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.attestation-verified",
+      "level": "Gold",
+      "reason": "waits for module delivery",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.sbom-scanned",
+      "level": "Gold",
+      "reason": "waits for module delivery",
+      "remediation": null,
+      "required": true,
+      "status": "unavailable"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.binary-artifacts",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.sast-gate",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": false,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.container-gate",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "security.pii-declared",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": false,
+      "status": "passed"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.coverage-ratchet",
+      "level": "Gold",
+      "reason": "coverage_ratchet is not answered true and no coverage-ratchet job exists",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.mutation-gate",
+      "level": "Gold",
+      "reason": "security's mutation_diff is not true",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "security",
+      "evidence": [],
+      "id": "security.diff-coverage",
+      "level": "Silver",
+      "reason": "no app with a per-file coverage report and no diff-coverage job",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "stack",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "stack.unconfigured",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "stack",
+      "evidence": [],
+      "id": "stack.lockfile-present",
+      "level": "Basic",
+      "reason": "stack-packs not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "stack",
+      "evidence": [],
+      "id": "stack.lockfile-not-enforced",
+      "level": "Basic",
+      "reason": "stack-packs not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "stack",
+      "evidence": [],
+      "id": "stack.toolchain-pinned",
+      "level": "Silver",
+      "reason": "stack-packs not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "stack",
+      "evidence": [],
+      "id": "stack.image-by-digest",
+      "level": "Silver",
+      "reason": "stack-packs not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "stack",
+      "evidence": [],
+      "id": "stack.image-nonroot",
+      "level": "Silver",
+      "reason": "stack-packs not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "stack",
+      "evidence": [],
+      "id": "stack.image-arbitrary-uid",
+      "level": "Gold",
+      "reason": "stack-packs not installed",
+      "remediation": null,
+      "required": false,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.deny-secrets",
+      "level": "Basic",
+      "reason": "agent-guardrails not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.stop-verify",
+      "level": "Bronze",
+      "reason": "agent-guardrails not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.protected-paths",
+      "level": "Bronze",
+      "reason": "agent-guardrails not installed",
+      "remediation": null,
+      "required": false,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "agents.mcp-allowlist",
+      "level": "Bronze",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.technical-debt",
+      "level": "Bronze",
+      "reason": "agent-guardrails not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "agents.readable-secrets",
+      "level": "Basic",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.cross-review",
+      "level": "Silver",
+      "reason": "agent-guardrails not installed",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.unattended-gated",
+      "level": "Silver",
+      "reason": "unattended is not true and no workflow starts an agent from an issue label",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.heldout-denied",
+      "level": "Silver",
+      "reason": "ci-baseline's heldout is not true (no heldout job)",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "agents",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "agents.workflow-caps",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": true,
+      "status": "passed"
+    },
+    {
+      "block": "agents",
+      "evidence": [
+        "today's doctor reports none"
+      ],
+      "id": "agents.identity",
+      "level": "Silver",
+      "reason": null,
+      "remediation": null,
+      "required": false,
+      "status": "passed"
+    },
+    {
+      "block": "agents",
+      "evidence": [],
+      "id": "agents.workflow-injection",
+      "level": "Bronze",
+      "reason": "no workflow job runs an agent",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.api-smoke-present",
+      "level": "Silver",
+      "reason": "no service declared and no job calls hurl --test",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.web-smoke-present",
+      "level": "Silver",
+      "reason": "no web app declared and no job calls playwright test",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.screenshot-baseline-present",
+      "level": "Silver",
+      "reason": "no spec calls toHaveScreenshot without a baseline and no job calls playwright test",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.snapshots-protected",
+      "level": "Silver",
+      "reason": "no unprotected *-snapshots directory and no job calls playwright test",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.hurl-no-literal-host",
+      "level": "Bronze",
+      "reason": "no QA job and no .hurl file names a host",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.tools-pinned",
+      "level": "Bronze",
+      "reason": "no QA job (hurl --test or playwright test) in .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.no-snapshot-update-in-ci",
+      "level": "Bronze",
+      "reason": "no QA job (hurl --test or playwright test) in .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.report-artifact",
+      "level": "Bronze",
+      "reason": "no QA job (hurl --test or playwright test) in .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.main-green",
+      "level": "Silver",
+      "reason": "no QA job (hurl --test or playwright test) in .github/workflows",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.contract-lint",
+      "level": "Silver",
+      "reason": "no contract unlinted and no job lints a contract",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    },
+    {
+      "block": "qa",
+      "evidence": [],
+      "id": "qa.contract-compatible",
+      "level": "Silver",
+      "reason": "no contract uncompared and no job compares a contract",
+      "remediation": null,
+      "required": true,
+      "status": "not-required"
+    }
+  ],
+  "window_days": 28
+}

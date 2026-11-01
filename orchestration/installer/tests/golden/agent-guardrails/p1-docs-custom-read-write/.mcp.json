@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "browser": {
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.41"
+      ],
+      "command": "npx"
+    },
+    "docs": {
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@4.4.4"
+      ],
+      "command": "npx"
+    },
+    "tracker": {
+      "type": "http",
+      "url": "https://tracker.example/mcp"
+    }
+  }
+}

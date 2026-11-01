@@ -1,0 +1,6 @@
+src/lib.rs:22:5: replace added_covered -> i32 with 1
+src/lib.rs:26:5: replace added_uncovered -> i32 with 0
+src/lib.rs:26:5: replace added_uncovered -> i32 with 1
+src/lib.rs:26:5: replace added_uncovered -> i32 with -1
+src/lib.rs:26:7: replace * with + in added_uncovered
+src/lib.rs:26:7: replace * with / in added_uncovered

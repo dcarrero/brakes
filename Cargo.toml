@@ -1,0 +1,6 @@
+# The workspace at the repository root. The installer keeps its directory, so the
+# paths it reads at compile time (templates/, VERSION, .claude/) still resolve; the
+# lock beside this file is derived from the pinned versions the crate was tested with.
+[workspace]
+members = ["orchestration/installer"]
+resolver = "3"

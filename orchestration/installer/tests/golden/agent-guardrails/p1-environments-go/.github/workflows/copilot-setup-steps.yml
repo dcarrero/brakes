@@ -1,0 +1,45 @@
+# Managed by brakes (agent-guardrails): change it through `configure`.
+name: Copilot Setup Steps
+"on":
+  pull_request:
+    paths:
+      - ".github/workflows/copilot-setup-steps.yml"
+  push:
+    paths:
+      - ".github/workflows/copilot-setup-steps.yml"
+  workflow_dispatch: {}
+jobs:
+  copilot-setup-steps:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: "false"
+          go-version-file: go.mod
+      - name: Restore Go module and build caches
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: "${{ runner.os }}-go-${{ hashFiles('go.sum') }}"
+          path: |-
+            ~/go/pkg/mod
+            ~/.cache/go-build
+      - name: Download and verify modules
+        env:
+          GOFLAGS: "-mod=readonly"
+        run: "go mod download && go mod verify"
+      - name: Save Go module and build caches
+        if: "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)"
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: "${{ runner.os }}-go-${{ hashFiles('go.sum') }}"
+          path: |-
+            ~/go/pkg/mod
+            ~/.cache/go-build

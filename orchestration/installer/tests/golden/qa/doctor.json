@@ -1,0 +1,64 @@
+{
+  "findings": [
+    "WARNING: qa.hurl-no-literal-host: qa/api/10-x.hurl:2 names a host; use {{base_url}} so the file serves test, smoke and uptime",
+    "WARNING: qa.tools-pinned: QA tool @playwright/test in package.json is not pinned by checksum or exact version",
+    "WARNING: qa.no-snapshot-update-in-ci: CI updates screenshot baselines: a broken screen can pass by rewriting its evidence (.github/workflows/ci.yml)"
+  ],
+  "rules": [
+    {
+      "id": "qa.api-smoke-present",
+      "said": "[\"today's doctor reports none\"]",
+      "status": "passed"
+    },
+    {
+      "id": "qa.web-smoke-present",
+      "said": "[\"today's doctor reports none\"]",
+      "status": "passed"
+    },
+    {
+      "id": "qa.screenshot-baseline-present",
+      "said": "[\"today's doctor reports none\"]",
+      "status": "passed"
+    },
+    {
+      "id": "qa.snapshots-protected",
+      "said": "[\"today's doctor reports none\"]",
+      "status": "passed"
+    },
+    {
+      "id": "qa.hurl-no-literal-host",
+      "said": "[\"qa/api/10-x.hurl:2 names a host; use {{base_url}} so the file serves test, smoke and uptime\"]",
+      "status": "failed"
+    },
+    {
+      "id": "qa.tools-pinned",
+      "said": "[\"QA tool @playwright/test in package.json is not pinned by checksum or exact version\"]",
+      "status": "failed"
+    },
+    {
+      "id": "qa.no-snapshot-update-in-ci",
+      "said": "[\"CI updates screenshot baselines: a broken screen can pass by rewriting its evidence (.github/workflows/ci.yml)\"]",
+      "status": "failed"
+    },
+    {
+      "id": "qa.report-artifact",
+      "said": "[\"today's doctor reports none\"]",
+      "status": "passed"
+    },
+    {
+      "id": "qa.main-green",
+      "said": "remote findings run only with doctor --remote",
+      "status": "unavailable"
+    },
+    {
+      "id": "qa.contract-lint",
+      "said": "no contract unlinted and no job lints a contract",
+      "status": "not-required"
+    },
+    {
+      "id": "qa.contract-compatible",
+      "said": "no contract uncompared and no job compares a contract",
+      "status": "not-required"
+    }
+  ]
+}

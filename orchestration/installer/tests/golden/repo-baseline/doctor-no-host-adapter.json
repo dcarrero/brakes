@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "ready": true,
+  "findings": [],
+  "steps": [
+    {
+      "id": "check-reported",
+      "module": "repo-baseline",
+      "title": "CI reports the required checks on main",
+      "owner": "platform",
+      "state": "unavailable",
+      "evidence": "remote probe `check-run-reported` runs only with doctor --remote",
+      "error": null
+    },
+    {
+      "id": "classic-protection-retire",
+      "module": "repo-baseline",
+      "title": "Remote item: no classic branch protection on main",
+      "owner": "owner",
+      "state": "blocked",
+      "evidence": "waits for step `ruleset-main` (blocked)",
+      "error": null
+    },
+    {
+      "id": "dependabot-alerts",
+      "module": "repo-baseline",
+      "title": "Remote item: Dependabot alerts enabled",
+      "owner": "owner",
+      "state": "unavailable",
+      "evidence": "remote probe `dependabot-alerts` runs only with doctor --remote",
+      "error": null
+    },
+    {
+      "id": "dependabot-security-updates",
+      "module": "repo-baseline",
+      "title": "Remote item: Dependabot security updates enabled",
+      "owner": "owner",
+      "state": "unavailable",
+      "evidence": "remote probe `automated-security-fixes` runs only with doctor --remote",
+      "error": null
+    },
+    {
+      "id": "labels",
+      "module": "repo-baseline",
+      "title": "Remote item: the standard labels exist with their colors",
+      "owner": "owner",
+      "state": "unavailable",
+      "evidence": "remote probe `labels-present` runs only with doctor --remote",
+      "error": null
+    },
+    {
+      "id": "repo-settings",
+      "module": "repo-baseline",
+      "title": "Remote item: squash-only merges, branch cleanup, auto-merge and update branch",
+      "owner": "owner",
+      "state": "unavailable",
+      "evidence": "remote probe `repo-settings` runs only with doctor --remote",
+      "error": null
+    },
+    {
+      "id": "ruleset-main",
+      "module": "repo-baseline",
+      "title": "Remote item: the default-branch ruleset is active and equals .github/rulesets/main.json",
+      "owner": "owner",
+      "state": "blocked",
+      "evidence": "waits for step `check-reported` (unavailable)",
+      "error": null
+    }
+  ],
+  "modules": [
+    {
+      "id": "repo-baseline",
+      "version": "1.0.0"
+    }
+  ]
+}

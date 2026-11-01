@@ -1,0 +1,63 @@
+name: Container delivery
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build:
+    runs-on: example-linux-2-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build and test final image
+        env:
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          docker build --build-arg REVISION="$SOURCE_REVISION" -t example-app:verified services/example-app
+          python3 scripts/run_delivery.py --image example-app:verified > build-evidence.json
+          docker image inspect --format '{{.Id}}' example-app:verified > image-id.txt
+          docker save example-app:verified -o image.tar
+          sha256sum image.tar > image.sha256
+          # Promotion runs on another VM: it must load the saved image, not find it.
+          docker image rm example-app:verified
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verified-image
+          path: |
+            image.tar
+            image-id.txt
+            image.sha256
+            build-evidence.json
+          retention-days: 2
+          if-no-files-found: error
+  promote:
+    needs: build
+    runs-on: example-linux-2-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: verified-image
+      - name: Promote the identical image into isolated environments
+        run: |
+          sha256sum --check image.sha256
+          docker image rm example-app:verified 2>/dev/null || true
+          docker load -i image.tar
+          python3 scripts/run_delivery.py --image example-app:verified --expected-image-id "$(cat image-id.txt)" > promotion-evidence.json
+          docker image rm example-app:verified
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: promotion-evidence
+          path: promotion-evidence.json
+          retention-days: 2
+          if-no-files-found: error

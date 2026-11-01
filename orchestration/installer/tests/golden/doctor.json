@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "ready": false,
+  "findings": [
+    "NOT READY: Verification command missing",
+    "WARNING: Decisions index stale: docs/agent-setup/decisions-index.md; regenerate with the setup installer"
+  ],
+  "steps": [
+    {
+      "id": "dir",
+      "module": "broken",
+      "title": "Do dir",
+      "owner": "owner",
+      "state": "failed",
+      "evidence": null,
+      "error": "Expected a file: <repo>/fixture/dir"
+    },
+    {
+      "id": "after-remote",
+      "module": "steps",
+      "title": "Do after-remote",
+      "owner": "owner",
+      "state": "blocked",
+      "evidence": "waits for step `remote` (unavailable)",
+      "error": null
+    },
+    {
+      "id": "file",
+      "module": "steps",
+      "title": "Do file",
+      "owner": "owner",
+      "state": "verified",
+      "evidence": "fixture/present.md exists",
+      "error": null
+    },
+    {
+      "id": "pointer",
+      "module": "steps",
+      "title": "Do pointer",
+      "owner": "owner",
+      "state": "pending",
+      "evidence": "fixture/settings.json: /permissions/deny/0 is \"Edit(x)\", expected \"Read(./**/.env)\"",
+      "error": null
+    },
+    {
+      "id": "remote",
+      "module": "steps",
+      "title": "Do remote",
+      "owner": "platform",
+      "state": "unavailable",
+      "evidence": "remote probe `required-check` runs only with doctor --remote",
+      "error": null
+    }
+  ],
+  "modules": [
+    {
+      "id": "broken",
+      "version": "0.0.1"
+    },
+    {
+      "id": "setup-core",
+      "version": "1.3.0"
+    },
+    {
+      "id": "steps",
+      "version": "0.2.0"
+    }
+  ]
+}

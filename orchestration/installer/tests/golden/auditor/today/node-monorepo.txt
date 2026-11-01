@@ -1,0 +1,25 @@
+NOT READY: Setup not installed: project profile missing
+NOT READY: Project purpose missing
+NOT READY: Verification command missing
+NOT READY: Setup lock missing
+WARNING: stack.unconfigured: a stack is detected that no stack-packs answers record
+stack-packs: proposals (nothing written; confirm with --set or --answers)
+  app `root` at `.`: stack node
+    evidence: package.json (packageManager = "pnpm@9.12.0", engines.node = ">=22", scripts: build, lint, test), pnpm-lock.yaml
+    commands (project.json fields already declared are kept; proposed only for null):
+      build:  proposed  "pnpm run build"
+      test:   proposed  "pnpm test"
+      lint:   proposed  "pnpm run lint"
+      verify: proposed  "pnpm run lint && pnpm test"
+    seeds on apply: .nvmrc, Dockerfile, .dockerignore
+    info: no known test runner (vitest, jest, @playwright/test in devDependencies, or node --test in scripts.test); qa asks for it
+  app `api` at `services/api`: stack python-uv
+    evidence: pyproject.toml (requires-python = ">=3.12"), uv.lock, .python-version (3.12)
+    commands (project.json fields already declared are kept; proposed only for null):
+      test:   proposed  "uv run --frozen pytest -q"
+      lint:   proposed  "uv run --frozen ruff check ."
+      verify: proposed  "uv run --frozen ruff check . && uv run --frozen pytest -q"
+    seeds on apply: services/api/.python-version, services/api/Dockerfile, services/api/.dockerignore
+WARNING: security.secrets-gate: No secrets gate: no gitleaks job and secret scanning off
+WARNING: security.deps-gate: No lockfile vulnerability scan in CI
+WARNING: security.sast-gate: No static analysis job in CI

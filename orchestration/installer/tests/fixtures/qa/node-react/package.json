@@ -1,0 +1,11 @@
+{
+  "name": "front",
+  "private": true,
+  "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "vitest": "3.2.4"
+  }
+}

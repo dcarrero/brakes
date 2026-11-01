@@ -1,0 +1,7 @@
+vulnerabilities:
+  - id: CVE-2026-1234
+    statement: "see #702"
+    expired_at: 2026-10-01
+  - id: CVE-2026-9999
+    statement: "see #702"
+    expired_at: "2026-11-10"

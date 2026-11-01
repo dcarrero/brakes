@@ -1,0 +1,37 @@
+{
+  "purpose": "Install and audit the mechanical brakes of a repository: agent-host hooks, repository controls and GitHub checks, for any language, stack, agent host and model provider.",
+  "commands": {
+    "verify": "cargo test --locked",
+    "test": "cargo test --locked",
+    "lint": "git diff --check && cargo fmt --all -- --check && cargo clippy --locked --all-targets -- -D warnings",
+    "build": "cargo build --locked",
+    "preprod_up": null,
+    "preprod_seed": null,
+    "preprod_url": null,
+    "preprod_down": null,
+    "verify_deploy": null,
+    "deploy_status": null
+  },
+  "generated_paths": [
+    ".agent-setup/lock.json"
+  ],
+  "environment_notes": [
+    "Rust 1.99+ and Cargo build the tool; its binary requires Git, with gh optional for doctor --remote.",
+    "No model calls and no target project commands during installation."
+  ],
+  "acceptance": {
+    "scenarios_dir": null,
+    "synthetic_profiles": null,
+    "unsure_routes_to": null
+  },
+  "deploy_environments": [],
+  "environment_manifests": {},
+  "ci": {
+    "runners": {
+      "linux": "github-hosted ubuntu-24.04"
+    },
+    "required_checks": [
+      "required"
+    ]
+  }
+}

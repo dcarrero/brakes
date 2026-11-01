@@ -1,0 +1,43 @@
+{
+  "findings": [
+    "WARNING: Stop verify hook is not registered in .claude/settings.json (hooks.Stop, stop_verify.sh)",
+    "NOT READY: Stop verify hook .claude/hooks/stop_verify.sh runs `cargo test --locked` but project.json declares `cargo nextest run --locked`; re-run install",
+    "WARNING: agents.technical-debt: Silver: docs/agent-setup/technical-debt.md still equals the seed; record the patterns not to copy",
+    "WARNING: agents.mcp-allowlist: .mcp.json server `playwright` is not in .agent-setup/mcp-allowlist.json; declare it with configure --set mcp_servers or remove it"
+  ],
+  "modules": [
+    {
+      "id": "agent-guardrails",
+      "version": "1.0.0"
+    }
+  ],
+  "steps": [
+    {
+      "error": null,
+      "evidence": "remote probe `app-installed` runs only with doctor --remote",
+      "id": "agent-app",
+      "module": "agent-guardrails",
+      "owner": "owner",
+      "state": "unavailable",
+      "title": "Create the agents' GitHub App and install it on selected repositories"
+    },
+    {
+      "error": null,
+      "evidence": "remote probe `secret-present` runs only with doctor --remote",
+      "id": "review-dependabot-secret-present",
+      "module": "agent-guardrails",
+      "owner": "owner",
+      "state": "unavailable",
+      "title": "Create the OPENAI_API_KEY secret for cross-review in the Dependabot secrets"
+    },
+    {
+      "error": null,
+      "evidence": "remote probe `secret-present` runs only with doctor --remote",
+      "id": "review-secret-present",
+      "module": "agent-guardrails",
+      "owner": "owner",
+      "state": "unavailable",
+      "title": "Create the OPENAI_API_KEY secret for cross-review in the Actions secrets"
+    }
+  ]
+}

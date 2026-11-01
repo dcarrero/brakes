@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "exceptions": [
+    { "kind": "job-bypass", "target": "deps-scan", "reason": "r", "issue": "#1", "owner": "o", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "no-kind", "target": "deps-scan", "reason": "r", "issue": "#1", "owner": "o", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "no-target", "kind": "job-bypass", "reason": "r", "issue": "#1", "owner": "o", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "no-reason", "kind": "job-bypass", "target": "deps-scan", "issue": "#1", "owner": "o", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "no-issue", "kind": "job-bypass", "target": "deps-scan", "reason": "r", "owner": "o", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "no-owner", "kind": "job-bypass", "target": "deps-scan", "reason": "r", "issue": "#1", "created": "2026-11-01", "expires": "2026-11-20" },
+    { "id": "no-created", "kind": "job-bypass", "target": "deps-scan", "reason": "r", "issue": "#1", "owner": "o", "expires": "2026-11-20" },
+    { "id": "no-expires", "kind": "job-bypass", "target": "deps-scan", "reason": "r", "issue": "#1", "owner": "o", "created": "2026-11-01" },
+    { "id": "empty-and-typed", "kind": "job-bypass", "target": "", "reason": 7, "issue": "#1", "owner": null, "created": "2026-11-01", "expires": "2026-11-20" }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "purpose": "fixture",
+  "commands": {
+    "verify": "true"
+  }
+}

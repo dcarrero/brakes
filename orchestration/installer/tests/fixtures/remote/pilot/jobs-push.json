@@ -1,0 +1,42 @@
+{
+ "jobs": [
+  {
+   "completed_at": "2026-10-28T12:43:50Z",
+   "conclusion": "success",
+   "name": "verify",
+   "started_at": "2026-10-28T12:40:56Z",
+   "status": "completed",
+   "steps": [
+    {
+     "conclusion": "success",
+     "name": "Set up job"
+    },
+    {
+     "conclusion": "success",
+     "name": "Set up runner"
+    },
+    {
+     "conclusion": "success",
+     "name": "Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
+    },
+    {
+     "conclusion": "success",
+     "name": "Run the declared verify command"
+    },
+    {
+     "conclusion": "success",
+     "name": "Post Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
+    },
+    {
+     "conclusion": "success",
+     "name": "Complete runner"
+    },
+    {
+     "conclusion": "success",
+     "name": "Complete job"
+    }
+   ]
+  }
+ ],
+ "total_count": 1
+}

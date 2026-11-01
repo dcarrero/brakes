@@ -1,0 +1,2746 @@
+{
+  "audited_at": "2026-10-28",
+  "exit_code": 3,
+  "fleet": "example-org",
+  "identity": "example-owner",
+  "include_archived": false,
+  "not_audited": [
+    {
+      "error": false,
+      "reason": "archived (pass --include-archived to audit it)",
+      "repo": "example-org/old-prototype"
+    }
+  ],
+  "repositories": [
+    {
+      "audited_at": "2026-10-28",
+      "blocks": {
+        "agents": "complete",
+        "baseline": "complete",
+        "ci": "partial",
+        "ci_health": "partial",
+        "dora": "unavailable",
+        "governance": "partial",
+        "operations": "partial",
+        "posture": "partial",
+        "qa": "complete",
+        "security": "partial",
+        "stack": "complete"
+      },
+      "budget": {
+        "api_calls": 35,
+        "exhausted": false,
+        "limit": 60
+      },
+      "counters": {
+        "cost_per_change": {
+          "evidence": [],
+          "reason": "pull requests of example-org/docs-site was not found (404: Not Found)",
+          "unit": "minutes",
+          "value": null
+        },
+        "post_merge_corrections": {
+          "evidence": [],
+          "reason": "pull requests of example-org/docs-site was not found (404: Not Found)",
+          "unit": "percent",
+          "value": null
+        }
+      },
+      "exit_code": 3,
+      "level": {
+        "accepted": null,
+        "findings": [],
+        "reached": null,
+        "required": "Bronze",
+        "standard": "accepted",
+        "unverified_from": null
+      },
+      "next_level": {
+        "gap": [
+          "baseline.criticality-declared",
+          "baseline.purpose-declared",
+          "baseline.verify-declared",
+          "ci-health.workflow-exists",
+          "posture.default-branch-protected",
+          "posture.no-open-secret-scanning-alerts"
+        ],
+        "level": "Basic"
+      },
+      "profile": {
+        "id": "P1",
+        "measures": {
+          "criticality": {
+            "evidence": [
+              "project.json#criticality undeclared (audited as internal)"
+            ],
+            "tier": "internal",
+            "value": "undeclared"
+          },
+          "deployable_services": {
+            "evidence": [
+              "environments of example-org/docs-site was not found (404: Not Found)"
+            ],
+            "tier": "unavailable",
+            "value": null
+          },
+          "humans_with_merge": {
+            "evidence": [
+              "collaborators of example-org/docs-site was not found (404: Not Found)"
+            ],
+            "tier": "unavailable",
+            "value": null
+          },
+          "merge_cadence_per_week": {
+            "evidence": [
+              "pull requests of example-org/docs-site was not found (404: Not Found)"
+            ],
+            "tier": "unavailable",
+            "value": null
+          }
+        },
+        "unverified": true
+      },
+      "repo": "example-org/docs-site",
+      "rules": [
+        {
+          "block": "baseline",
+          "evidence": [
+            ".agent-setup/project.json missing"
+          ],
+          "id": "baseline.purpose-declared",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "manual step declare-purpose: Write one sentence in `purpose` of .agent-setup/project.json.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "baseline",
+          "evidence": [
+            ".agent-setup/project.json missing"
+          ],
+          "id": "baseline.verify-declared",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "manual step declare-verify: Declare the project's own command in `commands.verify` of .agent-setup/project.json.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "baseline",
+          "evidence": [
+            ".agent-setup/project.json missing"
+          ],
+          "id": "baseline.criticality-declared",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "manual step declare-criticality: Set `criticality` in .agent-setup/project.json to internal, customers or personal-data-or-payments.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.setup-installed",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.conventions-resolved",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.profile-current",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.placeholder-guidance-reviewed",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.merge-guard-registered",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.guides-installed",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.release-baseline",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.managed-content-intact",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.guides-verified",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.entrypoints-current",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.decisions-index-current",
+          "level": "Bronze",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.remote-readable",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.branch-protection-matches",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.ci-policy-met",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.default-branch-protected",
+          "level": "Basic",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.no-open-secret-scanning-alerts",
+          "level": "Basic",
+          "reason": "open secret-scanning alerts of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.required-check-enforced",
+          "level": "Bronze",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.no-unlisted-bypass-actors",
+          "level": "Bronze",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.human-approval-required",
+          "level": "Bronze",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.codeowners-review",
+          "level": "Bronze",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.serialised-merges",
+          "level": "Bronze",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.actions-pinned",
+          "level": "Bronze",
+          "reason": "no workflow under .github/workflows",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.no-stale-critical-alerts",
+          "level": "Bronze",
+          "reason": "open Dependabot alerts of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.no-repo-secrets-with-production",
+          "level": "Bronze",
+          "reason": "environments of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.production-environment-guarded",
+          "level": "Silver",
+          "reason": "environments of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.stale-branches",
+          "level": "Bronze",
+          "reason": "branches of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "organization example-org does not require two-factor authentication"
+          ],
+          "id": "posture.org-2fa-required",
+          "level": "Gold",
+          "reason": null,
+          "remediation": "manual step require-2fa: Enable Require two-factor authentication under the organization's Authentication security settings.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.repo-admins-are-owners",
+          "level": "Silver",
+          "reason": "collaborators of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [
+            "no workflow under .github/workflows"
+          ],
+          "id": "ci-health.workflow-exists",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "module ci-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [],
+          "id": "ci-health.rerun-rate",
+          "level": "Silver",
+          "reason": "workflow runs of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [],
+          "id": "ci-health.cancellation-rate",
+          "level": "Silver",
+          "reason": "workflow runs of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [
+            "ci.required_checks undeclared in .agent-setup/project.json",
+            "ci.cycle_budget_minutes undeclared in .agent-setup/project.json",
+            "CI minutes this month (a sample, not billing): unavailable: workflow runs of example-org/docs-site was not found (404: Not Found)"
+          ],
+          "id": "ci-health.minutes-budget",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "manual step meet-ci-cycle-budget: Declare ci.required_checks and ci.cycle_budget_minutes in .agent-setup/project.json, then shard, cache or split jobs until the median cycle fits.",
+          "required": false,
+          "status": "failed"
+        },
+        {
+          "block": "dora",
+          "evidence": [],
+          "id": "dora.deployments-api-in-use",
+          "level": "Silver",
+          "reason": "production deployments of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "dora",
+          "evidence": [],
+          "id": "dora.time-to-restore",
+          "level": "Gold",
+          "reason": "issues of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "dora",
+          "evidence": [],
+          "id": "dora.deployment-frequency",
+          "level": "Silver",
+          "reason": "production deployments of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "dora",
+          "evidence": [],
+          "id": "dora.lead-time",
+          "level": "Silver",
+          "reason": "production deployments of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "dora",
+          "evidence": [],
+          "id": "dora.change-failure-rate",
+          "level": "Silver",
+          "reason": "production deployments of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.post-deploy-smoke",
+          "level": "Silver",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.rollback-evidence",
+          "level": "Silver",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.uptime-footprint",
+          "level": "Silver",
+          "reason": "waits for module observability",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.incidents-bounded",
+          "level": "Silver",
+          "reason": "waits for module incidents",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.runbook-per-alert",
+          "level": "Silver",
+          "reason": "waits for module incidents",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.slo-burn-rate-validated",
+          "level": "Gold",
+          "reason": "waits for module incidents",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.backup-age-within-rpo",
+          "level": "Gold",
+          "reason": "waits for module continuity",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.restore-drill-fresh",
+          "level": "Gold",
+          "reason": "waits for module continuity",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "neither .github/dependabot.yml nor renovate.json configures dependency updates"
+          ],
+          "id": "governance.dependency-updates-with-cooldown",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "no service card: .agent-setup/service.yaml, service.yaml or catalog-info.yaml"
+          ],
+          "id": "governance.service-card-owner",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "no CODEOWNERS in .github/, the root or docs/"
+          ],
+          "id": "governance.codeowners-present",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": false,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "no pull request template in .github/, the root or docs/",
+            "no issue form (.yml) under .github/ISSUE_TEMPLATE"
+          ],
+          "id": "governance.pr-template-and-issue-forms",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.no-expired-bypass",
+          "level": "Silver",
+          "reason": "no bypass registered: .agent-setup/security-exceptions.json absent",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.postmortem-actions-closed",
+          "level": "Gold",
+          "reason": "issues of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.adr-state-known",
+          "level": "Gold",
+          "reason": "no decision file declared in .agent-setup/project.json conventions",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.no-expired-flags",
+          "level": "Gold",
+          "reason": "waits for module flags",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.cost-tags",
+          "level": "Gold",
+          "reason": "waits for module iac",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.no-persistent-oversizing",
+          "level": "Gold",
+          "reason": "waits for module k8s",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.command-missing",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.aggregate-present",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.job-timeouts",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.permissions-least",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.workflow-lint",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.no-self-hosted-label",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.hosted-macos",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.dependabot-actions",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.heldout-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.protected-paths-gate",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.heldout-properties",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.project-ci-stale",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.required-is-aggregate",
+          "level": "Silver",
+          "reason": "protection of branch main in example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.main-red",
+          "level": "Silver",
+          "reason": "no workflow under .github/workflows declares a job named required",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.minutes-month",
+          "level": "Gold",
+          "reason": "workflow runs of example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.secrets-gate",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.secrets-full-history",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.deps-gate",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.scanner-unpinned",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.trivy-compromised-version",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.bypass-inventory-valid",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.bypass-unregistered",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.bypass-expired",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.secret-scanning",
+          "level": "Bronze",
+          "reason": "repository example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.private-vulnerability-reporting",
+          "level": "Bronze",
+          "reason": "repository example-org/docs-site was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.scanner-stale",
+          "level": "Gold",
+          "reason": "no workflow pins a scanner by checksum or digest",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.attestation-verified",
+          "level": "Gold",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.sbom-scanned",
+          "level": "Gold",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.binary-artifacts",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.sast-gate",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.container-gate",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.pii-declared",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.coverage-ratchet",
+          "level": "Gold",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.mutation-gate",
+          "level": "Gold",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.diff-coverage",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.unconfigured",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.lockfile-present",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.lockfile-not-enforced",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.toolchain-pinned",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.image-by-digest",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.image-nonroot",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.image-arbitrary-uid",
+          "level": "Gold",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.deny-secrets",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.stop-verify",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.protected-paths",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.mcp-allowlist",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.technical-debt",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.readable-secrets",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.cross-review",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.unattended-gated",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.heldout-denied",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.workflow-caps",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.identity",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.workflow-injection",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.api-smoke-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.web-smoke-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.screenshot-baseline-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.snapshots-protected",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.hurl-no-literal-host",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.tools-pinned",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.no-snapshot-update-in-ci",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.report-artifact",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.main-green",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.contract-lint",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.contract-compatible",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        }
+      ],
+      "window_days": 28
+    },
+    {
+      "audited_at": "2026-10-28",
+      "blocks": {
+        "agents": "complete",
+        "baseline": "complete",
+        "ci": "partial",
+        "ci_health": "complete",
+        "dora": "complete",
+        "governance": "partial",
+        "operations": "partial",
+        "posture": "partial",
+        "qa": "complete",
+        "security": "partial",
+        "stack": "complete"
+      },
+      "budget": {
+        "api_calls": 55,
+        "exhausted": true,
+        "limit": 60
+      },
+      "counters": {
+        "cost_per_change": {
+          "evidence": [],
+          "reason": "pull requests of example-org/example-app was not found (404: Not Found)",
+          "unit": "minutes",
+          "value": null
+        },
+        "post_merge_corrections": {
+          "evidence": [],
+          "reason": "pull requests of example-org/example-app was not found (404: Not Found)",
+          "unit": "percent",
+          "value": null
+        }
+      },
+      "exit_code": 3,
+      "level": {
+        "accepted": null,
+        "findings": [],
+        "reached": null,
+        "required": "Bronze",
+        "standard": "accepted",
+        "unverified_from": null
+      },
+      "next_level": {
+        "gap": [
+          "baseline.criticality-declared",
+          "baseline.purpose-declared",
+          "baseline.verify-declared",
+          "posture.no-open-secret-scanning-alerts"
+        ],
+        "level": "Basic"
+      },
+      "profile": {
+        "id": "P1",
+        "measures": {
+          "criticality": {
+            "evidence": [
+              "project.json#criticality undeclared (audited as internal)"
+            ],
+            "tier": "internal",
+            "value": "undeclared"
+          },
+          "deployable_services": {
+            "evidence": [
+              "environments: production"
+            ],
+            "tier": "single",
+            "value": 1
+          },
+          "humans_with_merge": {
+            "evidence": [
+              "collaborators of example-org/example-app was not found (404: Not Found)"
+            ],
+            "tier": "unavailable",
+            "value": null
+          },
+          "merge_cadence_per_week": {
+            "evidence": [
+              "pull requests of example-org/example-app was not found (404: Not Found)"
+            ],
+            "tier": "unavailable",
+            "value": null
+          }
+        },
+        "unverified": true
+      },
+      "repo": "example-org/example-app",
+      "rules": [
+        {
+          "block": "baseline",
+          "evidence": [
+            "purpose is empty in .agent-setup/project.json"
+          ],
+          "id": "baseline.purpose-declared",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "manual step declare-purpose: Write one sentence in `purpose` of .agent-setup/project.json.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "baseline",
+          "evidence": [
+            "commands.verify is not declared in .agent-setup/project.json"
+          ],
+          "id": "baseline.verify-declared",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "manual step declare-verify: Declare the project's own command in `commands.verify` of .agent-setup/project.json.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "baseline",
+          "evidence": [
+            "criticality undeclared in .agent-setup/project.json (audited as internal)"
+          ],
+          "id": "baseline.criticality-declared",
+          "level": "Basic",
+          "reason": null,
+          "remediation": "manual step declare-criticality: Set `criticality` in .agent-setup/project.json to internal, customers or personal-data-or-payments.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.setup-installed",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.conventions-resolved",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.profile-current",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.placeholder-guidance-reviewed",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.merge-guard-registered",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.guides-installed",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.release-baseline",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.managed-content-intact",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.guides-verified",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.entrypoints-current",
+          "level": "Basic",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.decisions-index-current",
+          "level": "Bronze",
+          "reason": "setup not installed",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.remote-readable",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.branch-protection-matches",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "baseline",
+          "evidence": [],
+          "id": "baseline.ci-policy-met",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "classic protection of main blocks force-push and deletion"
+          ],
+          "id": "posture.default-branch-protected",
+          "level": "Basic",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.no-open-secret-scanning-alerts",
+          "level": "Basic",
+          "reason": "open secret-scanning alerts of example-org/example-app was not found (404: error)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "main requires checks all-checks-passed; the aggregate check required is not among them"
+          ],
+          "id": "posture.required-check-enforced",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "no bypass actor on main"
+          ],
+          "id": "posture.no-unlisted-bypass-actors",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "classic protection of main requires no approving review",
+            "no active ruleset requires an approving review on main"
+          ],
+          "id": "posture.human-approval-required",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": false,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "classic protection of main does not require code owner review",
+            "no active ruleset requires code owner review on main"
+          ],
+          "id": "posture.codeowners-review",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": false,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "classic protection of main requires branches up to date before merging"
+          ],
+          "id": "posture.serialised-merges",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": null,
+          "required": false,
+          "status": "passed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "Unpinned action actions/checkout@v4 in .github/workflows/ci.yml",
+            "Unpinned action actions/checkout@v4 in .github/workflows/ci.yml",
+            "Unpinned action actions/checkout@v4 in .github/workflows/ci.yml"
+          ],
+          "id": "posture.actions-pinned",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "manual step pin-actions: Replace each tag or branch after @ with the full commit SHA it points to, keeping the tag as a comment.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.no-stale-critical-alerts",
+          "level": "Bronze",
+          "reason": "Reading open Dependabot alerts of example-org/example-app is forbidden (403: error)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "repository-level secrets with a production environment: ANTHROPIC_API_KEY, ASC_PRIVATE_KEY, AUTOPILOT_GH_TOKEN, DEEPINFRA_API_KEY, SENTRY_API_TOKEN, SENTRY_WRITE_TOKEN"
+          ],
+          "id": "posture.no-repo-secrets-with-production",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "manual step move-secrets-to-environments: Move each repository-level secret into the environment that uses it, then delete it at repository level.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "production deploys only from main"
+          ],
+          "id": "posture.production-environment-guarded",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "4 branches besides main: at most 10 can be older than 90 days"
+          ],
+          "id": "posture.stale-branches",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "posture",
+          "evidence": [
+            "organization example-org does not require two-factor authentication"
+          ],
+          "id": "posture.org-2fa-required",
+          "level": "Gold",
+          "reason": null,
+          "remediation": "manual step require-2fa: Enable Require two-factor authentication under the organization's Authentication security settings.",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "posture",
+          "evidence": [],
+          "id": "posture.repo-admins-are-owners",
+          "level": "Silver",
+          "reason": "collaborators of example-org/example-app was not found (404: Not Found)",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [
+            "1 workflow; the latest conclusive push run on main, run 40862628372 of CI, succeeded"
+          ],
+          "id": "ci-health.workflow-exists",
+          "level": "Basic",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [
+            "0 of 20 CI runs re-run (0.0 %) ≤ 10 %"
+          ],
+          "id": "ci-health.rerun-rate",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": false,
+          "status": "passed"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [
+            "1 of 20 completed CI runs cancelled (5.0 %) ≤ 20 %"
+          ],
+          "id": "ci-health.cancellation-rate",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "ci-health",
+          "evidence": [
+            "median 5.2 min from run creation to job all-checks-passed over 11 first-attempt push runs of CI on main (a sample: the call budget stopped it at 11 of 20 runs) ≤ the cycle budget of 20 min",
+            "CI minutes this month (a sample, not billing): 0.0 min, the run_duration_ms of the latest 0 of 100 runs listed; stopped at run 40868002113: budget exhausted: call budget of 60 exhausted, 30 held back"
+          ],
+          "id": "ci-health.minutes-budget",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": null,
+          "required": false,
+          "status": "passed"
+        },
+        {
+          "block": "dora",
+          "evidence": [
+            "production deployments recorded; the newest, 7397645433, created 2026-10-28T21:21:25Z"
+          ],
+          "id": "dora.deployments-api-in-use",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "dora",
+          "evidence": [],
+          "id": "dora.time-to-restore",
+          "level": "Gold",
+          "reason": "no issue labelled incident closed in the 28 days to 2026-10-28",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "dora",
+          "evidence": [
+            "at least 4 of 10 production deployments in the 28 days to 2026-10-28 succeeded: 4 of the newest 4 (needs 4 successful, 1 per week)"
+          ],
+          "id": "dora.deployment-frequency",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "dora",
+          "evidence": [
+            "median 0.2 h from merge to successful deployment over 1 of the newest 3 of 10 production deployments in the 28 days to 2026-10-28 (a sample: the call budget stopped it at 1 of 3 deployments) ≤ 7 days"
+          ],
+          "id": "dora.lead-time",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "dora",
+          "evidence": [
+            "0 of the newest 4 of 10 production deployments in the 28 days to 2026-10-28 failed or rolled back (0.0 %) ≤ 15 % (a sample: the call budget stopped it at 4 of 8)"
+          ],
+          "id": "dora.change-failure-rate",
+          "level": "Silver",
+          "reason": null,
+          "remediation": null,
+          "required": true,
+          "status": "passed"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.post-deploy-smoke",
+          "level": "Silver",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.rollback-evidence",
+          "level": "Silver",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.uptime-footprint",
+          "level": "Silver",
+          "reason": "waits for module observability",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.incidents-bounded",
+          "level": "Silver",
+          "reason": "waits for module incidents",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.runbook-per-alert",
+          "level": "Silver",
+          "reason": "waits for module incidents",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.slo-burn-rate-validated",
+          "level": "Gold",
+          "reason": "waits for module incidents",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.backup-age-within-rpo",
+          "level": "Gold",
+          "reason": "waits for module continuity",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "operations",
+          "evidence": [],
+          "id": "operations.restore-drill-fresh",
+          "level": "Gold",
+          "reason": "waits for module continuity",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "neither .github/dependabot.yml nor renovate.json configures dependency updates"
+          ],
+          "id": "governance.dependency-updates-with-cooldown",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "no service card: .agent-setup/service.yaml, service.yaml or catalog-info.yaml"
+          ],
+          "id": "governance.service-card-owner",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "no CODEOWNERS in .github/, the root or docs/"
+          ],
+          "id": "governance.codeowners-present",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": false,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [
+            "no pull request template in .github/, the root or docs/",
+            "no issue form (.yml) under .github/ISSUE_TEMPLATE"
+          ],
+          "id": "governance.pr-template-and-issue-forms",
+          "level": "Bronze",
+          "reason": null,
+          "remediation": "module repo-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.no-expired-bypass",
+          "level": "Silver",
+          "reason": "no bypass registered: .agent-setup/security-exceptions.json absent",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.postmortem-actions-closed",
+          "level": "Gold",
+          "reason": "issues of example-org/example-app was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.adr-state-known",
+          "level": "Gold",
+          "reason": "no decision file declared in .agent-setup/project.json conventions",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.no-expired-flags",
+          "level": "Gold",
+          "reason": "waits for module flags",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.cost-tags",
+          "level": "Gold",
+          "reason": "waits for module iac",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "governance",
+          "evidence": [],
+          "id": "governance.no-persistent-oversizing",
+          "level": "Gold",
+          "reason": "waits for module k8s",
+          "remediation": null,
+          "required": false,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.command-missing",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.aggregate-present",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.job-timeouts",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.permissions-least",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.workflow-lint",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.no-self-hosted-label",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.hosted-macos",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.dependabot-actions",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.heldout-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.protected-paths-gate",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.heldout-properties",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.project-ci-stale",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "ci",
+          "evidence": [
+            "Required checks are all-checks-passed; expected only required"
+          ],
+          "id": "ci.required-is-aggregate",
+          "level": "Silver",
+          "reason": null,
+          "remediation": "module ci-baseline",
+          "required": true,
+          "status": "failed"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.main-red",
+          "level": "Silver",
+          "reason": "no workflow under .github/workflows declares a job named required",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "ci",
+          "evidence": [],
+          "id": "ci.minutes-month",
+          "level": "Gold",
+          "reason": "workflow runs of example-org/example-app was not found (404: Not Found)",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.secrets-gate",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.secrets-full-history",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.deps-gate",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.scanner-unpinned",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.trivy-compromised-version",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.bypass-inventory-valid",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.bypass-unregistered",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.bypass-expired",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.secret-scanning",
+          "level": "Bronze",
+          "reason": "repository example-org/example-app has an unexpected shape: missing number field id",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.private-vulnerability-reporting",
+          "level": "Bronze",
+          "reason": "repository example-org/example-app has an unexpected shape: missing number field id",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.scanner-stale",
+          "level": "Gold",
+          "reason": "no workflow pins a scanner by checksum or digest",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.attestation-verified",
+          "level": "Gold",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.sbom-scanned",
+          "level": "Gold",
+          "reason": "waits for module delivery",
+          "remediation": null,
+          "required": true,
+          "status": "unavailable"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.binary-artifacts",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.sast-gate",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.container-gate",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.pii-declared",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.coverage-ratchet",
+          "level": "Gold",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.mutation-gate",
+          "level": "Gold",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "security",
+          "evidence": [],
+          "id": "security.diff-coverage",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.unconfigured",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.lockfile-present",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.lockfile-not-enforced",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.toolchain-pinned",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.image-by-digest",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.image-nonroot",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "stack",
+          "evidence": [],
+          "id": "stack.image-arbitrary-uid",
+          "level": "Gold",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.deny-secrets",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.stop-verify",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.protected-paths",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.mcp-allowlist",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.technical-debt",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.readable-secrets",
+          "level": "Basic",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.cross-review",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.unattended-gated",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.heldout-denied",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.workflow-caps",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.identity",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": false,
+          "status": "not-required"
+        },
+        {
+          "block": "agents",
+          "evidence": [],
+          "id": "agents.workflow-injection",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.api-smoke-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.web-smoke-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.screenshot-baseline-present",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.snapshots-protected",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.hurl-no-literal-host",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.tools-pinned",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.no-snapshot-update-in-ci",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.report-artifact",
+          "level": "Bronze",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.main-green",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.contract-lint",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        },
+        {
+          "block": "qa",
+          "evidence": [],
+          "id": "qa.contract-compatible",
+          "level": "Silver",
+          "reason": "no checkout under --fleet",
+          "remediation": null,
+          "required": true,
+          "status": "not-required"
+        }
+      ],
+      "window_days": 28
+    }
+  ],
+  "schema": 1,
+  "unread": [],
+  "window_days": 28
+}

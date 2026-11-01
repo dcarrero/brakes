@@ -1,0 +1,9 @@
+schema: 1
+controller: "Example Ltd"
+dsar_contact: "privacy@example.test"
+sla_days: 30
+fields:
+  - path: users.email
+    category: contact
+    exclude_from:
+      - logs

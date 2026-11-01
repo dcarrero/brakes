@@ -1,0 +1,13 @@
+survey 1.0.0 — 4 questions (profile P1; recorded answers: none; preset: none)
+
+[1/4] Flavour
+  The base flavour of every scoop.
+  1) vanilla  (default)
+  2) chocolate
+  3) strawberry
+>   Chocolate and strawberry cost one more.
+> [2/4] Cone  [y/N]
+>   Serve in a cone.
+> [3/4] Scoops  [2]
+> [4/4] name  [demo]
+> 

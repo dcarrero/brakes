@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "ready": true,
+  "findings": [],
+  "steps": [
+    {
+      "id": "qa-api-reported",
+      "module": "qa",
+      "title": "CI reports qa-api on main",
+      "owner": "platform",
+      "state": "verified",
+      "evidence": "reported on the last 10 commits of main: qa-api",
+      "error": null
+    },
+    {
+      "id": "qa-web-baseline",
+      "module": "qa",
+      "title": "Generate the screenshot baseline on Linux",
+      "owner": "project",
+      "state": "verified",
+      "evidence": "qa/web/smoke.spec.ts-snapshots/home-chromium-linux.png exists",
+      "error": null
+    },
+    {
+      "id": "qa-web-lockfile",
+      "module": "qa",
+      "title": "Commit the web lockfile",
+      "owner": "project",
+      "state": "verified",
+      "evidence": "qa/web/package-lock.json exists",
+      "error": null
+    }
+  ],
+  "modules": [
+    {
+      "id": "qa",
+      "version": "1.0.0"
+    }
+  ]
+}

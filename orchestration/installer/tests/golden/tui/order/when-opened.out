@@ -1,0 +1,20 @@
+order 1.0.0 — 4 questions (profile P1; recorded answers: none; preset: none)
+
+Cup
+[1/4] Size
+  The cup size.
+  1) small  (default)
+  2) large  (needs GitHub feature big-cups: not checked)
+  3) other — configure new (seed skeleton + manual steps)
+> [2/4] Toppings
+  What goes on top.
+  1) sprinkles  (default)
+  2) nuts
+  3) sauce
+  Numbers separated by commas (1,3); at least 1, at most 2.
+> [3/4] Delivery  [y/N]
+> Delivery
+[4/5] Address
+>   Module order: answer `address` is required and has no value
+> [5/5] Note  [none]
+> 

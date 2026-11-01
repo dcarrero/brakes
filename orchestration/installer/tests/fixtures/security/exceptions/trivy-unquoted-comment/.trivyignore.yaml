@@ -1,0 +1,10 @@
+vulnerabilities:
+  - id: CVE-2026-1234
+    statement: not reachable from our code; tracked in #123
+    expired_at: 2026-12-01
+  - id: CVE-2026-2222
+    statement: "not reachable from our code; tracked in #123"
+    expired_at: 2026-12-01 # renew before then
+  - id: CVE-2026-3333
+    statement: tracked in https://example.org/issues/7 # a URL before the comment counts
+    expired_at: 2026-12-01
