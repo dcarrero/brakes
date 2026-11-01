@@ -12,88 +12,49 @@ brake needs, and it never runs a project's commands.
 
 Home: <https://github.com/gemba-app/brakes>. License: [Apache-2.0](LICENSE).
 
-## The brakes
+## Example
 
-| # | Brake | Module | Rendered as |
-|---|---|---|---|
-| 1 | CI required on every pull request | `ci-baseline` | a workflow whose single aggregate job, `required`, needs every verification job, rendered from the declared commands |
-| 2 | Protected default branch, no bypass for administrators | `repo-baseline` | a ruleset with `enforcement: active` and no bypass actors, applied with `apply --remote` |
-| 3 | Never merge on red, also locally | `merge-guard` | the `guard pre-bash` hook for the agent host, light and full mode |
-| 4 | Touching CI needs approval | `repo-baseline`, `ci-baseline` | CODEOWNERS over `.github/workflows/` with code-owner review in the ruleset; protected paths that need the `human-approved` label |
-| 5 | Cross-family model review as a gate | `agent-guardrails` | a review by another model family, in two jobs, inside the aggregate |
-| 6 | Human review when the team has more than one person | `repo-baseline` | the review count of the ruleset, from the repository's profile |
-| 7 | Held-out tests | `ci-baseline`, `agent-guardrails` | a held-out directory and job, denied to agents for reading and editing |
-| 8 | Coverage over changed lines | `security` | a `diff-coverage` job over the stack pack's per-file report against the merge base |
-| 9 | Characterisation tests before touching old code | `security` | the same job fails a change to a file no test executed |
-| 10 | User-visible tests | `qa` | Hurl for the API, Playwright for the web with screenshot comparison; screenshot baselines are a protected path |
-| 11 | Property-based tests and mutation on the diff | `stack-packs`, `ci-baseline`, `security` | property and mutation recipes per pack, held-out properties with a fresh recorded seed, an opt-in `mutation-diff` job with a minimum score |
-| 12 | "Done" means verification green | `agent-guardrails` | a Stop hook that runs the declared `verify` command |
-| 13 | Hard prohibitions | `agent-guardrails` | deny rules for secret paths, lockfiles and the held-out directory |
-| 14 | Scanners in CI | `security` | gitleaks, OSV-Scanner, Semgrep and Trivy jobs, each tool pinned by checksum |
-| 15 | Pinned actions and dependencies, with a cooldown | `security`, `repo-baseline`, `stack-packs` | SHA pins, a shared pin table, Dependabot or Renovate cooldown |
-| 16 | Exceptions with an expiry | `security` | `security-exceptions.json` and the rules that read it |
-| 17 | Workflows without open doors | `agent-guardrails`, `security` | `agents.workflow-injection`, `zizmor` in `workflow-lint` |
-| 18 | Least privilege in CI | `ci-baseline` | `permissions: contents: read` at the top, grants per job, `ci.permissions-least` |
-| 19 | Periodic audit | `auditor` | `doctor`, `doctor --fleet`, levels and profiles |
-| 20 | Delivery and CI health figures | `auditor` | DORA and CI-health measures |
-| 21 | Unattended work passes the same brakes | `agent-guardrails` | the unattended workflow behind the ruleset, `agents.unattended-gated` |
+A repository whose tests run with `make test`, given the brakes for Claude Code:
 
-The modules rest on the `engine` (plan, apply, doctor, ownership classes, the lock),
-`questions` (answers files, presets, a terminal interview and an MCP server) and the host
-adapter (GitHub reads and gated writes).
+```sh
+cargo install --locked --git https://github.com/gemba-app/brakes
 
-## Relation with OpenSSF Scorecard
+mkdir -p ~/.config/brakes
+echo '{"schema": 1, "owner": "octo-dev", "write_allowlist": ["octo-dev/*"]}' \
+  > ~/.config/brakes/config.json                     # who you are, what brakes may write
 
-[OpenSSF Scorecard](https://github.com/ossf/scorecard) audits a repository's supply-chain
-posture. `brakes` installs brakes and audits them: it takes ideas from Scorecard and adds
-the part that concerns the agent, the gates an agent's work must pass on the developer's
-machine and in CI.
+cd toy                                               # a clone of octo-dev/toy
+mkdir -p .agent-setup
+echo '{"purpose": "A toy service.", "commands": {"verify": "make test"}}' \
+  > .agent-setup/project.json                        # what it is, how it is verified
 
-- **Taken.** Binary-Artifacts detection, as Scorecard does it: a tracked file whose first
-  1024 bytes are not text and that starts with an executable or package magic, or carries
-  one of Scorecard's extensions, is a finding (`security.binary-artifacts`).
-- **Not taken.** The Fuzzing check as evidence: it recognises OSS-Fuzz, ClusterFuzzLite,
-  Go fuzzing and a short list of property-based libraries, so a Python or Rust project
-  with property tests scores as if it had none. `brakes` renders property and mutation
-  recipes per stack instead (brake 11). Nor does it install the Scorecard action: on a
-  private repository it needs GitHub Advanced Security.
-- **Covered otherwise.** Scorecard's workflow checks (Dangerous-Workflow,
-  Token-Permissions) by [zizmor](https://github.com/zizmorcore/zizmor) in the rendered
-  `workflow-lint` job and by `agents.workflow-injection`; its posture checks by auditor
-  rules that `doctor` evaluates.
+brakes install . --preset personal-paas \
+  --module stack-packs --module repo-baseline --module ci-baseline \
+  --module merge-guard --module agent-guardrails --apply
+```
 
-| Scorecard check | In `brakes` |
+The install writes files you review and commit like any change:
+
+| Written | What it does |
 |---|---|
-| Binary-Artifacts | `security.binary-artifacts`, the same detection |
-| Branch-Protection | brakes 2 and 6: the ruleset `brakes` writes, audited by `posture.default-branch-protected`, `posture.required-check-enforced`, `posture.no-unlisted-bypass-actors`, `posture.human-approval-required` |
-| CI-Tests | brake 1: one aggregate required check over the declared commands (`ci.aggregate-present`, `ci.required-is-aggregate`) |
-| Code-Review | brake 6 for human review; brake 5 adds a review by another model family as a required check. Scorecard counts neither bot nor AI reviews, and in `brakes` the model review is added to human review, never a substitute |
-| Dangerous-Workflow | brake 17: zizmor in `workflow-lint`, `agents.workflow-injection` |
-| Dependency-Update-Tool | brake 15: a Dependabot or Renovate seed with a cooldown (`governance.dependency-updates-with-cooldown`, `ci.dependabot-actions`) |
-| Fuzzing | not taken (above); brake 11 instead |
-| Pinned-Dependencies | brake 15: `posture.actions-pinned`, `stack.lockfile-present`, `stack.lockfile-not-enforced`, `stack.image-by-digest`, `security.scanner-unpinned` |
-| SAST | brake 14: a Semgrep job (`security.sast-gate`) |
-| Security-Policy | a `SECURITY.md` seed (`repo-baseline`); `security.private-vulnerability-reporting` on a public repository |
-| Token-Permissions | brake 18: `ci.permissions-least`, and zizmor |
-| Vulnerabilities | brake 14: an OSV-Scanner job (`security.deps-gate`), `posture.no-stale-critical-alerts` |
-| SBOM, Signed-Releases | for deployed images only: `security.sbom-scanned`, `security.attestation-verified` |
-| CII-Best-Practices, Contributors, Maintained, License, Packaging, Webhooks | not covered: they describe a project's community, publication or badges, not a gate a change must pass |
+| `.github/workflows/ci.yml` | CI on every pull request: one aggregate job, `required`, over `make test` and the other gates |
+| `.github/rulesets/main.json` | the default-branch ruleset: `required` must pass, no bypass; `brakes apply . --remote` sends it to GitHub |
+| `.claude/settings.json`, `.claude/hooks/` | the agent's hooks: refuse `gh pr merge` on red, run `make test` before the agent may stop, deny secrets and the lock |
+| `AGENTS.md`, `docs/agent-setup/` | the rules the agent reads, inside a block `brakes` manages |
+| `.github/` templates, `dependabot.yml`, `SECURITY.md` | pull request and issue templates, dependency updates with a cooldown |
+| `.agent-setup/lock.json` | what was installed and the digest of every file, so a hand edit is never overwritten |
 
-Brakes with no Scorecard counterpart, all about the agent or the change it proposes:
+From then on, when the agent tries to end its turn with a failing test, the Stop hook
+runs the declared command and sends the agent back to work:
 
-| # | Brake | Why Scorecard cannot see it |
-|---|---|---|
-| 3 | Never merge on red, also locally | a hook in the agent's host refuses the merge command before it reaches GitHub |
-| 4 | Touching CI needs approval | Scorecard asks for code-owner review of everything; `brakes` puts a person in front of the paths that change the gates themselves (partly overlapping) |
-| 5 | Cross-family model review as a gate | a required check whose reviewer is a model of another family than the author |
-| 7 | Held-out tests | tests the agent can neither read nor edit, run in their own job |
-| 8, 9 | Coverage over changed lines; characterisation first | judged per change against the merge base, not per repository |
-| 10 | User-visible tests | API and browser tests with screenshot baselines as a protected path |
-| 12 | "Done" means verification green | the agent's Stop hook runs the declared `verify` command |
-| 13 | Hard prohibitions | deny rules in the agent host for secrets, lockfiles and the held-out tests |
-| 16 | Exceptions with an expiry | every waiver carries a reason, an issue and a date |
-| 20 | Delivery and CI health figures | DORA and CI-health measures in `doctor` |
-| 21 | Unattended work passes the same brakes | an agent running in CI is held to the ruleset and the required checks |
+```text
+verify failed (exit 2, 1s): make test
+1 failed: test_total
+make: *** [test] Error 1
+```
+
+`brakes doctor .` says what is still missing, each line with its fix.
+[Getting started](#getting-started) goes through the same steps one at a time.
 
 ## Requirements
 
@@ -122,7 +83,7 @@ cargo install --locked --git https://github.com/gemba-app/brakes
 Without a configuration `brakes` diagnoses and plans but refuses every write; the next
 section writes the smallest one.
 
-## First five minutes
+## Getting started
 
 On a clone of one of your GitHub repositories:
 
@@ -221,6 +182,89 @@ configuration, writes and remote reads need one. A repository declares its comma
 `.agent-setup/project.json` and each module's answers in `.agent-setup/modules/<id>.json`;
 `brakes` records what it installed, and the digest of every managed file, in
 `.agent-setup/lock.json`, and refuses to overwrite a file someone edited by hand.
+
+## The brakes
+
+| # | Brake | Module | Rendered as |
+|---|---|---|---|
+| 1 | CI required on every pull request | `ci-baseline` | a workflow whose single aggregate job, `required`, needs every verification job, rendered from the declared commands |
+| 2 | Protected default branch, no bypass for administrators | `repo-baseline` | a ruleset with `enforcement: active` and no bypass actors, applied with `apply --remote` |
+| 3 | Never merge on red, also locally | `merge-guard` | the `guard pre-bash` hook for the agent host, light and full mode |
+| 4 | Touching CI needs approval | `repo-baseline`, `ci-baseline` | CODEOWNERS over `.github/workflows/` with code-owner review in the ruleset; protected paths that need the `human-approved` label |
+| 5 | Cross-family model review as a gate | `agent-guardrails` | a review by another model family, in two jobs, inside the aggregate |
+| 6 | Human review when the team has more than one person | `repo-baseline` | the review count of the ruleset, from the repository's profile |
+| 7 | Held-out tests | `ci-baseline`, `agent-guardrails` | a held-out directory and job, denied to agents for reading and editing |
+| 8 | Coverage over changed lines | `security` | a `diff-coverage` job over the stack pack's per-file report against the merge base |
+| 9 | Characterisation tests before touching old code | `security` | the same job fails a change to a file no test executed |
+| 10 | User-visible tests | `qa` | Hurl for the API, Playwright for the web with screenshot comparison; screenshot baselines are a protected path |
+| 11 | Property-based tests and mutation on the diff | `stack-packs`, `ci-baseline`, `security` | property and mutation recipes per pack, held-out properties with a fresh recorded seed, an opt-in `mutation-diff` job with a minimum score |
+| 12 | "Done" means verification green | `agent-guardrails` | a Stop hook that runs the declared `verify` command |
+| 13 | Hard prohibitions | `agent-guardrails` | deny rules for secret paths, lockfiles and the held-out directory |
+| 14 | Scanners in CI | `security` | gitleaks, OSV-Scanner, Semgrep and Trivy jobs, each tool pinned by checksum |
+| 15 | Pinned actions and dependencies, with a cooldown | `security`, `repo-baseline`, `stack-packs` | SHA pins, a shared pin table, Dependabot or Renovate cooldown |
+| 16 | Exceptions with an expiry | `security` | `security-exceptions.json` and the rules that read it |
+| 17 | Workflows without open doors | `agent-guardrails`, `security` | `agents.workflow-injection`, `zizmor` in `workflow-lint` |
+| 18 | Least privilege in CI | `ci-baseline` | `permissions: contents: read` at the top, grants per job, `ci.permissions-least` |
+| 19 | Periodic audit | `auditor` | `doctor`, `doctor --fleet`, levels and profiles |
+| 20 | Delivery and CI health figures | `auditor` | DORA and CI-health measures |
+| 21 | Unattended work passes the same brakes | `agent-guardrails` | the unattended workflow behind the ruleset, `agents.unattended-gated` |
+
+The modules rest on the `engine` (plan, apply, doctor, ownership classes, the lock),
+`questions` (answers files, presets, a terminal interview and an MCP server) and the host
+adapter (GitHub reads and gated writes).
+
+## Relation with OpenSSF Scorecard
+
+[OpenSSF Scorecard](https://github.com/ossf/scorecard) audits a repository's supply-chain
+posture. `brakes` installs brakes and audits them: it takes ideas from Scorecard and adds
+the part that concerns the agent, the gates an agent's work must pass on the developer's
+machine and in CI.
+
+- **Taken.** Binary-Artifacts detection, as Scorecard does it: a tracked file whose first
+  1024 bytes are not text and that starts with an executable or package magic, or carries
+  one of Scorecard's extensions, is a finding (`security.binary-artifacts`).
+- **Not taken.** The Fuzzing check as evidence: it recognises OSS-Fuzz, ClusterFuzzLite,
+  Go fuzzing and a short list of property-based libraries, so a Python or Rust project
+  with property tests scores as if it had none. `brakes` renders property and mutation
+  recipes per stack instead (brake 11). Nor does it install the Scorecard action: on a
+  private repository it needs GitHub Advanced Security.
+- **Covered otherwise.** Scorecard's workflow checks (Dangerous-Workflow,
+  Token-Permissions) by [zizmor](https://github.com/zizmorcore/zizmor) in the rendered
+  `workflow-lint` job and by `agents.workflow-injection`; its posture checks by auditor
+  rules that `doctor` evaluates.
+
+| Scorecard check | In `brakes` |
+|---|---|
+| Binary-Artifacts | `security.binary-artifacts`, the same detection |
+| Branch-Protection | brakes 2 and 6: the ruleset `brakes` writes, audited by `posture.default-branch-protected`, `posture.required-check-enforced`, `posture.no-unlisted-bypass-actors`, `posture.human-approval-required` |
+| CI-Tests | brake 1: one aggregate required check over the declared commands (`ci.aggregate-present`, `ci.required-is-aggregate`) |
+| Code-Review | brake 6 for human review; brake 5 adds a review by another model family as a required check. Scorecard counts neither bot nor AI reviews, and in `brakes` the model review is added to human review, never a substitute |
+| Dangerous-Workflow | brake 17: zizmor in `workflow-lint`, `agents.workflow-injection` |
+| Dependency-Update-Tool | brake 15: a Dependabot or Renovate seed with a cooldown (`governance.dependency-updates-with-cooldown`, `ci.dependabot-actions`) |
+| Fuzzing | not taken (above); brake 11 instead |
+| Pinned-Dependencies | brake 15: `posture.actions-pinned`, `stack.lockfile-present`, `stack.lockfile-not-enforced`, `stack.image-by-digest`, `security.scanner-unpinned` |
+| SAST | brake 14: a Semgrep job (`security.sast-gate`) |
+| Security-Policy | a `SECURITY.md` seed (`repo-baseline`); `security.private-vulnerability-reporting` on a public repository |
+| Token-Permissions | brake 18: `ci.permissions-least`, and zizmor |
+| Vulnerabilities | brake 14: an OSV-Scanner job (`security.deps-gate`), `posture.no-stale-critical-alerts` |
+| SBOM, Signed-Releases | for deployed images only: `security.sbom-scanned`, `security.attestation-verified` |
+| CII-Best-Practices, Contributors, Maintained, License, Packaging, Webhooks | not covered: they describe a project's community, publication or badges, not a gate a change must pass |
+
+Brakes with no Scorecard counterpart, all about the agent or the change it proposes:
+
+| # | Brake | Why Scorecard cannot see it |
+|---|---|---|
+| 3 | Never merge on red, also locally | a hook in the agent's host refuses the merge command before it reaches GitHub |
+| 4 | Touching CI needs approval | Scorecard asks for code-owner review of everything; `brakes` puts a person in front of the paths that change the gates themselves (partly overlapping) |
+| 5 | Cross-family model review as a gate | a required check whose reviewer is a model of another family than the author |
+| 7 | Held-out tests | tests the agent can neither read nor edit, run in their own job |
+| 8, 9 | Coverage over changed lines; characterisation first | judged per change against the merge base, not per repository |
+| 10 | User-visible tests | API and browser tests with screenshot baselines as a protected path |
+| 12 | "Done" means verification green | the agent's Stop hook runs the declared `verify` command |
+| 13 | Hard prohibitions | deny rules in the agent host for secrets, lockfiles and the held-out tests |
+| 16 | Exceptions with an expiry | every waiver carries a reason, an issue and a date |
+| 20 | Delivery and CI health figures | DORA and CI-health measures in `doctor` |
+| 21 | Unattended work passes the same brakes | an agent running in CI is held to the ruleset and the required checks |
 
 ## Configuration
 
