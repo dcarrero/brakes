@@ -4,6 +4,7 @@ pub mod apply_remote;
 pub mod auditor;
 pub mod config;
 #[cfg(feature = "setup-core")]
+#[rustfmt::skip] // the file is not in this repository; rustfmt would fail to resolve it
 pub mod conventions;
 pub mod engine;
 pub mod guard;
@@ -12,6 +13,7 @@ pub mod host;
 /// migrated in place (#1067). The owner's build carries them (`legacy.rs`, never exported);
 /// the product has no former name.
 #[cfg(feature = "setup-core")]
+#[rustfmt::skip] // the file is not in this repository; rustfmt would fail to resolve it
 pub mod legacy;
 #[cfg(not(feature = "setup-core"))]
 pub mod legacy {
