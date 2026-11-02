@@ -403,7 +403,11 @@ The required level is P1 Bronze, P2 Silver, P3 Gold; `customers` raises it to at
 least Silver and `personal-data-or-payments` one level, capped at Gold; an undeclared
 criticality is audited as `internal` with a Basic finding. When the humans measure is
 unavailable, as it always is without `--remote`, the profile is P1 flagged
-`unverified` and the required level is still stated.
+`unverified` and the required level is still stated. When it counts exactly one human,
+`posture.human-approval-required` and `posture.codeowners-review` are `not-required`
+with the reason `single maintainer: nobody else can approve`, without being evaluated:
+GitHub does not let a pull request's author approve it, so that maintainer's merge gate
+is the required checks and `human-approved` on protected paths.
 
 **The project profile fields** the auditor reads from `.agent-setup/project.json`,
 all optional, refused when malformed with a sentence naming what is allowed:

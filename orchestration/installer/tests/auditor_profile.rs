@@ -796,6 +796,7 @@ fn dimensions_are_what_the_audit_consumes() {
             cadence: Some(Cadence::Low),
             services: Some(Services::Single),
             criticality: None,
+            humans: Some(2),
         }
     );
 }

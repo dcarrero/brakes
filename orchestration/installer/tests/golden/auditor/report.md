@@ -4,7 +4,7 @@ Audited at 2026-10-28 over a 28-day window against the accepted standard.
 
 | Repository | Profile | Required | Reached | Gap | Unavailable | Waiting |
 |---|---|---|---|---|---|---|
-| example-owner/example | P1 | Bronze | none | 4 | 23 | 13 |
+| example-owner/example | P1 | Bronze | none | 4 | 21 | 13 |
 
 ## example-owner/example
 

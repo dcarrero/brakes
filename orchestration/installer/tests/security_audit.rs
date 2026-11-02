@@ -1279,6 +1279,7 @@ mod remote {
             cadence: None,
             services: None,
             criticality: None,
+            humans: None,
         };
         let rules: &'static [Rule] = Box::leak(Box::new([rule]));
         let Audit {

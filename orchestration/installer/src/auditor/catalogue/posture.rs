@@ -32,6 +32,11 @@ const TEAMS: Required = Required {
     profiles: &[Profile::P2, Profile::P3],
     when: &[],
 };
+/// The reason the approval rules give a repository with exactly one human with
+/// merge rights: GitHub does not let a pull request's author approve it (#34).
+pub const SINGLE_MAINTAINER: &str = "single maintainer: nobody else can approve";
+/// The rules that need an approval from a human other than the author.
+pub const NEEDS_ANOTHER_HUMAN: [&str; 2] = [HUMAN_APPROVAL_REQUIRED.id, CODEOWNERS_REVIEW.id];
 /// Cadence rules, whatever the profile.
 const CADENCE_MID: Required = Required {
     profiles: &[],

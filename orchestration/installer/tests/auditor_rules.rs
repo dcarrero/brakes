@@ -348,6 +348,7 @@ fn dims(profile: Profile) -> Dimensions {
         cadence: None,
         services: None,
         criticality: None,
+        humans: None,
     }
 }
 
@@ -357,6 +358,10 @@ fn run_with(host: &FakeHost, files: &[(&str, &str)]) -> Audit {
 }
 /// [`run_with`] for a repository measured at `profile`.
 fn run_as(host: &FakeHost, files: &[(&str, &str)], profile: Profile) -> Audit {
+    run_measured(host, files, &dims(profile))
+}
+/// [`run_with`] for a repository measured at `dims`.
+fn run_measured(host: &FakeHost, files: &[(&str, &str)], dims: &Dimensions) -> Audit {
     let dir = tempfile::tempdir().unwrap();
     for (path, text) in files {
         let path = dir.path().join(path);
@@ -377,7 +382,7 @@ fn run_as(host: &FakeHost, files: &[(&str, &str)], profile: Profile) -> Audit {
         profile: Profile::P1,
         today: None,
     };
-    audit(&cx, &dims(profile))
+    audit(&cx, dims)
 }
 fn run(host: &FakeHost) -> Audit {
     run_with(host, &[])
@@ -961,6 +966,100 @@ fn approval_with_an_org_admin_pull_request_bypass_passes_and_names_the_bypass() 
             "ruleset main (7) requires 1 approving review on main; bypassed by OrganizationAdmin:1:pull_request",
         ],
     );
+}
+
+// --- a single maintainer (#34) ------------------------------------------------------
+
+/// Neither approvals nor code owner review on main, classic or ruleset.
+fn unreviewed() -> FakeHost {
+    FakeHost {
+        protection: Ok(Some(reviewed(0))),
+        rulesets: Ok(Vec::new()),
+        ..FakeHost::default()
+    }
+}
+
+#[test]
+fn a_single_measured_maintainer_is_not_required_an_approval_nobody_else_can_give() {
+    let audit = run_measured(
+        &unreviewed(),
+        &[],
+        &Dimensions {
+            humans: Some(1),
+            ..dims(Profile::P1)
+        },
+    );
+    for id in [
+        "posture.human-approval-required",
+        "posture.codeowners-review",
+    ] {
+        let e = audit.rules.iter().find(|e| e.rule.id == id).unwrap();
+        assert!(!e.required, "{id}");
+        assert_eq!(e.outcome.status, Status::NotRequired, "{id}");
+        assert_eq!(
+            e.outcome.reason.as_deref(),
+            Some("single maintainer: nobody else can approve"),
+            "{id}"
+        );
+        assert!(e.outcome.evidence.is_empty(), "{id}");
+    }
+}
+
+#[test]
+fn two_measured_maintainers_are_judged_on_approvals_as_before() {
+    let audit = run_measured(
+        &unreviewed(),
+        &[],
+        &Dimensions {
+            humans: Some(2),
+            ..dims(Profile::P2)
+        },
+    );
+    let required = |id| {
+        audit
+            .rules
+            .iter()
+            .find(|e| e.rule.id == id)
+            .unwrap()
+            .required
+    };
+    assert!(required("posture.human-approval-required"));
+    assert!(required("posture.codeowners-review"));
+    failed(
+        &outcome(&audit, "posture.human-approval-required"),
+        &[
+            "classic protection of main requires no approving review",
+            "no active ruleset requires an approving review on main",
+        ],
+    );
+    failed(
+        &outcome(&audit, "posture.codeowners-review"),
+        &[
+            "classic protection of main does not require code owner review",
+            "no active ruleset requires code owner review on main",
+        ],
+    );
+}
+
+#[test]
+fn an_unmeasured_or_zero_humans_count_judges_approvals_as_before() {
+    for humans in [None, Some(0)] {
+        let audit = run_measured(
+            &unreviewed(),
+            &[],
+            &Dimensions {
+                humans,
+                ..dims(Profile::P1)
+            },
+        );
+        failed(
+            &outcome(&audit, "posture.human-approval-required"),
+            &[
+                "classic protection of main requires no approving review",
+                "no active ruleset requires an approving review on main",
+            ],
+        );
+    }
 }
 
 // --- split rulesets: checks without bypass, review with it (#1218) ------------------

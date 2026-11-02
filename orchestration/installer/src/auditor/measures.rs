@@ -201,6 +201,7 @@ pub fn measure(cx: &Cx<'_>, remote: bool) -> Result<Measured> {
             cadence: per_week.map(cadence_tier),
             services: deployable.map(services_tier),
             criticality,
+            humans: count,
         },
         required: required_level(profile, criticality),
         accepted,

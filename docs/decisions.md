@@ -4,6 +4,27 @@ These are the decisions the design of `brakes` depends on. They were taken durin
 earlier development, imported into this repository and rewritten in neutral terms; each keeps
 its original date and is marked "imported". Newer decisions are added above them, newest first.
 
+## A single maintainer is not asked for an approval nobody can give — 2026-11-02
+
+Context: GitHub does not let the author of a pull request approve it. In a repository whose
+only human with merge rights is one person, `posture.human-approval-required` and
+`posture.codeowners-review` judged a review nobody can give: they were already not required for
+P1, but each still reported `failed` with its evidence, as if something were missing.
+
+1. **Exactly one measured human: not required, with the reason.** When the humans measure
+   counts exactly one collaborator with merge rights, both rules are `not-required` with the
+   reason `single maintainer: nobody else can approve`, and they are not evaluated (no read is
+   spent on them). The rule ids, levels and profiles they are required for do not change.
+2. **Only a measured count of one.** An unavailable humans measure (always the case without
+   `--remote`) or a count of zero proves nothing about who can approve, so both rules are
+   evaluated and reported as before; with two or more humans they are evaluated and required
+   exactly as before.
+3. **The merge gate of a single maintainer** stays the required checks, plus the
+   `human-approved` label on protected paths. The doctor names no substitute approval.
+4. **CODEOWNERS is not written for anyone.** `governance.codeowners-present` keeps its
+   allocation (P2, P3); naming an owner is configuration the owner adds, never a file `brakes`
+   puts in the tree with a person's name.
+
 ## `brakes` never runs the project's commands in CI; the project's CI runs them once — 2026-11-02
 
 Decided by the owner. Context: measured on a Python monorepo, with the default `diff-coverage`

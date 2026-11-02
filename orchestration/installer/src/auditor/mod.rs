@@ -170,6 +170,8 @@ pub struct Dimensions {
     pub cadence: Option<Cadence>,
     pub services: Option<Services>,
     pub criticality: Option<Criticality>,
+    /// The humans with merge rights, when measured.
+    pub humans: Option<usize>,
 }
 impl Dimensions {
     fn holds(&self, condition: &Condition) -> bool {
@@ -181,6 +183,10 @@ impl Dimensions {
             }
             Condition::PlatformLadderL4 => false,
         }
+    }
+    /// Exactly one human was measured and `rule` needs another one's approval.
+    fn single_maintainer(&self, rule: &Rule) -> bool {
+        self.humans == Some(1) && catalogue::posture::NEEDS_ANOTHER_HUMAN.contains(&rule.id)
     }
     /// A rule is required when the profile is listed or any condition holds.
     pub fn requires(&self, rule: &Rule) -> bool {
@@ -391,6 +397,9 @@ fn evaluate_reading(cx: &Cx<'_>, dims: &Dimensions, rules: &'static [Rule], afte
                 outcome: match rule.feasible_by {
                     Milestone::WaitsFor(module) => {
                         Outcome::unavailable(format!("waits for module {module}"))
+                    }
+                    Milestone::Nov7 if dims.single_maintainer(rule) => {
+                        Outcome::not_required(catalogue::posture::SINGLE_MAINTAINER)
                     }
                     Milestone::Nov7 => (rule.evaluate)(cx),
                 },

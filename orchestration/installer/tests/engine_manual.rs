@@ -1254,6 +1254,7 @@ fn step_rules(
         cadence: None,
         services: None,
         criticality: None,
+        humans: None,
     };
     evaluate(&cx, &dims, &[])
         .rules
