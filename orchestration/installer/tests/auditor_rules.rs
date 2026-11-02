@@ -6474,6 +6474,38 @@ mod ci_remote {
         );
     }
 
+    /// #32: under `workflow: generate`, once the lock records ci-baseline's
+    /// `github:switch-required-check`, the default branch requires what the
+    /// switch leaves: a declared `ci.required_checks` that names `required`
+    /// verbatim, else `required` alone.
+    #[test]
+    fn required_is_aggregate_expects_the_checks_the_switch_leaves() {
+        let lock = r#"{"files": {"github:switch-required-check": {"module": "ci-baseline", "class": "remote"}}}"#;
+        let profile = r#"{"ci": {"required_checks": ["required", "neutrality"]}}"#;
+        let files = [
+            (".agent-setup/lock.json", lock),
+            (".agent-setup/project.json", profile),
+        ];
+        let host = requiring(&["required", "neutrality"]);
+        let audit = audited(&host, &files, None, REQUIRED_IS_AGGREGATE);
+        passed(
+            &outcome(&audit, "ci.required-is-aggregate"),
+            &["main requires only neutrality, required"],
+        );
+        // A declared list without `required` is superseded by `required`.
+        let profile = r#"{"ci": {"required_checks": ["build", "neutrality"]}}"#;
+        let files = [
+            (".agent-setup/lock.json", lock),
+            (".agent-setup/project.json", profile),
+        ];
+        let host = requiring(&["build", "neutrality"]);
+        let audit = audited(&host, &files, None, REQUIRED_IS_AGGREGATE);
+        failed(
+            &outcome(&audit, "ci.required-is-aggregate"),
+            &["Required checks are build, neutrality; expected only required"],
+        );
+    }
+
     #[test]
     fn required_is_aggregate_fails_naming_the_checks_required_from_rulesets_and_protection() {
         let mut ruleset = ruleset(7, &["required_status_checks"]);

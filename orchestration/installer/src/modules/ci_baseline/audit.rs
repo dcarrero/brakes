@@ -153,14 +153,17 @@ pub fn findings(root: &Path, profile: &Value, answers: Option<&Answers>) -> Vec<
 /// as `model::required_checks` gives them to the ruleset at plan time.
 fn required_checks(a: &Recorded, lock: Option<&str>) -> Vec<String> {
     let mut checks = vec![a.aggregate.clone()];
-    let item = format!("github:{}", super::brownfield::ADD_CHECK);
-    let added = lock
-        .and_then(|text| serde_json::from_str::<Value>(text).ok())
-        .is_some_and(|lock| lock["files"][item.as_str()]["module"] == CI_BASELINE);
-    if a.workflow == WorkflowMode::Existing && added {
+    if a.workflow == WorkflowMode::Existing && records(lock, super::brownfield::ADD_CHECK) {
         checks.push(CONTRIBUTED_AGGREGATE_CHECK.to_owned());
     }
     checks
+}
+
+/// True when the installed `lock` records ci-baseline's remote item `github:<id>`.
+fn records(lock: Option<&str>, id: &str) -> bool {
+    let item = format!("github:{id}");
+    lock.and_then(|text| serde_json::from_str::<Value>(text).ok())
+        .is_some_and(|lock| lock["files"][item.as_str()]["module"] == CI_BASELINE)
 }
 
 /// The answers the rules read, with the module's defaults.
@@ -739,7 +742,9 @@ fn joined(items: &BTreeSet<String>) -> String {
 /// through rulesets and classic protection together, are exactly the
 /// aggregate (`required`, or the recorded `aggregate_check` under
 /// `workflow: existing`, followed by `agentic-required` when the lock records
-/// its remote item; #1159).
+/// its remote item; #1159), or under `workflow: generate`, once the lock
+/// records the brownfield switch, the checks it leaves (`switch_checks`: a
+/// declared `ci.required_checks` that names `required`, else `required`; #32).
 pub fn required_is_aggregate(cx: &Cx<'_>) -> Outcome {
     let answers = match recorded_answers(cx.files) {
         Ok(answers) => answers,
@@ -763,9 +768,22 @@ pub fn required_is_aggregate(cx: &Cx<'_>) -> Outcome {
         Ok(text) => text,
         Err(e) => return Outcome::unavailable(format!("{} unreadable: {e}", crate::LOCK)),
     };
-    let expected: BTreeSet<String> = required_checks(&answers, lock.as_deref())
-        .into_iter()
-        .collect();
+    let switched = answers.workflow == WorkflowMode::Generate
+        && records(lock.as_deref(), super::brownfield::SWITCH);
+    let expected: BTreeSet<String> = if switched {
+        let profile = match cx.files.read(PROFILE) {
+            Ok(text) => text,
+            Err(e) => return Outcome::unavailable(format!("{PROFILE} unreadable: {e}")),
+        };
+        let profile = profile
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default();
+        super::brownfield::switch_checks(&profile)
+    } else {
+        required_checks(&answers, lock.as_deref())
+    }
+    .into_iter()
+    .collect();
     let names = joined(&expected);
     if required == expected {
         Outcome::passed([format!("{} requires only {names}", guard.branch)])

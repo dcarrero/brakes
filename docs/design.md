@@ -678,7 +678,9 @@ first render, the module writes `.github/workflows/agentic-ci.yml` (`name: CI
 (brakes)`) instead of `ci.yml`, lists every foreign workflow (and a project-owned
 `.github/actionlint.yaml` or `.yml`) as `never-touch`, refuses when a foreign workflow
 already has a job named `required`, and declares the switch: the remote item
-`github:switch-required-check` (the default branch then requires only `required`),
+`github:switch-required-check` (the default branch then requires only `required`, or
+a declared `ci.required_checks` that names `required`, kept verbatim; the remote rule
+`ci.required-is-aggregate` expects the same list once the lock records the switch),
 written by `apply --remote` only after the step `check-reported` verifies that
 `required` has reported on the default branch. The chosen filename is kept by later
 renders. Nothing is ever deleted: the old workflow stays `never-touch` and stays
