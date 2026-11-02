@@ -90,7 +90,13 @@ pub struct Profile {
 }
 
 pub fn profile_for(root: &Path) -> Result<Profile> {
-    let raw = read(root, PROFILE)?;
+    profile_from(root, read(root, PROFILE)?)
+}
+
+/// The profile `raw` declares for `root`, validated as `profile_for` validates the
+/// file; `None` is the default profile. `ci init` plans with the profile it is
+/// about to write (#24).
+pub fn profile_from(root: &Path, raw: Option<String>) -> Result<Profile> {
     let text = raw.as_deref().unwrap_or(DEFAULT);
     let mut value: Value = serde_json::from_str(text)?;
     if !value.is_object() || !value["commands"].is_object() {

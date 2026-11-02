@@ -614,6 +614,26 @@ written and a plan note says to answer `existing`. Unanswered, `workflow` is `ge
 where the installed lock records a workflow this module generated, so an install from
 before `seed` keeps its output; `generate` prints a deprecation note.
 
+**The guided setup (`brakes ci init`, #24).** For a repository without CI, `ci init
+<project> [--answers <file>]... [--no-input] [--apply]` (`src/ci_init.rs`) asks only what
+it cannot detect, one line per step: which apps stack-packs detection found to record
+(without a container), the `null` commands of each app's profile (the pack's proposal
+is offered, `-` declines it, nothing is invented; an app left with no runnable command
+refuses), and the runner when the configuration offers more than one. It then plans
+`stack-packs`, `ci-baseline` and `security` in one engine plan, with the profile it is
+about to write, so the seed is complete on its first and only write: the test job
+uploads its coverage data and `diff-coverage` judges it (plan-only, the root profile is
+the one planned with; an app profile under a directory is read from disk, so a monorepo
+sees its seed whole only in the `--apply` plan). An answers file's stack-packs apps count
+as recorded. A plan refusal writes nothing;
+with `--apply` the profiles are written first and the plan is computed again from disk,
+then applied as `install` applies. A workflow under `.github/workflows/` the lock does
+not record refuses (the project's CI is audited, not doubled), as does one it records.
+It ends with what to commit and how to see `required` and `agentic-required` green.
+`ci-health.workflow-exists` without any workflow names `brakes ci init .` before the
+module. Without a terminal or with `--no-input` it asks nothing and takes the
+proposals.
+
 **Commands are read at run time (`workflow: generate`, deprecated).** `ci-baseline`
 requires `stack-packs` and renders one `managed` workflow, `.github/workflows/ci.yml`
 (`name: CI`). Which commands run is

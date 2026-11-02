@@ -181,7 +181,17 @@ fn seconds(time: &str) -> Option<i64> {
 fn workflow_exists(cx: &Cx<'_>) -> Outcome {
     let read = workflows::read_all(cx.files);
     match read.as_slice() {
-        [] => return Outcome::failed([format!("no workflow under {WORKFLOWS}")]),
+        [] => {
+            // The guided setup writes the seed (#24); adopt still reads the module.
+            let mut outcome = Outcome::failed([format!("no workflow under {WORKFLOWS}")]);
+            outcome.remediations = vec![
+                Remediation::Command {
+                    text: "brakes ci init .",
+                },
+                Remediation::Module { id: "ci-baseline" },
+            ];
+            return outcome;
+        }
         [(path, Err(reason))] if path == WORKFLOWS => return Outcome::unavailable(reason.clone()),
         _ => {}
     }

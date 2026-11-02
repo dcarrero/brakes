@@ -7,7 +7,7 @@ use brakes::{
 };
 use std::{io::IsTerminal, path::PathBuf, process::ExitCode};
 
-const USAGE: &str = "Usage: brakes <install|doctor> <project> [--apply] [--new-personal] [--source <checkout>] [--module <id>]... [--profile P1|P2|P3] [--preset <name>] [--answers <file.json>]... [--no-input] [--remote] [--json] [--propose] [--now <YYYY-MM-DD>] [--report <file.md>]\n       brakes doctor --fleet <org-or-user> [--json] [--report <file.md>] [--include-archived] [--now <YYYY-MM-DD>] [--publish-issue <owner/repo>]\n       brakes adopt <project> [--apply] [--json]\n       brakes configure <project> <module-id> [--set key=value]... [--answers <file.json>]... [--preset <name>] [--interactive | --no-input] [--apply]\n       brakes configure <project> stack-packs --accept-commands [<app-id>] [--apply]\n       brakes presets [<module-id>] [--source <checkout>]\n       brakes mcp\n       brakes remove <project> <module-id> [--apply]\n       brakes apply <project> [--remote]\n       brakes guard pre-bash\n       brakes host features <owner/repo> [--json]\n       brakes host repos <owner> [--json] [--call-budget <n>]\n       brakes host org <org> [--json]\n       brakes host probe <owner/repo> <probe-id> [--arg key=value]... [--json]\n       Any command: --config <file.json> (the configuration; one embedded at build time wins)";
+const USAGE: &str = "Usage: brakes <install|doctor> <project> [--apply] [--new-personal] [--source <checkout>] [--module <id>]... [--profile P1|P2|P3] [--preset <name>] [--answers <file.json>]... [--no-input] [--remote] [--json] [--propose] [--now <YYYY-MM-DD>] [--report <file.md>]\n       brakes doctor --fleet <org-or-user> [--json] [--report <file.md>] [--include-archived] [--now <YYYY-MM-DD>] [--publish-issue <owner/repo>]\n       brakes adopt <project> [--apply] [--json]\n       brakes configure <project> <module-id> [--set key=value]... [--answers <file.json>]... [--preset <name>] [--interactive | --no-input] [--apply]\n       brakes configure <project> stack-packs --accept-commands [<app-id>] [--apply]\n       brakes ci init <project> [--answers <file.json>]... [--no-input] [--apply]\n       brakes presets [<module-id>] [--source <checkout>]\n       brakes mcp\n       brakes remove <project> <module-id> [--apply]\n       brakes apply <project> [--remote]\n       brakes guard pre-bash\n       brakes host features <owner/repo> [--json]\n       brakes host repos <owner> [--json] [--call-budget <n>]\n       brakes host org <org> [--json]\n       brakes host probe <owner/repo> <probe-id> [--arg key=value]... [--json]\n       Any command: --config <file.json> (the configuration; one embedded at build time wins)";
 /// `--config <file.json>` anywhere: the explicit lookup step, installed before any
 /// command reads the configuration (src/config.rs), and removed from `args`. Every
 /// command takes it, those `main` dispatches early included (#1311).
@@ -490,6 +490,96 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
     Ok(0)
 }
 
+/// `brakes ci init <project> [--answers <file.json>]... [--no-input] [--apply]`:
+/// the steps, the plan of the profiles and modules it sets up, and what comes
+/// next. It asks on a terminal (or with `--interactive`, the test hook) and never
+/// with `--no-input`. Every write passes the write scope and `apply`.
+fn ci_cli(args: &[std::ffi::OsString]) -> Result<u8> {
+    const CI_USAGE: &str =
+        "Usage: brakes ci init <project> [--answers <file.json>]... [--no-input] [--apply]";
+    let mut args = args.iter();
+    if args.next().and_then(|a| a.to_str()) != Some("init") {
+        return refuse(CI_USAGE);
+    }
+    let (mut project, mut files) = (None, Vec::new());
+    let (mut apply_changes, mut no_input, mut interactive) = (false, false, false);
+    while let Some(arg) = args.next() {
+        match arg.to_str() {
+            Some("--apply") => apply_changes = true,
+            Some("--no-input") => no_input = true,
+            Some("--interactive") => interactive = true,
+            Some("--answers") => {
+                files.push(PathBuf::from(args.next().ok_or("--answers needs a file")?))
+            }
+            Some(s) if s.starts_with('-') => return refuse(CI_USAGE),
+            _ if project.is_none() => project = Some(PathBuf::from(arg)),
+            _ => return refuse(CI_USAGE),
+        }
+    }
+    if interactive && no_input {
+        return refuse("--interactive and --no-input cannot be combined");
+    }
+    let project = project.ok_or(CI_USAGE)?;
+    let root = if apply_changes {
+        personal_scope(&project, false)?
+    } else {
+        read_scope(&project)?
+    };
+    let terminal = std::io::stdin().is_terminal() && std::io::stdout().is_terminal();
+    let (mut input, mut output) = (std::io::stdin().lock(), std::io::stdout());
+    let mut asker = if interactive || (terminal && !no_input) {
+        brakes::ci_init::Asker::Prompt(&mut input, &mut output)
+    } else {
+        brakes::ci_init::Asker::NoInput
+    };
+    let source = Source::embedded();
+    let setup = brakes::ci_init::run(&root, &files, &mut asker)?;
+    // Planned before anything is written, so a refusal leaves the tree as it was.
+    let planned = brakes::ci_init::plan(&root, &source, &setup, false)?;
+    if interactive {
+        println!();
+    }
+    for line in &setup.steps {
+        println!("{line}");
+    }
+    if apply_changes {
+        // The profiles first, so the plan below reads the commands it seeds
+        // from disk, as every later install does.
+        let profiles: brakes::Plan = setup
+            .profiles
+            .iter()
+            .map(|(path, text)| (path.clone(), Some(text.clone())))
+            .collect();
+        for path in profiles.keys() {
+            println!("WRITE {path}");
+        }
+        apply(&root, &profiles)?;
+        let planned = brakes::ci_init::plan(&root, &source, &setup, true)?;
+        print_plan(&planned, true);
+        apply(&root, &planned.changes)?;
+        println!("{}", outcome(true, true));
+        for line in &setup.next {
+            println!("{line}");
+        }
+        return Ok(0);
+    }
+    for path in setup.profiles.keys() {
+        println!("PLAN {path}");
+    }
+    print_plan(&planned, false);
+    println!(
+        "{}",
+        outcome(
+            !planned.changes.is_empty() || !setup.profiles.is_empty(),
+            false
+        )
+    );
+    for line in &setup.next {
+        println!("{line}");
+    }
+    Ok(0)
+}
+
 /// The closing line of a plan.
 /// The CI audit as `doctor` prints it (#23): every finding with its diff under
 /// `--propose`, else one line with the count; nothing when there is none.
@@ -582,6 +672,16 @@ fn main() -> ExitCode {
     // `adopt` plans for an unmanaged repository and writes nothing (#738).
     if args.first().is_some_and(|a| a == "adopt") {
         return auditor::adopt::cli(&args[1..]);
+    }
+    // The guided setup of a repository without CI (#24).
+    if args.first().is_some_and(|a| a == "ci") {
+        return match ci_cli(&args[1..]) {
+            Ok(code) => ExitCode::from(code),
+            Err(error) => {
+                eprintln!("REFUSED: {error}");
+                ExitCode::from(2)
+            }
+        };
     }
     if args.first().is_some_and(|a| a == "presets") {
         return questions::presets_cli(&args[1..]);

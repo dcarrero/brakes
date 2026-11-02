@@ -2,6 +2,7 @@
 pub mod alerts;
 pub mod apply_remote;
 pub mod auditor;
+pub mod ci_init;
 pub mod config;
 pub mod engine;
 pub mod guard;

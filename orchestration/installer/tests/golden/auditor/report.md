@@ -21,7 +21,7 @@ UNAVAILABLE [bronze:posture.no-stale-critical-alerts] open Dependabot alerts of 
 UNAVAILABLE [bronze:posture.no-repo-secrets-with-production] repository secret names of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/secrets?per_page=100&page=1)
 UNAVAILABLE [bronze:posture.stale-branches] branches of example-owner/example was not found (404: Not Found: repos/example-owner/example/branches?per_page=100&page=1)
 UNAVAILABLE [gold:posture.org-2fa-required] owner example-owner was not found (404: Not Found: users/example-owner)
-FAIL        [basic:ci-health.workflow-exists] no workflow under .github/workflows → module ci-baseline
+FAIL        [basic:ci-health.workflow-exists] no workflow under .github/workflows → run `brakes ci init .`; module ci-baseline
 UNAVAILABLE [silver:ci-health.cancellation-rate] workflow runs of example-owner/example was not found (404: Not Found: repos/example-owner/example/actions/runs?per_page=100&page=1)
 UNAVAILABLE [silver:dora.deployments-api-in-use] production deployments of example-owner/example was not found (404: Not Found: repos/example-owner/example/deployments?environment=production&per_page=100&page=1)
 UNAVAILABLE [gold:dora.time-to-restore] issues of example-owner/example was not found (404: Not Found: repos/example-owner/example/issues?state=closed&labels=incident&since=2026-09-30T00%3A00%3A00Z&per_page=100&page=1)
