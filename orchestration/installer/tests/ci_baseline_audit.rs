@@ -788,6 +788,8 @@ fn zizmor_audits_every_ci_baseline_golden_and_caller_yml_only_offline() {
 // --- T15 (#944): ci.heldout-present and ci.protected-paths-gate -------------------
 
 const HELDOUT_PRESENT: &str = "WARNING: ci.heldout-present: No held-out test job: the agent can edit every test it is measured against";
+/// The job is wired into the aggregate and the directory holds no test yet (#26).
+const HELDOUT_EMPTY: &str = "WARNING: ci.heldout-present: No held-out tests yet: the heldout job is in the aggregate and tests/heldout holds no test";
 const GATE_ABSENT: &str = "WARNING: ci.protected-paths-gate: Protected paths are not gated: a workflow or held-out change can merge without a human";
 
 fn golden(name: &str) -> String {
@@ -890,7 +892,7 @@ fn the_default_workflow_wires_a_pending_heldout_job_that_needs_tests_to_pass() {
     // the rule still fails until the directory holds one.
     let ci = golden("single.yml");
     let none = findings_with(&[("ci.yml", &ci)], &[], None);
-    assert_eq!(brakes(&none), [HELDOUT_PRESENT]);
+    assert_eq!(brakes(&none), [HELDOUT_EMPTY]);
     let kept = findings_with(&[("ci.yml", &ci)], &[KEPT_TEST], None);
     assert!(brakes(&kept).is_empty(), "{kept:#?}");
 }
@@ -899,12 +901,12 @@ fn the_default_workflow_wires_a_pending_heldout_job_that_needs_tests_to_pass() {
 fn a_heldout_job_without_tests_in_the_directory_fails() {
     let ci = golden("heldout.yml");
     let none = findings_with(&[("ci.yml", &ci)], &[], None);
-    assert_eq!(brakes(&none), [HELDOUT_PRESENT]);
+    assert_eq!(brakes(&none), [HELDOUT_EMPTY]);
     // A directory with only an empty subdirectory has no test either.
     let dir = repo(&[(".github/workflows/ci.yml", ci.as_str())]);
     fs::create_dir_all(dir.path().join("tests/heldout/empty")).unwrap();
     let all = audit::findings(dir.path(), &json!({}), None);
-    assert_eq!(brakes(&all), [HELDOUT_PRESENT]);
+    assert_eq!(brakes(&all), [HELDOUT_EMPTY]);
 }
 
 #[test]
@@ -922,7 +924,10 @@ fn the_answered_heldout_dir_is_the_one_read() {
     let ci = golden("heldout.yml");
     let answers = json!({"heldout_dir": "./qa/heldout/"});
     let elsewhere = findings_with(&[("ci.yml", &ci)], &[KEPT_TEST], Some(answers.clone()));
-    assert_eq!(brakes(&elsewhere), [HELDOUT_PRESENT]);
+    assert_eq!(
+        brakes(&elsewhere),
+        [HELDOUT_EMPTY.replace("tests/heldout", "qa/heldout")]
+    );
     let there = findings_with(
         &[("ci.yml", &ci)],
         &[("qa/heldout/kept_test.rs", "")],

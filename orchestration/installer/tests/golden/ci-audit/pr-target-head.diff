@@ -1,0 +1,9 @@
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -48,6 +48,5 @@
+       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+         with:
+           persist-credentials: false
+-          ref: ${{ github.event.pull_request.head.sha }}
+       - name: Build
+         run: cargo build

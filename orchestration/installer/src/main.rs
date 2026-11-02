@@ -7,7 +7,7 @@ use brakes::{
 };
 use std::{io::IsTerminal, path::PathBuf, process::ExitCode};
 
-const USAGE: &str = "Usage: brakes <install|doctor> <project> [--apply] [--new-personal] [--source <checkout>] [--module <id>]... [--profile P1|P2|P3] [--preset <name>] [--answers <file.json>]... [--no-input] [--remote] [--json] [--now <YYYY-MM-DD>] [--report <file.md>]\n       brakes doctor --fleet <org-or-user> [--json] [--report <file.md>] [--include-archived] [--now <YYYY-MM-DD>] [--publish-issue <owner/repo>]\n       brakes adopt <project> [--apply] [--json]\n       brakes configure <project> <module-id> [--set key=value]... [--answers <file.json>]... [--preset <name>] [--interactive | --no-input] [--apply]\n       brakes configure <project> stack-packs --accept-commands [<app-id>] [--apply]\n       brakes presets [<module-id>] [--source <checkout>]\n       brakes mcp\n       brakes remove <project> <module-id> [--apply]\n       brakes apply <project> [--remote]\n       brakes guard pre-bash\n       brakes host features <owner/repo> [--json]\n       brakes host repos <owner> [--json] [--call-budget <n>]\n       brakes host org <org> [--json]\n       brakes host probe <owner/repo> <probe-id> [--arg key=value]... [--json]\n       Any command: --config <file.json> (the configuration; one embedded at build time wins)";
+const USAGE: &str = "Usage: brakes <install|doctor> <project> [--apply] [--new-personal] [--source <checkout>] [--module <id>]... [--profile P1|P2|P3] [--preset <name>] [--answers <file.json>]... [--no-input] [--remote] [--json] [--propose] [--now <YYYY-MM-DD>] [--report <file.md>]\n       brakes doctor --fleet <org-or-user> [--json] [--report <file.md>] [--include-archived] [--now <YYYY-MM-DD>] [--publish-issue <owner/repo>]\n       brakes adopt <project> [--apply] [--json]\n       brakes configure <project> <module-id> [--set key=value]... [--answers <file.json>]... [--preset <name>] [--interactive | --no-input] [--apply]\n       brakes configure <project> stack-packs --accept-commands [<app-id>] [--apply]\n       brakes presets [<module-id>] [--source <checkout>]\n       brakes mcp\n       brakes remove <project> <module-id> [--apply]\n       brakes apply <project> [--remote]\n       brakes guard pre-bash\n       brakes host features <owner/repo> [--json]\n       brakes host repos <owner> [--json] [--call-budget <n>]\n       brakes host org <org> [--json]\n       brakes host probe <owner/repo> <probe-id> [--arg key=value]... [--json]\n       Any command: --config <file.json> (the configuration; one embedded at build time wins)";
 /// `--config <file.json>` anywhere: the explicit lookup step, installed before any
 /// command reads the configuration (src/config.rs), and removed from `args`. Every
 /// command takes it, those `main` dispatches early included (#1311).
@@ -34,6 +34,7 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
     let mut new_personal = false;
     let mut check_remote = false;
     let mut json = false;
+    let mut propose = false;
     let mut now = None;
     let mut report = None;
     let mut tier: Option<String> = None;
@@ -57,6 +58,7 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
             Some("--new-personal") => new_personal = true,
             Some("--remote") => check_remote = true,
             Some("--json") => json = true,
+            Some("--propose") => propose = true,
             Some("--accept-commands") => accept = Some(None),
             Some("--now") => {
                 let date = args.next().and_then(|s| s.into_string().ok());
@@ -133,6 +135,9 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
     }
     if json && operation != "doctor" {
         return refuse("--json is only available with doctor");
+    }
+    if propose && operation != "doctor" {
+        return refuse("--propose is only available with doctor");
     }
     if (now.is_some() || report.is_some()) && operation != "doctor" {
         return refuse("--now and --report are only available with doctor");
@@ -302,6 +307,8 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
             .into_iter()
             .filter(|line| !(suppress_incomplete && line.contains("incomplete")))
             .collect();
+        // The project's CI, audited with the patches it would take (#23); read only.
+        let proposals = brakes::auditor::ci_audit::proposals(&root);
         // The audit: `GitHub` over the same `gh` with `--remote`, offline without
         // it. Computed before printing, so a refusal leaves no partial output.
         let identity = auditor::checkout_identity(&root);
@@ -332,6 +339,10 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
         let code = u8::try_from(audited.exit_code(!not_ready))?;
         if json {
             let mut extra = audited.json();
+            // The project's CI audit with its patches (#23): only with `--propose`.
+            if propose {
+                extra.insert("proposals".to_owned(), ci_proposals_json(&proposals));
+            }
             // Declared exclusions (#1171): present only when there is one.
             if !diagnosis.excluded.is_empty() {
                 extra.insert("excluded".to_owned(), serde_json::json!(diagnosis.excluded));
@@ -382,6 +393,11 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
         if let Some(note) = &remote_report.note {
             println!("{note}");
         }
+        // The CI audit is proposals, never a finding: it cannot fail readiness (#23).
+        print!(
+            "{}",
+            ci_proposals_text(&proposals, propose, &project.display().to_string())
+        );
         if !not_ready {
             println!("Configuration ready. Runtime/agent behavior has not been verified.");
         }
@@ -475,6 +491,60 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
 }
 
 /// The closing line of a plan.
+/// The CI audit as `doctor` prints it (#23): every finding with its diff under
+/// `--propose`, else one line with the count; nothing when there is none.
+fn ci_proposals_text(
+    proposals: &[brakes::auditor::ci_audit::Proposal],
+    propose: bool,
+    project: &str,
+) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::new();
+    if proposals.is_empty() {
+        return out;
+    }
+    if !propose {
+        let (noun, pronoun) = if proposals.len() == 1 {
+            ("finding", "it")
+        } else {
+            ("findings", "them")
+        };
+        let _ = writeln!(
+            out,
+            "PROPOSE {} {noun} on the project's CI: brakes doctor {project} --propose prints {pronoun} with the patches; nothing is applied",
+            proposals.len()
+        );
+        return out;
+    }
+    for p in proposals {
+        let _ = writeln!(out, "PROPOSE {} {}: {}", p.rule, p.file, p.text);
+        match &p.patch {
+            Some(patch) => out.push_str(&patch.diff),
+            None => out.push_str("  (no patch: change it by hand)\n"),
+        }
+    }
+    out.push_str(
+        "Nothing was written. Apply a patch on a branch and merge it through a pull request labelled human-approved: .github/workflows/ is a protected path.\n",
+    );
+    out
+}
+
+fn ci_proposals_json(proposals: &[brakes::auditor::ci_audit::Proposal]) -> serde_json::Value {
+    serde_json::Value::Array(
+        proposals
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "rule": p.rule,
+                    "file": p.file,
+                    "text": p.text,
+                    "diff": p.patch.as_ref().map(|patch| patch.diff.clone()),
+                })
+            })
+            .collect(),
+    )
+}
+
 fn outcome(changed: bool, apply_changes: bool) -> &'static str {
     if !changed {
         "No changes."

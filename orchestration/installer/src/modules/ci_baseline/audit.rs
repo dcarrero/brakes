@@ -84,9 +84,20 @@ pub fn findings(root: &Path, profile: &Value, answers: Option<&Answers>) -> Vec<
             .as_ref()
             .map_or(DEFAULT_HELDOUT_DIR, |a| a.heldout_dir.as_str());
         let has_tests = has_file(&root.join(heldout_dir));
+        // The job wired with nothing to run yet is a different gap (#26): say which.
+        let wired = read
+            .iter()
+            .any(|(_, wf)| wf.as_ref().is_ok_and(heldout_wired));
+        let missing = if wired && !has_tests {
+            format!(
+                "No held-out tests yet: the heldout job is in the aggregate and {heldout_dir} holds no test"
+            )
+        } else {
+            "No held-out test job: the agent can edit every test it is measured against".to_owned()
+        };
         repository_rule(
             "ci.heldout-present",
-            "No held-out test job: the agent can edit every test it is measured against",
+            &missing,
             &read,
             |wf| has_tests && heldout_wired(wf),
             &mut out,

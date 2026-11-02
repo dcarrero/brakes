@@ -1,0 +1,26 @@
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -41,3 +41,23 @@
+           if-no-files-found: error
+           name: agentic-coverage-root-test
+           path: lcov.info
++  build:
++    runs-on: ubuntu-24.04
++    timeout-minutes: 15
++    steps:
++      - name: Check out
++        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
++        with:
++          persist-credentials: "false"
++      - name: Install Rust toolchain
++        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
++        with:
++          components: "clippy, rustfmt"
++          toolchain: "1.99"
++      - name: Cache cargo registry and target
++        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
++        with:
++          save-if: "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
++          workspaces: "."
++      - name: Run commands.build
++        run: cargo build

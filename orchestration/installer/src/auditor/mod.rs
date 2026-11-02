@@ -6,6 +6,7 @@
 pub mod adopt;
 pub mod cached;
 pub mod catalogue;
+pub mod ci_audit;
 pub mod counters;
 pub mod fleet;
 pub mod measures;

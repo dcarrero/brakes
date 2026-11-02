@@ -719,6 +719,39 @@ plan time naming the modules; the plan prints `NOTE [ci-baseline] JOB [<module>]
 read every workflow under `.github/workflows/`, owned or not, with the YAML walker of
 the auditor, and report as `WARNING: ci.<rule>: <text>` (or `unverified: <file>:
 <reason>` for a file the walker cannot read); they never make `doctor` `NOT READY`.
+
+**The project's CI, audited with patches (#23).** `auditor::ci_audit` reads the
+workflows under `.github/workflows/` that the lock does not record as `managed` (what
+`brakes` renders it fixes by rendering again) and reports what the brakes need from the
+project's own CI, each finding with the patch that settles it when a line edit can:
+`ci.permissions-least` (no top-level `permissions:`: `contents: read` before `jobs:`),
+`ci.concurrency` (a pull-request workflow without a group: one that cancels superseded
+pull-request runs), `ci.job-timeouts` (`timeout-minutes: 15` after the job's `runs-on`),
+`posture.actions-pinned` (an action the shared pin table knows, pinned by SHA; any
+other is named without a patch), `ci.pull-request-target-head` (a checkout of the pull
+request's head under `pull_request_target`: the `ref:` goes), `ci.untrusted-interpolation`
+(an author-chosen `github.event.*` value in `run:`, moved to the step's `env:`),
+`ci.pull-request-trigger` (no project workflow runs on pull requests: `pull_request`
+added to `on:`), `ci.command-missing` (a command of ci-baseline's selection, `lint`, `test` or else
+`verify`, and `build`, that no step runs: a step runs it when its `run:` holds the
+command as declared, names `commands.<name>`, reads `.commands[…]` at run time with the
+name in its `env:` as the seed does, or, for `test`, runs a pack's measured run that
+takes its place; a job appended with checkout, the app's pack setup and the command)
+and, where `security` is installed (its `diff-coverage` is what judges the data),
+`ci.coverage-upload` (a recorded app whose pack has a coverage recipe and whose
+`agentic-coverage-<app id>-<job>` no step uploads: the step that runs its test command
+replaced by the pack's measured run and upload; an app whose pack has none is named as
+not judged, with the pack's reason, and no patch). Patches are line edits on the file
+as written, so its comments and layout stay. `doctor` prints one line with the count;
+`doctor --propose` prints every finding as `PROPOSE <rule> <file>: <text>` with its
+unified diff (`--json --propose` adds `proposals`), then states that nothing was
+written. Nothing in the module writes: a patch reaches the default branch through a
+pull request labelled `human-approved`, since workflows are a protected path. The
+proposals never change readiness, a level or the exit code: the ids the catalogue
+already holds are judged, as before, from `doctor`'s own `WARNING` lines, and the new
+ones (`ci.concurrency`, `ci.pull-request-target-head`, `ci.untrusted-interpolation`,
+`ci.pull-request-trigger`, `ci.coverage-upload`) hold no level until a decision
+allocates one.
 `remove ci-baseline` deletes an unchanged workflow and actionlint configuration,
 refuses an edited one and keeps every `never-touch` workflow and remote item.
 
