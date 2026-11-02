@@ -54,6 +54,9 @@ pub const GO: StackPack = StackPack {
         guide: setup_core_guide("docs/agent-setup/observability.md#go"),
     }),
     coverage: None,
+    no_coverage: Some(
+        "`go test -coverprofile` writes Go's own profile, which diff-cover does not read, and no converter is pinned, so diff-coverage does not judge go apps",
+    ),
     properties: None,
     mutation: None,
     ci_setup,

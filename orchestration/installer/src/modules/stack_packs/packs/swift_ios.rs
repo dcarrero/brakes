@@ -50,6 +50,9 @@ pub const SWIFT_IOS: StackPack = StackPack {
     }),
     otel: None,
     coverage: None,
+    no_coverage: Some(
+        "xccov's report is not a format diff-cover reads and no converter is pinned, so diff-coverage does not judge swift-ios apps",
+    ),
     properties: None,
     mutation: None,
     ci_setup,

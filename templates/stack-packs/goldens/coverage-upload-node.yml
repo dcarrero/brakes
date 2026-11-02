@@ -1,0 +1,1 @@
+# node: no coverage upload: no line-coverage tool is pinned for node: the runners differ (jest, vitest, node:test) and none is chosen, so diff-coverage does not judge node apps until the pack declares one

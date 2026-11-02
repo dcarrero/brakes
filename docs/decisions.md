@@ -4,6 +4,38 @@ These are the decisions the design of `brakes` depends on. They were taken durin
 earlier development, imported into this repository and rewritten in neutral terms; each keeps
 its original date and is marked "imported". Newer decisions are added above them, newest first.
 
+## `brakes` never runs the project's commands in CI; the project's CI runs them once — 2026-11-02
+
+Decided by the owner. Context: measured on a Python monorepo, with the default `diff-coverage`
+the backend suite ran twice per pull request (about 8 minutes each): once in the project's CI,
+once again under coverage in `diff-coverage`. With `coverage_source: project-ci` it ran once,
+plus 1.6 minutes to combine and judge.
+
+1. **The project's CI runs the declared commands** (`commands.verify`, `test`, `build`, `lint`),
+   once. No job `brakes` owns runs them. A CI workflow `brakes` writes for a project is a `seed`:
+   written once, owned by the project from then on, never re-rendered or overwritten.
+2. **No CI: warn and guide.** `doctor` fails `ci-health.workflow-exists` and points to the
+   guided setup, which writes the seed.
+3. **A CI exists: audit it and propose, never apply.** `doctor` audits what the brakes need from
+   the project's CI; each finding carries its patch as a diff. `brakes` never edits the
+   project's `.github/workflows/` by itself: a patch reaches the default branch through a pull
+   request with `human-approved`, because workflows are a protected path (brake 4).
+4. **The brakes' own jobs only judge** what the project's CI produces: scope, the scanners,
+   cross-review, held-out tests, `workflow-lint` and the aggregates. `diff-coverage` and
+   `coverage-ratchet` read the coverage data the project's test jobs upload as
+   `agentic-coverage-<app id>-<job>`, in the reusable workflow the project's CI calls; the mode
+   that measures by running the suite again is removed, and `coverage_source` is retired.
+5. **Each stack pack carries the recipe** for its test job's measured run and upload. A pack
+   whose coverage tool cannot produce data `diff-coverage` reads says so; its apps are not
+   judged, and `brakes` never falls back to measuring.
+6. **No window over unverified work.** A repository moving from a generated workflow requires
+   the new checks first and retires the old ones afterwards (expand, then contract).
+
+Outside this decision, and unchanged: the local Stop hook runs `commands.verify` on the agent's
+machine (that is brake 1); the opt-in `heldout`, `heldout-properties`, `mutation-diff` and `qa`
+jobs run the commands the project answers for those brakes (held-out tests, mutation testing,
+end-to-end tests), never the declared ones.
+
 ## Codex reaches the model API only through the filtering model proxy — imported, 2026-10-30
 
 Context: once model jobs ran as an unprivileged user (see the entry below of the same date),

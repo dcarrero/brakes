@@ -6,10 +6,10 @@ use crate::Result;
 
 use super::{
     super::{
-        App, ContainerSupport, CoverageInstall, CoverageRecipe, Evidence, Healthcheck, Lockfile,
-        MutationRecipe, MutationScope, OtelKind, OtelRecipe, PinTable, PropertyRecipe,
-        ProposedCommands, Runtime, SeedFile, StackId, StackPack, Step, TestRunnerProfile,
-        setup_core_guide,
+        App, ContainerSupport, CoverageInstall, CoverageRecipe, CoverageUpload, Evidence,
+        Healthcheck, Lockfile, Measure, MutationRecipe, MutationScope, OtelKind, OtelRecipe,
+        PinTable, PropertyRecipe, ProposedCommands, Runtime, SeedFile, StackId, StackPack, Step,
+        TestRunnerProfile, setup_core_guide,
     },
     OTEL_ENV, cache_key, cache_pair, run_in,
 };
@@ -98,7 +98,19 @@ pub const PYTHON_UV: StackPack = StackPack {
         combine: "find {{parts}} -type f -name '.coverage*' -print0 | sort -z \
                   | xargs -0 uv run --frozen --all-extras --with coverage=={{version}} coverage combine --keep \
                   && uv run --frozen --all-extras --with coverage=={{version}} coverage xml -q -i -o coverage.xml",
+        // coverage.py measures the interpreter it starts, so the measured
+        // pytest run takes the declared test command's place; it writes the
+        // data file `.coverage` that `combine` reads.
+        upload: CoverageUpload {
+            measure: Measure::Instead(
+                "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage=={{version}} --with pytest-cov=={{pin:pytest-cov}} \
+                 python -m pytest -q --cov --cov-report={{tests}}",
+            ),
+            data: ".coverage",
+            hidden: true,
+        },
     }),
+    no_coverage: None,
     // Hypothesis's `ci` profile (active whenever `CI` is set) derandomizes;
     // the seeded conftest under the held-out directory turns randomness back
     // on and reads HELDOUT_EXAMPLES, and the command passes the seed

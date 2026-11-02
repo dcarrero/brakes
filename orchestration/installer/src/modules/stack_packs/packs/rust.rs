@@ -7,10 +7,10 @@ use crate::Result;
 
 use super::{
     super::{
-        App, ContainerSupport, CoverageInstall, CoverageRecipe, Evidence, Healthcheck, Lockfile,
-        MutationRecipe, MutationScope, OtelKind, OtelRecipe, PinTable, PropertyRecipe,
-        ProposedCommands, Runtime, SeedFile, StackId, StackPack, Step, TestRunnerProfile,
-        setup_core_guide,
+        App, ContainerSupport, CoverageInstall, CoverageRecipe, CoverageUpload, Evidence,
+        Healthcheck, Lockfile, Measure, MutationRecipe, MutationScope, OtelKind, OtelRecipe,
+        PinTable, PropertyRecipe, ProposedCommands, Runtime, SeedFile, StackId, StackPack, Step,
+        TestRunnerProfile, setup_core_guide,
     },
     OTEL_ENV, save_if,
 };
@@ -88,7 +88,20 @@ pub const RUST: StackPack = StackPack {
                   END { for (i = 1; i <= n; i++) { f = order[i]; print \"SF:\" f; m = split(lines[f], l, \" \"); \
                   for (j = 1; j <= m; j++) if (l[j] != \"\") print \"DA:\" l[j] \",\" hits[f SUBSEP l[j]]; print \"end_of_record\" } }' \
                   > lcov.info",
+        // The declared test command runs as declared, instrumented by the
+        // environment `show-env` exports (README at v0.9.1, "Get coverage of
+        // external tests"); `clean` comes after `show-env`, `report` reads
+        // what the command's binaries wrote.
+        upload: CoverageUpload {
+            measure: Measure::Around {
+                before: "source <(cargo llvm-cov show-env --sh)\ncargo llvm-cov clean --workspace",
+                after: "cargo llvm-cov report --lcov --output-path lcov.info",
+            },
+            data: "lcov.info",
+            hidden: false,
+        },
     }),
+    no_coverage: None,
     // proptest reads the seed and the case count from the environment and
     // persists failures beside the test (docs.rs `test_runner::Config`).
     properties: Some(PropertyRecipe {

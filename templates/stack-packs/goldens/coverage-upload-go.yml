@@ -1,0 +1,1 @@
+# go: no coverage upload: `go test -coverprofile` writes Go's own profile, which diff-cover does not read, and no converter is pinned, so diff-coverage does not judge go apps

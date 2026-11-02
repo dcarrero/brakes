@@ -722,7 +722,8 @@ fn map<'a>(
     }
 }
 
-pub(crate) fn step(out: &mut String, step: &Step) {
+/// One `steps:` item, at the indentation of a job's steps.
+pub fn step(out: &mut String, step: &Step) {
     let mut lines = String::new();
     if let Some(id) = &step.id {
         field(&mut lines, 0, "id", id);

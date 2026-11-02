@@ -1,0 +1,17 @@
+# rust: the test job's coverage steps (#20)
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        with:
+          tool: "cargo-llvm-cov@0.9.1"
+      - name: Run the tests under coverage
+        run: |-
+          source <(cargo llvm-cov show-env --sh)
+          cargo llvm-cov clean --workspace
+          bash -euo pipefail -c "$TEST_COMMAND"
+          cargo llvm-cov report --lcov --output-path lcov.info
+      - name: Upload the coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          if-no-files-found: error
+          name: agentic-coverage-root-test
+          path: lcov.info

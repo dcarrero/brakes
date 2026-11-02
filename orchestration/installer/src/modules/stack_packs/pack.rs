@@ -221,6 +221,50 @@ pub struct CoverageRecipe {
     /// own test jobs uploaded under `{{parts}}` (security's `coverage_source:
     /// project-ci`, #1349), without running a test.
     pub combine: &'static str,
+    /// What the project's own CI test job runs and uploads for `combine` (#20).
+    pub upload: CoverageUpload,
+}
+
+/// How a measured run relates to the project's declared test command (#20).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Measure {
+    /// The declared test command runs unchanged between `before` and `after`:
+    /// the tool instruments what the command builds.
+    Around {
+        before: &'static str,
+        after: &'static str,
+    },
+    /// The pack's measured run takes the place of the declared test command:
+    /// the tool measures only the interpreter it starts itself. `{{version}}`,
+    /// `{{pin:<key>}}` and `{{tests}}` as in `CoverageRecipe::command`.
+    Instead(&'static str),
+}
+
+/// The coverage data a project's test job uploads as
+/// `agentic-coverage-<app id>-<job>`, the artifact `diff-coverage` downloads
+/// (#20): `brakes` judges it and never measures by itself.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CoverageUpload {
+    pub measure: Measure,
+    /// The data file the run writes in the app directory.
+    pub data: &'static str,
+    /// The file name starts with a dot: `upload-artifact` skips it unless
+    /// `include-hidden-files` is set (its README at v4.4.0 and later).
+    pub hidden: bool,
+}
+
+/// The artifact a project's test job `job` uploads for `app`.
+pub fn coverage_artifact(app: &App, job: &str) -> String {
+    format!("agentic-coverage-{}-{job}", app.id)
+}
+
+/// `steps` as the `steps:` items of a job, the form every workflow renders.
+pub fn steps_yaml(steps: &[Step]) -> String {
+    let mut out = String::new();
+    for step in steps {
+        crate::modules::ci_baseline::render::step(&mut out, step);
+    }
+    out
 }
 
 impl CoverageRecipe {
@@ -254,6 +298,57 @@ impl CoverageRecipe {
     /// The step that installs the tool, or `None` when the command fetches it.
     pub fn install_step(&self, pins: &PinTable) -> Result<Option<Step>> {
         install_step(self.tool, self.install, pins)
+    }
+
+    /// The steps of the project's test job `job` for `app` (#20): the tool's
+    /// install, the measured run, and the upload of the data as
+    /// `coverage_artifact(app, job)`. `test` is the shell that runs the
+    /// declared test command; under `Measure::Instead` the pack's run replaces
+    /// it. `tests` is the answered selection, as for `render_command`. A job
+    /// that is not kebab-case refuses: it names an artifact.
+    pub fn upload_steps(
+        &self,
+        app: &App,
+        job: &str,
+        test: &str,
+        pins: &PinTable,
+        tests: Option<&str>,
+    ) -> Result<Vec<Step>> {
+        let kebab = !job.is_empty()
+            && !job.starts_with('-')
+            && job
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+        if !kebab {
+            return refuse(format!(
+                "stack-packs: the coverage artifact's job `{job}` must be kebab-case"
+            ));
+        }
+        let (name, run) = match self.upload.measure {
+            Measure::Around { before, after } => (
+                "Run the tests under coverage".to_owned(),
+                format!("{before}\n{test}\n{after}"),
+            ),
+            Measure::Instead(command) => (
+                "Run the tests under coverage, in place of the declared test command".to_owned(),
+                self.with_tests(&with_version(command, self.tool, pins)?, tests),
+            ),
+        };
+        let mut measured = Step::new(name).run(run);
+        measured.working_directory = app.working_directory();
+        let mut upload = Step::new("Upload the coverage data")
+            .uses(pins.action("actions/upload-artifact")?)
+            .with("name", coverage_artifact(app, job))
+            .with("path", format!("{}{}", app.prefix(), self.upload.data))
+            .with("if-no-files-found", "error");
+        if self.upload.hidden {
+            upload = upload.with("include-hidden-files", "true");
+        }
+        Ok(self
+            .install_step(pins)?
+            .into_iter()
+            .chain([measured, upload])
+            .collect())
     }
 }
 
@@ -406,6 +501,9 @@ pub struct StackPack {
     /// `Some` for `rust` and `python-uv`; `node` and `go` stay `None` until
     /// their packs add a line-coverage tool, the device and data packs too.
     pub coverage: Option<CoverageRecipe>,
+    /// Why a pack without `coverage` has none, said where the CI audit and
+    /// the seed would propose an upload (#20); `None` when `coverage` is set.
+    pub no_coverage: Option<&'static str>,
     /// `Some` for `rust` and `python-uv`; `None` for `node` and `go` until
     /// their packs declare a seeded runner (SPEC-stack-packs.md, "Property recipe").
     pub properties: Option<PropertyRecipe>,

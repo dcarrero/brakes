@@ -1,0 +1,1 @@
+# kotlin-android: no coverage upload: no coverage tool is pinned for kotlin-android (JaCoCo is configured in the project's own Gradle build), so diff-coverage does not judge kotlin-android apps

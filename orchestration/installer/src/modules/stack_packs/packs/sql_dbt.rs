@@ -49,6 +49,9 @@ pub const SQL_DBT: StackPack = StackPack {
     }),
     otel: None,
     coverage: None,
+    no_coverage: Some(
+        "a dbt project's models have no line coverage, so diff-coverage does not judge sql-dbt apps",
+    ),
     properties: None,
     mutation: None,
     ci_setup,

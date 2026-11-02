@@ -1,0 +1,10 @@
+# python-uv: the test job's coverage steps (#20)
+      - name: "Run the tests under coverage, in place of the declared test command"
+        run: "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report="
+      - name: Upload the coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          if-no-files-found: error
+          include-hidden-files: "true"
+          name: agentic-coverage-root-test
+          path: ".coverage"

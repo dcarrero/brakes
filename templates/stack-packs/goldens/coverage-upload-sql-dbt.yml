@@ -1,0 +1,1 @@
+# sql-dbt: no coverage upload: a dbt project's models have no line coverage, so diff-coverage does not judge sql-dbt apps

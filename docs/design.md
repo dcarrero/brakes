@@ -518,7 +518,14 @@ for `python-uv` (coverage.py run through `uv run --with coverage==<version>`) an
 `go`: the tool's pin-table key, how it reaches CI, the command that writes a JSON
 report in the app directory, and the `jq` filter that reads the line percentage from
 it. It is data for the coverage ratchet of `security`,
-which no module renders yet. No pack is read from the target repository and nothing in the
+which no module renders yet. Each recipe also carries the project's test job upload
+(`CoverageUpload`): `rust` measures the declared test command unchanged between
+`cargo llvm-cov show-env --sh` and `cargo llvm-cov report --lcov`; `python-uv` runs pytest
+under coverage.py in place of it, because coverage.py measures only the interpreter it
+starts. `CoverageRecipe::upload_steps` renders the install, the measured run and the upload
+of `agentic-coverage-<app id>-<job>` (`coverage_artifact`), the artifact `diff-coverage`
+downloads; the seed workflow and the CI audit use it. A pack without a recipe states why in
+`no_coverage`, and its apps are not judged; nothing falls back to measuring. No pack is read from the target repository and nothing in the
 module runs a command or reads the network. Other modules reach the packs a
 repository records only through `stack_packs::packs(cx)`.
 

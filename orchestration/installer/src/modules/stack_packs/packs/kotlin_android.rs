@@ -62,6 +62,9 @@ pub const KOTLIN_ANDROID: StackPack = StackPack {
     }),
     otel: None,
     coverage: None,
+    no_coverage: Some(
+        "no coverage tool is pinned for kotlin-android (JaCoCo is configured in the project's own Gradle build), so diff-coverage does not judge kotlin-android apps",
+    ),
     properties: None,
     mutation: None,
     ci_setup,

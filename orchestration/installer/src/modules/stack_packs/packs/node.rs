@@ -67,6 +67,9 @@ pub const NODE: StackPack = StackPack {
         guide: setup_core_guide("docs/agent-setup/observability.md#node"),
     }),
     coverage: None,
+    no_coverage: Some(
+        "no line-coverage tool is pinned for node: the runners differ (jest, vitest, node:test) and none is chosen, so diff-coverage does not judge node apps until the pack declares one",
+    ),
     properties: None,
     mutation: None,
     ci_setup,
