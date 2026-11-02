@@ -76,8 +76,13 @@ once, before the first read) and `--config` serve tests that need another config
 
 What stays a repository-level answer (in `.agent-setup/project.json` and the module
 answers under `.agent-setup/modules/`): the declared commands, the `ci.*` fields the
-modules consume, `criticality`, `agent_accounts`, `accepted_level`, and every module
-answer (`runner` may name any label the configuration or GitHub knows).
+modules consume, `criticality`, `agent_accounts`, `accepted_level`, `excluded_paths`, and
+every module answer (`runner` may name any label the configuration or GitHub knows).
+`excluded_paths` (#16) lists repository paths, files or directories, that are not the
+project's files (templates it renders for others, its test fixtures): the Dockerfile walks
+of `security` and `stack-packs` and `qa`'s file walk skip anything at or under them, and
+`doctor` prints one `EXCLUDED [project.excluded_paths] <path>` line for each. A path outside
+the repository or the root itself refuses the profile.
 
 ## The module engine (2026-10-28)
 
@@ -579,7 +584,7 @@ checkout's table in this repository and the embedded one elsewhere. The other
 `stack.*` rules (`lockfile-present`, `lockfile-not-enforced`, `toolchain-pinned`,
 `image-by-digest`, `image-nonroot`, `image-arbitrary-uid`, `no-healthcheck`) are
 `doctor` warnings over the recorded apps, their files and every Dockerfile under
-them, which the auditor judges at the levels of decision.
+them outside the profile's `excluded_paths`, which the auditor judges at the levels of decision.
 
 ## The CI baseline (2026-10-28)
 
@@ -821,7 +826,8 @@ image` over the reference the image job outputs once `delivery` records `image_j
 seeded `.trivyignore.yaml` is passed with `--ignorefile` and `--ignore-unfixed` is
 never generated. The rules `security.sast-gate` (Silver, required from criticality
 `customers`) and `security.container-gate` (Silver, where a `Dockerfile` or
-`Containerfile` exists within three directory levels) read any workflow, owned or not.
+`Containerfile` exists within three directory levels, outside the profile's
+`excluded_paths`) read any workflow, owned or not.
 
 **The PII pack (slice 4).** The `pii` answer has no default: absent, it is
 derived `true` when `project.json`'s `criticality` is `personal-data-or-payments` and

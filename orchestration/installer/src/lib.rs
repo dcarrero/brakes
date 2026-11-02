@@ -753,7 +753,8 @@ pub fn diagnose_with(
     issues.extend(modules::agent_guardrails::audit::diagnose(root));
     // The static Bronze qa.* rules: warnings in every checkout (#1008).
     issues.extend(modules::qa::audit::diagnose(root));
-    let mut excluded = modules::security::audit::excluded(root);
+    let mut excluded = profile::exclusion_lines(&profile.value);
+    excluded.extend(modules::security::audit::excluded(root));
     excluded.extend(modules::qa::audit::excluded(root));
     Ok(Diagnosis {
         findings: issues,

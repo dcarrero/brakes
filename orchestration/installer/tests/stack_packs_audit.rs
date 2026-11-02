@@ -367,6 +367,37 @@ fn image_rules_read_every_dockerfile_under_an_app_path_once() {
     );
 }
 
+/// #16: a Dockerfile at or under a path the profile declares in
+/// `excluded_paths` is not the project's: no image rule reads it, and a real
+/// Dockerfile at the root is still judged.
+#[test]
+fn image_rules_skip_the_profiles_excluded_paths() {
+    let profile = json!({
+        "purpose": "p",
+        "commands": {"verify": "cargo test --locked"},
+        "excluded_paths": ["templates", "tests/fixtures/svc/"],
+    })
+    .to_string();
+    let unpinned = "FROM node:24\nUSER 10001:0\n";
+    let mut files = vec![
+        (".agent-setup/project.json", profile.as_str()),
+        ("templates/go/Dockerfile", "FROM {{image.build}}\n"),
+        ("templates/pins/Dockerfile", "FROM scratch\n"),
+        ("tests/fixtures/svc/Dockerfile", unpinned),
+    ];
+    files.extend_from_slice(&LOCK_AND_PIN);
+    assert_eq!(findings(&rust_root(&files)), Vec::<String>::new());
+    files.push(("Dockerfile", unpinned));
+    files.push(("templates.d/Dockerfile", unpinned));
+    assert_eq!(
+        findings(&rust_root(&files)),
+        [
+            "WARNING: stack.image-by-digest: Dockerfile FROM node:24 has no @sha256: digest",
+            "WARNING: stack.image-by-digest: templates.d/Dockerfile FROM node:24 has no @sha256: digest",
+        ]
+    );
+}
+
 #[test]
 fn no_healthcheck_reports_a_container_app_with_healthcheck_none() {
     let recorded = answers(json!({"apps.api.path": ".", "apps.api.stack": "rust",

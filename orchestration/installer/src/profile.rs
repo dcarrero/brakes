@@ -168,6 +168,25 @@ pub fn profile_for(root: &Path) -> Result<Profile> {
             }
         }
     }
+    let excluded = &value["excluded_paths"];
+    if !excluded.is_null() {
+        if !excluded
+            .as_array()
+            .is_some_and(|items| items.iter().all(Value::is_string))
+        {
+            return refuse("Project excluded_paths must be a list of strings");
+        }
+        for path in strings(excluded) {
+            if !single_line(path)
+                || normal(path).is_empty()
+                || crate::scope::location(root, path).is_err()
+            {
+                return refuse(format!(
+                    "Project excluded_paths must name paths inside the repository other than its root (got {path:?})"
+                ));
+            }
+        }
+    }
     let days = &value["guide_verification_days"];
     if !days.is_null() && !days.as_u64().is_some_and(|d| d > 0) {
         return refuse("Project guide_verification_days must be a positive integer");
@@ -195,6 +214,53 @@ pub fn profile_for(root: &Path) -> Result<Profile> {
         raw,
         command_names: names,
     })
+}
+
+/// The paths `excluded_paths` declares as not the project's files (#16),
+/// normalized (`./templates/` is `templates`); empty when absent.
+pub fn excluded_paths(value: &Value) -> Vec<String> {
+    strings(&value["excluded_paths"])
+        .into_iter()
+        .map(normal)
+        .collect()
+}
+
+/// The declared excluded paths of the profile at `root`; empty when the
+/// profile does not load, so an invalid declaration excludes nothing.
+pub fn excluded_paths_at(root: &Path) -> Vec<String> {
+    profile_for(root)
+        .map(|profile| excluded_paths(&profile.value))
+        .unwrap_or_default()
+}
+
+/// Whether the repository path `path` is at or under one of `declared`.
+pub fn is_excluded(declared: &[String], path: &str) -> bool {
+    declared.iter().any(|excluded| {
+        path.strip_prefix(excluded.as_str())
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+    })
+}
+
+/// `doctor`'s line for each declared excluded path: information, never a finding.
+pub fn exclusion_lines(value: &Value) -> Vec<String> {
+    excluded_paths(value)
+        .into_iter()
+        .map(|path| {
+            format!(
+                "EXCLUDED [project.excluded_paths] {path} — not the project's files ({PROFILE})"
+            )
+        })
+        .collect()
+}
+
+/// `path` without `.` components or trailing slashes: `.` and `./` are empty.
+fn normal(path: &str) -> String {
+    Path::new(path)
+        .components()
+        .filter(|c| *c != std::path::Component::CurDir)
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// An owner-recorded interim level that governs the exit code until `expires`
@@ -470,6 +536,49 @@ mod tests {
                 format!(r#"{{"purpose": "p", "commands": {{"verify": "v"}}, "{key}": {value}}}"#);
             let error = profile_of(&text).err().expect(key).to_string();
             assert!(error.contains(key), "{key}: {error}");
+        }
+    }
+
+    /// #16: `excluded_paths` lists repository paths that are not the root.
+    #[test]
+    fn excluded_paths_are_repository_paths_other_than_the_root() {
+        let of = |value: &str| {
+            profile_of(&format!(
+                r#"{{"purpose": "p", "commands": {{"verify": "v"}}, "excluded_paths": {value}}}"#
+            ))
+        };
+        let profile = of(r#"["templates", "tests/fixtures/"]"#).unwrap();
+        assert_eq!(
+            excluded_paths(&profile.value),
+            ["templates", "tests/fixtures"]
+        );
+        for value in [
+            r#""templates""#,
+            "[1]",
+            r#"[""]"#,
+            r#"["."]"#,
+            r#"["./"]"#,
+            r#"["/etc"]"#,
+            r#"["../other"]"#,
+            r#"["a\nb"]"#,
+        ] {
+            let error = of(value).err().expect(value).to_string();
+            assert!(error.contains("excluded_paths"), "{value}: {error}");
+        }
+    }
+
+    #[test]
+    fn a_path_is_excluded_at_or_under_a_declared_one_only() {
+        let declared = ["templates".to_owned(), "tests/fixtures".to_owned()];
+        for (path, expected) in [
+            ("templates", true),
+            ("templates/go/Dockerfile", true),
+            ("tests/fixtures/svc/Dockerfile", true),
+            ("templates.d/Dockerfile", false),
+            ("tests/Dockerfile", false),
+            ("Dockerfile", false),
+        ] {
+            assert_eq!(is_excluded(&declared, path), expected, "{path}");
         }
     }
 }

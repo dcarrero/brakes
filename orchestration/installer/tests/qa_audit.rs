@@ -553,6 +553,35 @@ fn a_registered_spec_is_a_declared_exclusion_of_screenshot_baseline() {
     assert!(audit::excluded(dir.path()).is_empty());
 }
 
+/// #16: a spec at or under a path the profile declares in `excluded_paths` is
+/// not the project's; a spec of the project beside it is still judged.
+#[test]
+fn a_spec_under_the_profiles_excluded_paths_has_no_baseline_finding() {
+    let profile = json!({
+        "purpose": "p",
+        "commands": {"verify": "v"},
+        "excluded_paths": ["templates/qa"],
+    })
+    .to_string();
+    let dir = aggregate(&[
+        (".agent-setup/project.json", &profile),
+        ("templates/qa/seeds/web/smoke.spec.ts", SCREENSHOT_SPEC),
+    ]);
+    assert_eq!(
+        of(&qa(&dir), "qa.screenshot-baseline-present"),
+        Vec::<&str>::new()
+    );
+    assert_eq!(
+        status_of(&qa_rules(&dir), "qa.screenshot-baseline-present"),
+        "passed"
+    );
+    write(&dir, &[("qa/web/smoke.spec.ts", SCREENSHOT_SPEC)]);
+    assert_eq!(
+        of(&qa(&dir), "qa.screenshot-baseline-present"),
+        [format!("{BASELINE_TEXT} (qa/web/smoke.spec.ts)")]
+    );
+}
+
 #[test]
 fn a_snapshots_directory_outside_protected_paths_is_unprotected() {
     let dir = aggregate(&[

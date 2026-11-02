@@ -4,6 +4,35 @@ These are the decisions the design of `brakes` depends on. They were taken durin
 earlier development, imported into this repository and rewritten in neutral terms; each keeps
 its original date and is marked "imported". Newer decisions are added above them, newest first.
 
+## A project declares the paths that are not its files; `doctor`'s file scans skip them — 2026-11-02
+
+Context (#16): `doctor` walks the checkout for Dockerfiles and Playwright specs and judges every
+one it finds as the project's. A repository that ships templates or test fixtures (files it
+renders for other repositories, or feeds to its own tests) is judged on them:
+`security.container-gate`, `stack.image-by-digest`, `stack.image-nonroot` and
+`qa.screenshot-baseline-present` fail at Silver on files the project never builds and cannot fix
+without deleting them. The per-file `allowlist` exclusion (#1171) does not fit: it expires (365
+days at most), only `container-gate` and `screenshot-baseline-present` read it, and a template is
+not a temporary exception.
+
+1. **A declared exclusion, not a built-in rule.** `.agent-setup/project.json` gains the optional
+   field `excluded_paths`: repository-relative paths, files or directories, that are not the
+   project's files. A file at or under one of them is not judged by any rule that finds files by
+   walking the checkout (the Dockerfile walks of `security` and `stack-packs`, and `qa`'s file
+   walk).
+   Rejected: a built-in rule such as "a file with unrendered `{{...}}` placeholders is a
+   template". It misses the files a project keeps without placeholders (a never-built pin file,
+   a rendered seed, a golden, a fixture), and it would let any project file escape every gate by
+   carrying a placeholder.
+2. **Validated with the profile.** The field is a list of strings; each is inside the repository
+   (no absolute path, no `..`, no symlink on the way) and is not the repository root. Absent
+   means empty. An invalid field refuses the profile, as every other field does.
+3. **Visible, never silent.** `doctor` prints one `EXCLUDED [project.excluded_paths] <path>`
+   line per declared path, in text and in `--json`: information, never a finding. The field
+   lives in the profile, so changing it is a reviewed change of the repository like any other.
+4. **No new exemption from the rules themselves.** A repository whose own Dockerfile or spec is
+   outside the declared paths is judged exactly as before.
+
 ## A single maintainer is not asked for an approval nobody can give — 2026-11-02
 
 Context: GitHub does not let the author of a pull request approve it. In a repository whose

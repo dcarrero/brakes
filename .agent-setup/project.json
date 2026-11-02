@@ -15,6 +15,11 @@
   "generated_paths": [
     ".agent-setup/lock.json"
   ],
+  "excluded_paths": [
+    "templates",
+    "orchestration/installer/tests/fixtures",
+    "orchestration/installer/tests/golden"
+  ],
   "environment_notes": [
     "Rust 1.99+ and Cargo build the tool; its binary requires Git, with gh optional for doctor --remote.",
     "No model calls and no target project commands during installation."

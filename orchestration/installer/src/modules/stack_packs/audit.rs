@@ -423,8 +423,14 @@ fn toolchain_pinned(root: &Path, app: &RecordedApp) -> Option<String> {
 }
 
 /// Every Dockerfile (`Dockerfile`, `Dockerfile.<x>`, `<x>.Dockerfile`) under
-/// `dir`, skipping hidden directories, the walk's skipped ones and symlinks.
+/// `dir`, skipping hidden directories, the walk's skipped ones, symlinks and
+/// the profile's `excluded_paths` (#16).
 pub(super) fn collect_dockerfiles(root: &Path, dir: &str, found: &mut BTreeSet<String>) {
+    let excluded = crate::profile::excluded_paths_at(root);
+    walk_dockerfiles(root, dir, &excluded, found);
+}
+
+fn walk_dockerfiles(root: &Path, dir: &str, excluded: &[String], found: &mut BTreeSet<String>) {
     let Ok(entries) = fs::read_dir(root.join(dir)) else {
         return;
     };
@@ -439,10 +445,14 @@ pub(super) fn collect_dockerfiles(root: &Path, dir: &str, found: &mut BTreeSet<S
             continue;
         };
         if kind.is_dir() {
-            if !name.starts_with('.') && !detect::SKIPPED.contains(&name.as_str()) {
-                collect_dockerfiles(root, &rel, found);
+            if !name.starts_with('.')
+                && !detect::SKIPPED.contains(&name.as_str())
+                && !crate::profile::is_excluded(excluded, &rel)
+            {
+                walk_dockerfiles(root, &rel, excluded, found);
             }
         } else if kind.is_file()
+            && !crate::profile::is_excluded(excluded, &rel)
             && (name == "Dockerfile"
                 || name.starts_with("Dockerfile.")
                 || name.ends_with(".Dockerfile"))

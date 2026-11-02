@@ -508,6 +508,66 @@ fn doctor_prints_declared_exclusions_and_json_carries_them() {
     );
 }
 
+/// A profile that declares `excluded` as `excluded_paths` (#16).
+fn excluding_profile(excluded: &[&str]) -> String {
+    json!({"purpose": "p", "commands": {"verify": "v"}, "excluded_paths": excluded}).to_string()
+}
+
+/// #16: a Dockerfile at or under a path the profile declares in
+/// `excluded_paths` is not the project's: `container-gate` does not judge it,
+/// and a real Dockerfile beside it is still judged.
+#[test]
+fn dockerfiles_under_the_profiles_excluded_paths_are_not_container_gate() {
+    let profile = excluding_profile(&["templates/", "tests/fixtures/svc/Dockerfile"]);
+    let files = [
+        (".agent-setup/project.json", profile.as_str()),
+        ("templates/go/Dockerfile", "FROM {{image.build}}\n"),
+        ("templates/pins/Dockerfile", "FROM scratch\n"),
+        ("tests/fixtures/svc/Dockerfile", "FROM scratch\n"),
+    ];
+    let dir = with_workflows(&["managed-gate.yml"], &files);
+    let all = findings(dir.path());
+    assert_channel(&all);
+    assert_eq!(
+        rule_lines(&all, "security.container-gate"),
+        Vec::<&str>::new(),
+        "{all:?}"
+    );
+    for real in ["Dockerfile", "templates-old/Dockerfile"] {
+        let mut more = files.to_vec();
+        more.push((real, "FROM scratch\n"));
+        let dir = with_workflows(&["managed-gate.yml"], &more);
+        assert_eq!(
+            rule_lines(&findings(dir.path()), "security.container-gate"),
+            ["WARNING: security.container-gate: Dockerfile present and no container scan in CI"],
+            "{real}"
+        );
+    }
+}
+
+/// #16: `doctor` prints each declared excluded path, never as a finding, and
+/// `--json` carries it in `excluded`.
+#[test]
+fn doctor_prints_the_profiles_excluded_paths() {
+    let dir = cli_repo();
+    let before = doctor(&dir, &[]);
+    fs::create_dir_all(dir.path().join("templates/go")).unwrap();
+    fs::write(dir.path().join("templates/go/Dockerfile"), "FROM scratch\n").unwrap();
+    fs::write(
+        dir.path().join(".agent-setup/project.json"),
+        excluding_profile(&["templates"]),
+    )
+    .unwrap();
+    let line = "EXCLUDED [project.excluded_paths] templates — not the project's files (.agent-setup/project.json)";
+    let out = doctor(&dir, &[]);
+    let text = String::from_utf8(out.stdout).unwrap();
+    assert!(text.lines().any(|l| l == line), "{text}");
+    assert!(!text.contains("WARNING: security.container-gate"), "{text}");
+    assert_eq!(out.status.code(), before.status.code());
+    let document: Value = serde_json::from_slice(&doctor(&dir, &["--json"]).stdout).unwrap();
+    assert_eq!(document["excluded"], json!([line]));
+}
+
 #[test]
 fn trivy_or_grype_jobs_satisfy_container_gate_however_installed() {
     let scan = |step: &str| {

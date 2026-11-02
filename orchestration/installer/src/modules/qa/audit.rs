@@ -467,7 +467,8 @@ fn uploads_report(job: &Job) -> bool {
 
 /// The repository paths of the files under `root` whose name `wanted` accepts,
 /// at most `depth` directories down, in path order; hidden directories and
-/// [`SKIPPED_DIRS`] are never entered, symbolic links never followed.
+/// [`SKIPPED_DIRS`] are never entered, symbolic links never followed, and the
+/// profile's `excluded_paths` are not the project's files (#16).
 fn files(root: &Path, depth: usize, wanted: &dyn Fn(&str) -> bool) -> Vec<String> {
     fn walk(
         root: &Path,
@@ -509,6 +510,8 @@ fn files(root: &Path, depth: usize, wanted: &dyn Fn(&str) -> bool) -> Vec<String
     }
     let mut out = Vec::new();
     walk(root, "", depth, wanted, &mut out);
+    let excluded = crate::profile::excluded_paths_at(root);
+    out.retain(|path| !crate::profile::is_excluded(&excluded, path));
     out
 }
 

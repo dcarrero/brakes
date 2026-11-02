@@ -386,7 +386,8 @@ fn stale_exclusions(root: &Path, inventory: Option<&Inventory>) -> Vec<String> {
 }
 
 /// The `Dockerfile`s and `Containerfile`s within three directory levels, in
-/// path order: where `security.container-gate` looks.
+/// path order, outside the profile's `excluded_paths` (#16): where
+/// `security.container-gate` looks.
 fn dockerfiles(root: &Path) -> Vec<String> {
     fn walk(root: &Path, dir: &str, depth: usize, out: &mut Vec<String>) {
         let Ok(entries) = fs::read_dir(root.join(dir)) else {
@@ -417,6 +418,8 @@ fn dockerfiles(root: &Path) -> Vec<String> {
     }
     let mut out = Vec::new();
     walk(root, "", 0, &mut out);
+    let excluded = crate::profile::excluded_paths_at(root);
+    out.retain(|path| !crate::profile::is_excluded(&excluded, path));
     out.sort();
     out
 }
