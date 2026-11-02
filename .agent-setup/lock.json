@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "version": "0.5.1",
-  "source_commit": "7a0c8ad7536497a8a8e8390de2b33ac29245d645",
+  "source_commit": "72ed4ac7c52f7d043cf121332bf6722386490694",
   "source_dirty": false,
   "personal_owner": "gemba-app/brakes",
   "modules": {
@@ -11,7 +11,7 @@
     },
     "ci-baseline": {
       "version": "1.0.0",
-      "answers_digest": null
+      "answers_digest": "3b5b5456f901a54866297ea9bca2d143c4c331c724fc46effe5ab0e55dcc05ff"
     },
     "merge-guard": {
       "version": "1.0.0",
@@ -170,16 +170,25 @@
     ".github/rulesets/main.json": {
       "module": "repo-baseline",
       "class": "managed",
-      "digest": "e73f6205fed817222a95fc9adc71c581de12b6facc26e439b21d86bf95f8da48"
+      "digest": "a8a8fef99e018b2ccb8acda1c36a40be2560b123c5afe9fef835edc62af506c5"
     },
     ".github/workflows/_reusable-verify.yml": {
       "module": "ci-baseline",
       "class": "never-touch"
     },
-    ".github/workflows/agentic-ci.yml": {
+    ".github/workflows/agentic-coverage.yml": {
+      "module": "security",
+      "class": "managed",
+      "digest": "f3a4acc183549847249a45d66c494cbdbf0a0a2d882a04f7191547f033490f82"
+    },
+    ".github/workflows/agentic-security.yml": {
       "module": "ci-baseline",
       "class": "managed",
-      "digest": "d7c30f437de0c2e149641f6ecb24746dee41d928b56f7e8ca466f03068d6b69f"
+      "digest": "d13dfe562452681718428cd2d5c58b5fdcc60df8f73ec5b7deeb34571914b0e4"
+    },
+    ".github/workflows/ci.yml": {
+      "module": "ci-baseline",
+      "class": "seed"
     },
     ".github/workflows/neutrality.yml": {
       "module": "ci-baseline",
@@ -243,11 +252,15 @@
     "docs/agent-setup/security-gates.md": {
       "module": "security",
       "class": "managed",
-      "digest": "99f56d65dd426e3b0e77ef2e7aeecc10a541020a1d6b601ddf9710bc64ba10a7"
+      "digest": "ea302fc26275b46526dc1dcead5946eadccebf6067ed4e168ef8ba1f196fd039"
     },
     "docs/agent-setup/technical-debt.md": {
       "module": "agent-guardrails",
       "class": "seed"
+    },
+    "github:add-agentic-required-check": {
+      "module": "ci-baseline",
+      "class": "remote"
     },
     "github:classic-protection-retire": {
       "module": "repo-baseline",
@@ -279,10 +292,6 @@
     },
     "github:secret-scanning": {
       "module": "security",
-      "class": "remote"
-    },
-    "github:switch-required-check": {
-      "module": "ci-baseline",
       "class": "remote"
     },
     "opencode.json": {

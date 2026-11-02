@@ -77,7 +77,7 @@ jobs:
         env:
           NAME: test
         run: |-
-          source <(cargo llvm-cov show-env --sh)
+          eval "$(cargo llvm-cov show-env --sh)"
           cargo llvm-cov clean --workspace
           set -euo pipefail
 

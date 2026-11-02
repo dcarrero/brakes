@@ -120,7 +120,7 @@ fn seed_notes(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Vec<Strin
     Ok(match answers.workflow {
         WorkflowMode::Seed => {
             let foreign = brownfield::foreign_workflows(cx)?;
-            if foreign.is_empty() {
+            if brownfield::seed_allowed(cx, &foreign) {
                 Vec::new()
             } else {
                 vec![format!(
@@ -168,16 +168,18 @@ impl Module for CiBaseline {
         };
         let foreign = brownfield::foreign_workflows(cx)?;
         // The project's CI, written once (#21): only where it has none of its own.
-        let seed = if answers.workflow == WorkflowMode::Seed && foreign.is_empty() {
-            Some(Rendered {
-                path: render::WORKFLOW_PATH.to_owned(),
-                class: Ownership::Seed,
-                content: Some(seed::render(cx, &answers)?),
-                scaffold: None,
-            })
-        } else {
-            None
-        };
+        // A migration from a generated workflow replaces it with the seed (#25).
+        let seed =
+            if answers.workflow == WorkflowMode::Seed && brownfield::seed_allowed(cx, &foreign) {
+                Some(Rendered {
+                    path: render::WORKFLOW_PATH.to_owned(),
+                    class: Ownership::Seed,
+                    content: Some(seed::render(cx, &answers)?),
+                    scaffold: None,
+                })
+            } else {
+                None
+            };
         let Some(mut workflow) = render::workflow(cx, &answers)? else {
             return Ok(kept.into_iter().chain(seed).collect());
         };
@@ -272,7 +274,13 @@ impl Module for CiBaseline {
             } else {
                 brownfield::separate_steps(cx.root)
             };
-            if brownfield::keeps_generated(cx) {
+            // Expand before contract (#25): require agentic-required before the merge.
+            if seed && brownfield::recorded_generated(cx).is_some() {
+                steps.insert(0, brownfield::migration_step(cx.root));
+            }
+            // Only the switch to `existing` keeps the generated workflow (#1354);
+            // `seed` retires it in the migrating plan itself (#25).
+            if !seed && brownfield::keeps_generated(cx) {
                 let checks = model::required_checks(cx)
                     .ok()
                     .flatten()

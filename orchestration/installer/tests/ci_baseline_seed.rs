@@ -424,3 +424,162 @@ fn the_seeds_required_passes_only_when_every_job_succeeded() {
         );
     }
 }
+
+// --- #25: the migration from `workflow: generate` to seed + judges ---------------
+
+const GENERATED_BESIDE: &str = ".github/workflows/agentic-ci.yml";
+
+/// A repository installed with `workflow: generate`; `beside` puts a workflow
+/// of its own first, so the generated one is `agentic-ci.yml`.
+fn generated(beside: bool) -> Repo {
+    let repo = rust_repo();
+    if beside {
+        repo.write(
+            ".github/workflows/neutrality.yml",
+            "name: Neutrality\non: pull_request\njobs: {}\n",
+        );
+    }
+    repo.answers("ci-baseline", json!({"workflow": "generate"}));
+    repo.install(&["stack-packs", "ci-baseline", "security"], true);
+    repo
+}
+
+fn lock_class(repo: &Repo, path: &str) -> Option<String> {
+    let lock: Value = serde_json::from_str(&repo.read(".agent-setup/lock.json").unwrap()).unwrap();
+    lock["files"][path]["class"].as_str().map(str::to_owned)
+}
+
+/// Every workflow the lock records as `managed`: none may read a declared command.
+fn managed_workflows_run_no_command(repo: &Repo) {
+    let lock: Value = serde_json::from_str(&repo.read(".agent-setup/lock.json").unwrap()).unwrap();
+    for (path, entry) in lock["files"].as_object().unwrap() {
+        if path.starts_with(".github/workflows/") && entry["class"] == "managed" {
+            let text = repo.read(path).unwrap();
+            assert!(
+                !text.contains(".commands") && !text.contains("commands."),
+                "{path} reads a declared command:\n{text}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_generated_ci_yml_answered_seed_becomes_the_seed_and_the_judges_take_over() {
+    let repo = generated(false);
+    assert_eq!(lock_class(&repo, SEED).as_deref(), Some("managed"));
+    repo.answers("ci-baseline", json!({"workflow": "seed"}));
+    let plan = repo.install(&[], false);
+    assert!(
+        plan.contains(&format!("PLAN {SEED} [seed:ci-baseline]")),
+        "{plan}"
+    );
+    // Expand before contract: the plan names the remote step to take before the merge.
+    assert!(
+        plan.contains("generate-to-seed — Before the pull request that moves to seed merges, the default branch requires agentic-required"),
+        "{plan}"
+    );
+    let out = repo.install(&[], true);
+    let seed = repo.read(SEED).unwrap();
+    assert!(
+        seed.contains("Seeded by brakes ci-baseline"),
+        "{out}\n{seed}"
+    );
+    assert!(seed.contains("name: agentic-coverage-root-test"), "{seed}");
+    assert_eq!(lock_class(&repo, SEED).as_deref(), Some("seed"));
+    assert!(repo.read(JUDGES).unwrap().contains("agentic-required"));
+    assert!(
+        repo.read(".github/workflows/agentic-coverage.yml")
+            .is_some()
+    );
+    managed_workflows_run_no_command(&repo);
+    // From then on the seed is the project's: a later plan skips it.
+    let again = repo.install(&[], false);
+    assert!(
+        again.contains(&format!("PLAN SKIP {SEED} [seed:ci-baseline]")),
+        "{again}"
+    );
+    assert!(!again.contains("generate-to-seed"), "{again}");
+}
+
+#[test]
+fn a_generated_ci_yml_edited_by_hand_refuses_the_migration() {
+    let repo = generated(false);
+    let text = repo.read(SEED).unwrap();
+    repo.write(SEED, &format!("{text}# a local edit\n"));
+    repo.answers("ci-baseline", json!({"workflow": "seed"}));
+    let result = repo.cli(&["install", "<repo>", "--apply"]);
+    assert!(!result.status.success());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        stderr.contains(&format!(
+            "Locally changed managed content cannot become a seed: {SEED}"
+        )),
+        "{stderr}"
+    );
+    assert!(repo.read(SEED).unwrap().ends_with("# a local edit\n"));
+}
+
+#[test]
+fn a_generated_agentic_ci_yml_is_retired_and_the_seed_written_beside_the_projects_workflows() {
+    let repo = generated(true);
+    assert_eq!(
+        lock_class(&repo, GENERATED_BESIDE).as_deref(),
+        Some("managed")
+    );
+    assert!(repo.read(SEED).is_none());
+    repo.answers("ci-baseline", json!({"workflow": "seed"}));
+    let plan = repo.install(&[], false);
+    assert!(plan.contains("generate-to-seed"), "{plan}");
+    // The switch to `existing` keeps the generated workflow; `seed` retires it in this plan.
+    for step in ["existing-checks-required", "retire-generated-workflow"] {
+        assert!(!plan.contains(step), "{plan}");
+    }
+    let out = repo.install(&[], true);
+    assert!(
+        out.contains(&format!("WRITE {SEED} [seed:ci-baseline]")),
+        "{out}"
+    );
+    assert!(out.contains(&format!("DELETE {GENERATED_BESIDE}")), "{out}");
+    assert!(repo.read(GENERATED_BESIDE).is_none());
+    assert_eq!(
+        repo.read(".github/workflows/neutrality.yml").unwrap(),
+        "name: Neutrality\non: pull_request\njobs: {}\n"
+    );
+    assert!(!out.contains("workflow seed writes no"), "{out}");
+    managed_workflows_run_no_command(&repo);
+}
+
+#[test]
+fn an_edited_generated_agentic_ci_yml_refuses_its_retirement() {
+    let repo = generated(true);
+    let text = repo.read(GENERATED_BESIDE).unwrap();
+    repo.write(GENERATED_BESIDE, &format!("{text}# a local edit\n"));
+    repo.answers("ci-baseline", json!({"workflow": "seed"}));
+    let result = repo.cli(&["install", "<repo>", "--apply"]);
+    assert!(!result.status.success());
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        stderr.contains(&format!(
+            "Locally changed retired managed content: {GENERATED_BESIDE}"
+        )),
+        "{stderr}"
+    );
+    assert!(repo.read(SEED).is_none());
+}
+
+#[test]
+fn a_ci_yml_of_the_projects_own_beside_a_generated_workflow_gets_no_seed() {
+    let repo = generated(true);
+    repo.write(SEED, "name: mine\non: pull_request\njobs: {}\n");
+    repo.answers("ci-baseline", json!({"workflow": "seed"}));
+    let result = repo.cli(&["install", "<repo>"]);
+    let out = String::from_utf8_lossy(&result.stdout);
+    assert!(
+        out.contains("workflow seed writes no .github/workflows/ci.yml"),
+        "{out}"
+    );
+    assert!(
+        !out.contains(&format!("PLAN {SEED} [seed:ci-baseline]")),
+        "{out}"
+    );
+}

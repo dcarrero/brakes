@@ -382,15 +382,72 @@ pub(crate) fn remote(id: &str, args: Value) -> Probe {
     }
 }
 
+/// The step of a migration from `generate` to `seed` (#25).
+pub const GENERATE_TO_SEED: &str = "generate-to-seed";
+
+/// The generated workflow the lock records as ci-baseline's `managed` file, if any.
+pub fn recorded_generated(cx: &Context<'_>) -> Option<&'static str> {
+    [WORKFLOW_PATH, BROWNFIELD_PATH].into_iter().find(|path| {
+        cx.previous
+            .files
+            .get(*path)
+            .is_some_and(|e| e.module == CI_BASELINE && e.class == Ownership::Managed)
+    })
+}
+
+/// Whether `workflow: seed` writes `ci.yml` (#21, #25): where the project has no
+/// workflow of its own, or where it migrates from a generated workflow, which was
+/// its CI, and no `ci.yml` of its own is in the way.
+pub fn seed_allowed(cx: &Context<'_>, foreign: &[String]) -> bool {
+    foreign.is_empty()
+        || (recorded_generated(cx).is_some() && !foreign.iter().any(|f| f == WORKFLOW_PATH))
+}
+
+/// The commands that add `check` to the default branch's required checks.
+fn add_check_commands(branch: &str, check: &str) -> String {
+    let rules = format!(
+        "{{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == \"required_status_checks\" then .parameters.required_status_checks |= (. + [{{\"context\": \"{check}\"}}] | unique_by(.context)) else . end))}}"
+    );
+    format!(
+        "gh api repos/{{owner}}/{{repo}}/rulesets/<id> | jq '{rules}' | gh api -X PUT repos/{{owner}}/{{repo}}/rulesets/<id> --input -\n\
+         # with classic branch protection instead of a ruleset:\n\
+         gh api -X POST repos/{{owner}}/{{repo}}/branches/{branch}/protection/required_status_checks/contexts -f 'contexts[]={check}'"
+    )
+}
+
+/// Expand before contract (#25): while a migration from `generate` is planned, the
+/// default branch must require `agentic-required` before the migrating pull request
+/// merges. That pull request's own run reports both checks: the seed's `required`
+/// and the judges' `agentic-required`. The generated workflow stops running on it,
+/// so two checks named `required` never report together, and `required`
+/// never stops being reported.
+pub fn migration_step(root: &Path) -> ManualStep {
+    let branch = default_branch(root);
+    let check = CONTRIBUTED_AGGREGATE_CHECK;
+    ManualStep {
+        id: GENERATE_TO_SEED.to_owned(),
+        title: format!(
+            "Before the pull request that moves to seed merges, the default branch requires {check}"
+        ),
+        owner: Owner::Owner,
+        instructions: format!(
+            "The migrating pull request reports {AGGREGATE_CHECK} (the seed) and {check} (the judges); require {check} first, so protected paths and the scanners stay gated, then merge:\n{}",
+            add_check_commands(&branch, check)
+        ),
+        probe: remote(
+            "required-check",
+            json!({ "branch": branch, "check": check }),
+        ),
+        after: None,
+    }
+}
+
 /// `agentic-required-reported` and the remote item that adds `agentic-required`
 /// to the required checks, for a repository at `root`; the project's own check
 /// stays required. The item waits for the check to have reported.
 pub fn separate_steps(root: &Path) -> Vec<ManualStep> {
     let branch = default_branch(root);
     let check = CONTRIBUTED_AGGREGATE_CHECK;
-    let rules = format!(
-        "{{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == \"required_status_checks\" then .parameters.required_status_checks |= (. + [{{\"context\": \"{check}\"}}] | unique_by(.context)) else . end))}}"
-    );
     vec![
         ManualStep {
             id: SEPARATE_REPORTED.to_owned(),
@@ -409,11 +466,7 @@ pub fn separate_steps(root: &Path) -> Vec<ManualStep> {
             id: ADD_CHECK.to_owned(),
             title: format!("Remote item: the default branch also requires the {check} check"),
             owner: Owner::Owner,
-            instructions: format!(
-                "gh api repos/{{owner}}/{{repo}}/rulesets/<id> | jq '{rules}' | gh api -X PUT repos/{{owner}}/{{repo}}/rulesets/<id> --input -\n\
-                 # with classic branch protection instead of a ruleset:\n\
-                 gh api -X POST repos/{{owner}}/{{repo}}/branches/{branch}/protection/required_status_checks/contexts -f 'contexts[]={check}'"
-            ),
+            instructions: add_check_commands(&branch, check),
             probe: remote(
                 "required-check",
                 json!({ "branch": branch, "check": check }),

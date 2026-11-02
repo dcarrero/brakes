@@ -1,0 +1,19 @@
+{
+  "module": "ci-baseline",
+  "version": "1.0.0",
+  "answers": {
+    "heldout_dir": "tests/heldout",
+    "heldout_properties": false,
+    "inert_paths": [
+      "docs/**",
+      "tasks/**",
+      "**/*.md"
+    ],
+    "macos": false,
+    "merge_queue": false,
+    "minutes_budget": 2000,
+    "runner": "github",
+    "tiers": true,
+    "workflow": "seed"
+  }
+}

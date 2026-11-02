@@ -37,6 +37,7 @@
     },
     "required_checks": [
       "required",
+      "agentic-required",
       "neutrality"
     ]
   },

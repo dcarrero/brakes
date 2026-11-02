@@ -104,7 +104,7 @@ fn the_rust_upload_measures_the_declared_command_unchanged() {
     assert_eq!(
         run,
         format!(
-            "source <(cargo llvm-cov show-env --sh)\ncargo llvm-cov clean --workspace\n{TEST}\ncargo llvm-cov report --lcov --output-path lcov.info"
+            "eval \"$(cargo llvm-cov show-env --sh)\"\ncargo llvm-cov clean --workspace\n{TEST}\ncargo llvm-cov report --lcov --output-path lcov.info"
         )
     );
     let upload = steps.last().unwrap();

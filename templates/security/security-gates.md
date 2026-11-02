@@ -211,7 +211,7 @@ coverage, and `diff-coverage` and `coverage-ratchet` judge the data it uploads:
    artifact named `agentic-coverage-<app id>-<job>`. The stack pack's recipe is the
    exact steps:
    - `rust`: install `cargo-llvm-cov`, then run your declared test command unchanged
-     between `source <(cargo llvm-cov show-env --sh)` + `cargo llvm-cov clean --workspace`
+     between `eval "$(cargo llvm-cov show-env --sh)"` + `cargo llvm-cov clean --workspace`
      and `cargo llvm-cov report --lcov --output-path lcov.info`; upload `lcov.info`.
    - `python-uv`: run pytest under coverage.py in place of the declared command
      (`COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==<pin> --with

@@ -96,10 +96,11 @@ pub const RUST: StackPack = StackPack {
         // The declared test command runs as declared, instrumented by the
         // environment `show-env` exports (README at v0.9.1, "Get coverage of
         // external tests"); `clean` comes after `show-env`, `report` reads
-        // what the command's binaries wrote.
+        // what the command's binaries wrote. `eval` runs the same `export` lines as
+        // the README's `source <(…)`, which shellcheck reports as SC1090 in workflow-lint.
         upload: CoverageUpload {
             measure: Measure::Around {
-                before: "source <(cargo llvm-cov show-env --sh)\ncargo llvm-cov clean --workspace",
+                before: "eval \"$(cargo llvm-cov show-env --sh)\"\ncargo llvm-cov clean --workspace",
                 after: "cargo llvm-cov report --lcov --output-path lcov.info",
             },
             data: "lcov.info",

@@ -565,8 +565,25 @@ fn plan_with(
             continue;
         }
         if item.class == Ownership::Seed {
-            // A seed is written once; whatever lives at the path afterwards is the project's.
-            if current.is_some() {
+            // A file this module managed and now seeds (#25, `generate` → `seed`): the seed
+            // replaces it once when it is unchanged, never over a local edit; then it is
+            // the project's like any seed.
+            let was_managed = prior
+                .filter(|p| p.module == module.id() && p.class == Ownership::Managed)
+                .map(|p| p.digest.as_deref());
+            if let Some(recorded) = was_managed {
+                match current.as_deref() {
+                    Some(text) if recorded != Some(&digest(text)) => {
+                        return refuse(format!(
+                            "Locally changed managed content cannot become a seed: {}; restore it or move it aside",
+                            item.path
+                        ));
+                    }
+                    _ => {
+                        changes.insert(item.path.clone(), Some(content.clone()));
+                    }
+                }
+            } else if current.is_some() {
                 notes.insert(item.path.clone(), Note::Skip);
                 skipped_seeds.insert(item.path.clone(), content.clone());
             } else {

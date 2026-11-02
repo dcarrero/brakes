@@ -5,7 +5,7 @@
           tool: "cargo-llvm-cov@0.9.1"
       - name: Run the tests under coverage
         run: |-
-          source <(cargo llvm-cov show-env --sh)
+          eval "$(cargo llvm-cov show-env --sh)"
           cargo llvm-cov clean --workspace
           bash -euo pipefail -c "$TEST_COMMAND"
           cargo llvm-cov report --lcov --output-path lcov.info

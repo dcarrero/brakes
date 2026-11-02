@@ -531,7 +531,8 @@ report in the app directory, and the `jq` filter that reads the line percentage 
 it. It is data for the coverage ratchet of `security`,
 which no module renders yet. Each recipe also carries the project's test job upload
 (`CoverageUpload`): `rust` measures the declared test command unchanged between
-`cargo llvm-cov show-env --sh` and `cargo llvm-cov report --lcov`; `python-uv` runs pytest
+`eval "$(cargo llvm-cov show-env --sh)"` and `cargo llvm-cov report --lcov` (`eval`, not
+the README's `source <(…)`, which shellcheck reports as SC1090); `python-uv` runs pytest
 under coverage.py in place of it, because coverage.py measures only the interpreter it
 starts. `CoverageRecipe::upload_steps` renders the install, the measured run and the upload
 of `agentic-coverage-<app id>-<job>` (`coverage_artifact`), the artifact `diff-coverage`
@@ -635,6 +636,20 @@ It ends with what to commit and how to see `required` and `agentic-required` gre
 `ci-health.workflow-exists` without any workflow names `brakes ci init .` before the
 module. Without a terminal or with `--no-input` it asks nothing and takes the
 proposals.
+
+**Migrating from `generate`.** Answering `seed` where the lock records a generated
+workflow migrates it in one plan. The generated workflow was the project's CI, so the
+project's other workflows do not keep the seed out. Only a `ci.yml` of the project's own
+does, and then a note says so. A generated `ci.yml` becomes the seed: the engine replaces a
+file it recorded as the module's `managed` content with the seed once, when it is unchanged
+("Locally changed managed content cannot become a seed" otherwise), and records it as
+`seed` from then on. A generated `agentic-ci.yml` is retired by the usual rule: deleted when
+unchanged, refused when edited. The ordering is expand, then contract. While the
+migration is planned, the manual step `generate-to-seed` asks for `agentic-required` to be
+required before the migrating pull request merges (probe `required-check`). That pull
+request's own run reports both the seed's `required` and `agentic-required`, and the
+generated workflow no longer runs on it, so no check named `required` reports twice and
+none stops reporting.
 
 **Commands are read at run time (`workflow: generate`, deprecated).** `ci-baseline`
 requires `stack-packs` and renders one `managed` workflow, `.github/workflows/ci.yml`

@@ -170,7 +170,8 @@ An expired entry turns `security-gate` red. Remove it, or renew it.
 
 ## Coverage ratchet
 
-`.agent-setup/coverage.json` records one line percentage per app,
+`coverage-ratchet` reads the coverage data your CI uploads (below, "Your CI measures
+once") and runs no test. `.agent-setup/coverage.json` records one line percentage per app,
 `{"schema": 1, "apps": {"<app>": <percentage>}}`. It is seeded at `0`, so the first
 runs warn `Coverage <m>; ratchet the record up`: raise each record to the measured
 value in a pull request of its own; raising never needs an exception. A measurement
@@ -201,47 +202,51 @@ request does not change the base). What it does not prove: that those tests
 characterise the behaviour, which stays the reviewer's question, or that their
 assertions are strong, which `mutation-diff` measures.
 
-The base report comes from the cache saved on every push to the default branch (by
-`coverage-ratchet` when it is answered, else by `diff-coverage` itself), so a pull
-request normally runs its tests once; it is recomputed at the merge base when the cache
-misses, so the verdict never depends on the cache. A rust file the base report does not list fails like an
-unexecuted one, since cargo-llvm-cov lists every source compiled into the tests. A
-python file it does not list only warns, because coverage.py lists the files no test
-imported only when `[tool.coverage.run] source` is set; set it so every file can be
-judged.
+### Your CI measures once; brakes only judges
 
-Coverage measures the tests the pack selects by default: `cargo llvm-cov --workspace`
-for rust, `pytest -q` for python-uv. When your declared `test` command runs fewer (one
-package, or a subset because the rest needs services the CI job does not start), answer
-`coverage_test_args.<app id>` with the same selection, for example `-p my-crate` or
-`-m "not services"`; both `coverage-ratchet` and `diff-coverage` then measure exactly
-those tests. For a rust app with the answer, a modified file outside the selection is
-not in the report and only warns (`it is outside coverage_test_args.<app id>, so it is
-not judged`).
-
-### Measuring once: `coverage_source: project-ci`
-
-By default `diff-coverage` runs your tests a second time, under coverage, beside your own
-CI. When your repository keeps its own workflow (`ci-baseline` `workflow: existing`),
-answer `coverage_source: project-ci` and the suite runs once:
+`brakes` never runs your tests to measure them. Your CI runs them once, under
+coverage, and `diff-coverage` and `coverage-ratchet` judge the data it uploads:
 
 1. Every test job of an app runs its tests under coverage and uploads the data as an
-   artifact named `agentic-coverage-<app id>-<job>`: the coverage.py data file
-   (`COVERAGE_CORE=sysmon pytest --cov --cov-report=` writes `.coverage`; upload it with
-   `include-hidden-files: true`; on Python < 3.12, or with branch coverage on 3.12 and
-   3.13, coverage.py keeps its default core and warns `no-sysmon`, which a suite that turns
-   warnings into errors silences with `disable_warnings = ["no-sysmon"]`) or the LCOV report (`*.info`, for example
-   `cargo llvm-cov nextest --lcov --output-path lcov.info`). Shards each upload their own.
+   artifact named `agentic-coverage-<app id>-<job>`. The stack pack's recipe is the
+   exact steps:
+   - `rust`: install `cargo-llvm-cov`, then run your declared test command unchanged
+     between `eval "$(cargo llvm-cov show-env --sh)"` + `cargo llvm-cov clean --workspace`
+     and `cargo llvm-cov report --lcov --output-path lcov.info`; upload `lcov.info`.
+   - `python-uv`: run pytest under coverage.py in place of the declared command
+     (`COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==<pin> --with
+     pytest-cov==<pin> python -m pytest -q --cov --cov-report=` writes `.coverage`);
+     upload `.coverage` with `include-hidden-files: true`. On Python < 3.12, or with
+     branch coverage on 3.12 and 3.13, coverage.py keeps its default core and warns
+     `no-sysmon`, which a suite that turns warnings into errors silences with
+     `disable_warnings = ["no-sysmon"]`.
+   - Every other pack says why it has no recipe, and its apps are not judged.
+
+   Shards each upload their own. `if-no-files-found: error` makes a test job that
+   wrote no data fail where the cause is.
 2. A job named `diff-coverage` that needs those test jobs calls
-   `uses: ./.github/workflows/agentic-coverage.yml`, which brakes renders: it combines
-   the parts, judges both rules and, on pushes to the default branch, keeps the base
-   report. It runs no test.
+   `uses: ./.github/workflows/agentic-coverage.yml`, which brakes renders: it downloads
+   and combines the parts, judges both rules, runs `coverage-ratchet` when it is
+   answered and, on pushes to the default branch, keeps the base report. It runs no test.
 3. Your aggregate check needs `diff-coverage`, so the pull request cannot merge without it.
 
-The plan prints one note per app with the artifact name. A missing base report only
-warns (`<app>: no base report for <sha>; not judged`) instead of running the tests at the merge base;
-the next push to the default branch saves one. `coverage_ratchet: true` refuses with
-`project-ci` for now: `coverage-ratchet` still measures by itself.
+The plan prints one note per app with the artifact name. A pull request whose run
+uploaded no data for an app fails `No coverage data: this run uploaded no
+agentic-coverage-<app>-* artifact`, unless it changes nothing under the app's path
+(then the app is not judged). The base report comes from the cache saved on every push
+to the default branch; a missing one only warns (`<app>: no base report for <sha>; not
+judged`) and the next push saves one: it is never recomputed, since that would run the
+tests. A rust file the base report does not list fails like an unexecuted one, since
+cargo-llvm-cov lists every source compiled into the tests. A python file it does not
+list only warns, because coverage.py lists the files no test imported only when
+`[tool.coverage.run] source` is set; set it so every file can be judged.
+
+When your test job measures fewer tests than the whole app (one package, or a subset
+because the rest needs services), answer `coverage_test_args.<app id>` with the same
+selection, for example `-p my-crate`: a modified rust file outside it is then not in
+the report and only warns (`it is outside coverage_test_args.<app id>, so it is not
+judged`). `coverage_source` is retired: both values are accepted and ignored for one
+version, with a plan note.
 
 `coverage_changed_lines` is on by default where an app is `rust` or `python-uv`, and every
 such app is measured and judged in its own directory: in a monorepo each app gets its
