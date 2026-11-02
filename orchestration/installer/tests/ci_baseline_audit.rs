@@ -619,8 +619,11 @@ fn doctor_on_this_repository_under_existing_reports_the_stale_fields_not_the_agg
     );
     // The stale fields follow the tree's profile: this repository's, or the
     // import's overlay (`export/.agent-setup/project.json`, laid over it by the
-    // export, which never carries `export/`), whose required check is the aggregate.
-    let stale = if root.join("export").is_dir() {
+    // export, which never carries `export/`), whose required check is the aggregate;
+    // the import also declares `neutrality`, a required check of its own workflow.
+    let declared: Value = serde_json::from_str(&files[0].1).unwrap();
+    let only_aggregate = declared["ci"]["required_checks"] == json!([aggregate]);
+    let stale = if root.join("export").is_dir() || !only_aggregate {
         "ci.runners, ci.required_checks"
     } else {
         "ci.runners"

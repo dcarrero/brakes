@@ -40,6 +40,10 @@
           {
             "context": "required",
             "integration_id": 15368
+          },
+          {
+            "context": "neutrality",
+            "integration_id": 15368
           }
         ],
         "strict_required_status_checks_policy": true

@@ -31,7 +31,8 @@
       "linux": "github-hosted ubuntu-24.04"
     },
     "required_checks": [
-      "required"
+      "required",
+      "neutrality"
     ]
   },
   "criticality": "internal"

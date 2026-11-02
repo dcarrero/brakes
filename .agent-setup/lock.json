@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "version": "0.5.0",
-  "source_commit": "15dbd3018cce211d26e46a4f31a89300c66fe5dc",
+  "source_commit": "a408038c038e64fdc593fc88e6e18aa672cac525",
   "source_dirty": false,
   "personal_owner": "gemba-app/brakes",
   "modules": {
@@ -170,7 +170,7 @@
     ".github/rulesets/main.json": {
       "module": "repo-baseline",
       "class": "managed",
-      "digest": "e79c55cc8e9074143eb6b0c0e2303088e0e61616affa67e559b9d61f12702642"
+      "digest": "e73f6205fed817222a95fc9adc71c581de12b6facc26e439b21d86bf95f8da48"
     },
     ".github/workflows/_reusable-verify.yml": {
       "module": "ci-baseline",
