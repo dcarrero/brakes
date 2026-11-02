@@ -1,5 +1,5 @@
-# Managed by brakes (security, coverage_source: project-ci, #1349). Your CI calls it
-# after the test jobs that upload agentic-coverage-<app>-* artifacts; it runs no test.
+# Managed by brakes (security, #22). Your CI calls it after the test jobs
+# that upload agentic-coverage-<app>-* artifacts; it judges them and runs no test.
 name: agentic-coverage
 on:
   workflow_call:
@@ -152,7 +152,7 @@ jobs:
               echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "::error::No coverage data: this run uploaded no agentic-coverage-root-* artifact"
+            echo "::error::No coverage data: this run uploaded no agentic-coverage-root-* artifact; upload its LCOV report (*.info) from every test job of root as docs/agent-setup/security-gates.md shows for rust. brakes never runs the tests to measure them"
             exit 1
           fi
           # shellcheck disable=SC2016
@@ -182,7 +182,6 @@ jobs:
           cat > "$RUNNER_TEMP/diff-coverage.sh" <<'DIFF_COVERAGE_SH'
           #!/usr/bin/env bash
           set -euo pipefail
-          inputs=(SECURITY_TODAY BASE_REF PR_NUMBER DIFF_REPORT DIFF_FORMAT APP_ID APP_DIR APP_PATH EXCLUDE_PATHS MIN DIFF_COVER SOURCE_EXT ABSENT ABSENT_HINT BASE_REPORT DIFF_COMMAND)
 
           mode="${1:?usage: diff-coverage.sh changed|characterization [repository-root]}"
           cd "${2:-.}"
@@ -193,14 +192,7 @@ jobs:
           app="${APP_ID:?APP_ID is required}"
           inventory=.agent-setup/security-exceptions.json
           work=$(mktemp -d)
-          worktree=""
-          cleanup() {
-            if [ -n "$worktree" ]; then
-              git worktree remove --force "$worktree" > /dev/null 2>&1 || rm -rf "$worktree"
-            fi
-            rm -rf "$work"
-          }
-          trap cleanup EXIT
+          trap 'rm -rf "$work"' EXIT
 
           if [ -n "${PR_NUMBER:-}" ] && [ -e "$inventory" ]; then
             grant=$(jq -r --arg target "diff-coverage#$PR_NUMBER" --arg today "$today" '
@@ -264,21 +256,8 @@ jobs:
                 cp "$base_report" "$work/base-report"
                 echo "base report: cache ($merge_base)"
               else
-                [ -n "${DIFF_COMMAND:-}" ] || { echo "::warning::$app: no base report for $merge_base; not judged"; exit 0; }
-                diff_command="$DIFF_COMMAND"
-                app_dir="${APP_DIR:-.}"
-                worktree="$work/base"
-                git worktree add --detach --quiet "$worktree" "$merge_base"
-                if ! (cd "$worktree/$app_dir" && unset "${inputs[@]}" && bash -c "$diff_command"); then
-                  echo "::error::Could not compute the coverage report at $merge_base"
-                  exit 1
-                fi
-                if [ ! -s "$worktree/$report" ]; then
-                  echo "::error::The coverage report $report was not written at $merge_base"
-                  exit 1
-                fi
-                cp "$worktree/$report" "$work/base-report"
-                echo "base report: recomputed at $merge_base"
+                echo "::warning::$app: no base report for $merge_base; not judged"
+                exit 0
               fi
 
               case "$format" in
@@ -374,7 +353,6 @@ jobs:
         if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.bypass.outputs.id == '' && steps.measure-root.outcome == 'success' && steps.measure-root.outputs.skip != 'true' }}
         env:
           ABSENT: fail
-          APP_DIR: "."
           APP_ID: root
           APP_PATH: "."
           BASE_REF: "${{ github.base_ref }}"

@@ -1,5 +1,5 @@
 name: diff-coverage
-{{gate}}runs-on: {{coverage_runner}}
+runs-on: {{coverage_runner}}
 timeout-minutes: {{timeout}}
 steps:
   - name: Check out

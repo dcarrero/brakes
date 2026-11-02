@@ -899,6 +899,18 @@ impl Composed {
             .clone()
             .expect("ci.yml is written")
     }
+    /// `reusable()` with `coverage_ratchet` answered and nothing else changed.
+    fn reusable_with_ratchet(&self) -> String {
+        self.repo
+            .answer(SECURITY, json!({"coverage_ratchet": true}));
+        self.reusable()
+    }
+    /// `agentic-coverage.yml`, where diff-coverage and coverage-ratchet live (#22).
+    fn reusable(&self) -> String {
+        self.plan_with(&[]).unwrap().changes[REUSABLE]
+            .clone()
+            .expect("agentic-coverage.yml is written")
+    }
 }
 
 /// Compares `text` with the golden byte for byte; `UPDATE_GOLDENS=1` rewrites it.
@@ -968,16 +980,12 @@ fn both_jobs_reach_required_through_ci_jobs() {
             "workflow-lint",
             SECURITY_GATE,
             DEPS_SCAN,
-            DIFF_COVERAGE,
             "required"
         ]
     );
-    assert!(
-        job(&blocks, "required").contains(
-            &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, diff-coverage]"
-                .to_owned()
-        )
-    );
+    assert!(job(&blocks, "required").contains(
+        &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan]".to_owned()
+    ));
     // DOCS_SKIPPABLE lists deps-scan and never security-gate.
     let scope = job(&blocks, "scope").join("\n");
     let docs = scope.split_once("DOCS_SKIPPABLE: |-\n").unwrap().1;
@@ -986,7 +994,7 @@ fn both_jobs_reach_required_through_ci_jobs() {
         .take_while(|l| l.starts_with("            "))
         .map(str::trim)
         .collect();
-    assert_eq!(docs, ["checks", "heldout", DEPS_SCAN, DIFF_COVERAGE]);
+    assert_eq!(docs, ["checks", "heldout", DEPS_SCAN]);
     assert!(!scope.contains("security-gate"), "{scope}");
     let gate = job(&blocks, SECURITY_GATE);
     assert!(gate.contains(&"    needs: scope".to_owned()));
@@ -1027,8 +1035,7 @@ fn ci_jobs_declares_the_skippable_tiers() {
             (SECURITY_GATE, &[][..]),
             (DEPS_SCAN, &[CiTier::Docs][..]),
             (SAST, &[CiTier::Docs][..]),
-            (CONTAINER_SCAN, &[CiTier::Docs][..]),
-            (DIFF_COVERAGE, &[CiTier::Docs][..])
+            (CONTAINER_SCAN, &[CiTier::Docs][..])
         ]
     );
     let only_gate = with_cx(
@@ -1433,12 +1440,11 @@ fn the_full_workflow_matches_the_full_golden() {
             DEPS_SCAN,
             SAST,
             CONTAINER_SCAN,
-            DIFF_COVERAGE,
             "required"
         ]
     );
     assert!(job(&blocks, "required").contains(
-        &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage]".to_owned()
+        &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan]".to_owned()
     ));
     let scope = job(&blocks, "scope").join("\n");
     let docs = scope.split_once("DOCS_SKIPPABLE: |-\n").unwrap().1;
@@ -1447,17 +1453,7 @@ fn the_full_workflow_matches_the_full_golden() {
         .take_while(|l| l.starts_with("            "))
         .map(str::trim)
         .collect();
-    assert_eq!(
-        docs,
-        [
-            "checks",
-            "heldout",
-            DEPS_SCAN,
-            SAST,
-            CONTAINER_SCAN,
-            DIFF_COVERAGE
-        ]
-    );
+    assert_eq!(docs, ["checks", "heldout", DEPS_SCAN, SAST, CONTAINER_SCAN]);
     let sast = job(&blocks, SAST).join("\n");
     for expected in [
         "    if: needs.scope.outputs.tier != 'docs'",
@@ -1517,7 +1513,6 @@ fn with_delivery_the_container_scan_needs_the_image_job_and_scans_its_reference(
             DEPS_SCAN,
             SAST,
             CONTAINER_SCAN,
-            DIFF_COVERAGE,
             "build-image",
             "required"
         ]
@@ -1555,7 +1550,6 @@ fn the_codeql_answer_renders_the_pinned_action_with_the_stacks_languages() {
             SECURITY_GATE,
             DEPS_SCAN,
             SAST,
-            DIFF_COVERAGE,
             "required"
         ]
     );
@@ -2168,7 +2162,7 @@ fn cli_install_module_security_plans_seeds_guide_and_both_jobs_in_required() {
     let required = job(&job_blocks(&composed.repo.read(WORKFLOW)), "required").to_vec();
     assert!(
         required.contains(
-            &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, diff-coverage]"
+            &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan]"
                 .to_owned()
         ),
         "{required:#?}"
@@ -2308,20 +2302,11 @@ fn existing_with_security_writes_the_separate_workflow_and_leaves_the_own_one() 
     golden("existing.yml", &text);
     let blocks = job_blocks(&text);
     let ids: Vec<&str> = blocks.iter().map(|(id, _)| id.as_str()).collect();
-    assert_eq!(
-        ids,
-        [
-            "scope",
-            SECURITY_GATE,
-            DEPS_SCAN,
-            DIFF_COVERAGE,
-            "agentic-required"
-        ]
-    );
+    assert_eq!(ids, ["scope", SECURITY_GATE, DEPS_SCAN, "agentic-required"]);
     let aggregate = job(&blocks, "agentic-required");
     for line in [
         "    name: agentic-required",
-        "    needs: [scope, security-gate, deps-scan, diff-coverage]",
+        "    needs: [scope, security-gate, deps-scan]",
         "    if: always()",
     ] {
         assert!(aggregate.contains(&line.to_owned()), "{line}\n{text}");
@@ -2356,19 +2341,17 @@ fn existing_with_security_writes_the_separate_workflow_and_leaves_the_own_one() 
 const REUSABLE: &str = ".github/workflows/agentic-coverage.yml";
 
 #[test]
-fn project_ci_coverage_moves_diff_coverage_into_a_reusable_workflow_that_runs_no_test() {
+fn diff_coverage_lives_only_in_the_reusable_workflow_the_project_calls() {
+    // #22: under every workflow mode; the plan says what the project's CI must do.
     let composed = Composed::existing("Rust (linux)");
-    composed
-        .repo
-        .answer(SECURITY, json!({"coverage_source": "project-ci"}));
     let plan = composed.install(&WITH_REQUIREMENTS, &[]);
     let lines: Vec<&str> = plan.lines().collect();
     let planned = format!("PLAN {REUSABLE} [managed:security]");
     assert!(lines.contains(&planned.as_str()), "{plan}");
     assert!(
-        lines.iter().any(|l| l.starts_with(
-            "NOTE [security] coverage_source project-ci: upload agentic-coverage-root-<job> "
-        )),
+        lines.contains(
+            &"NOTE [security] diff-coverage: upload agentic-coverage-root-<job> from every test job of root with its LCOV report (*.info) (docs/agent-setup/security-gates.md), call .github/workflows/agentic-coverage.yml from a job named diff-coverage that needs them, and make your aggregate need it"
+        ),
         "{plan}"
     );
     composed.install(&WITH_REQUIREMENTS, &["--apply"]);
@@ -2398,6 +2381,21 @@ fn project_ci_coverage_moves_diff_coverage_into_a_reusable_workflow_that_runs_no
     assert!(!job.contains("DIFF_COMMAND: "), "{job}");
     let again = composed.install(&[], &[]);
     assert!(again.lines().any(|l| l == "No changes."), "{again}");
+}
+
+#[test]
+fn missing_coverage_data_fails_naming_the_artifact_and_the_recipe() {
+    let composed = Composed::new();
+    let combine = step_named(
+        &diff_job(&composed.reusable()),
+        "Combine the coverage of root",
+    );
+    assert!(
+        combine.contains(
+            "::error::No coverage data: this run uploaded no agentic-coverage-root-* artifact; upload its LCOV report (*.info) from every test job of root as docs/agent-setup/security-gates.md shows for rust. brakes never runs the tests to measure them"
+        ),
+        "{combine}"
+    );
 }
 
 #[test]
@@ -2447,34 +2445,30 @@ fn project_ci_coverage_for_a_python_root_matches_its_golden() {
 }
 
 #[test]
-fn project_ci_coverage_refuses_a_generated_workflow_and_the_ratchet() {
-    let composed = Composed::new();
-    composed
-        .repo
-        .answer(SECURITY, json!({"coverage_source": "project-ci"}));
-    let refused = composed.refusal();
-    assert!(
-        refused.contains("coverage_source project-ci needs ci-baseline workflow existing"),
-        "{refused}"
-    );
-    let composed = Composed::existing("Rust (linux)");
-    composed.repo.answer(
-        SECURITY,
-        json!({"coverage_source": "project-ci", "coverage_ratchet": true}),
-    );
-    let refused = composed.refusal();
-    assert!(
-        refused.contains("coverage_source project-ci refuses with coverage_ratchet true"),
-        "{refused}"
-    );
+fn coverage_source_is_retired_ignored_and_noted() {
+    // #22: both values are accepted for one version; neither the generated
+    // workflow nor the ratchet refuses any more, and nothing measures.
+    for value in ["job", "project-ci"] {
+        let composed = Composed::new();
+        composed.repo.answer(
+            SECURITY,
+            json!({"coverage_source": value, "coverage_ratchet": true}),
+        );
+        let plan = composed.install(&WITH_REQUIREMENTS, &[]);
+        let note = format!(
+            "NOTE [security] coverage_source {value} is retired and ignored: diff-coverage only reads the coverage data your CI uploads; remove the answer"
+        );
+        assert!(plan.lines().any(|l| l == note), "{plan}");
+        assert_eq!(composed.reusable(), Composed::new().reusable_with_ratchet());
+    }
 }
 
 #[test]
-fn the_job_source_keeps_diff_coverage_in_the_separate_workflow() {
+fn no_workflow_of_brakes_runs_diff_coverage_under_existing() {
     let composed = Composed::existing("Rust (linux)");
     composed.install(&WITH_REQUIREMENTS, &["--apply"]);
-    assert!(has_diff_job(&composed.repo.read(SEPARATE)));
-    assert!(!composed.repo.exists(REUSABLE), "no reusable workflow");
+    assert!(!has_diff_job(&composed.repo.read(SEPARATE)));
+    assert!(composed.repo.exists(REUSABLE), "the reusable workflow");
 }
 
 /// The contexts `.github/rulesets/main.json` requires.
@@ -2739,44 +2733,25 @@ fn coverage_on_matches_the_coverage_golden_and_seeds_a_zero_record() {
         planned.changes[COVERAGE_RECORD].as_deref(),
         Some("{\n  \"schema\": 1,\n  \"apps\": {\n    \"root\": 0\n  }\n}\n")
     );
-    let text = planned.changes[WORKFLOW].clone().unwrap();
+    // #22: the generated workflow neither runs the ratchet nor lists it.
+    let workflow = planned.changes[WORKFLOW].clone().unwrap();
+    assert!(!workflow.contains(COVERAGE_RATCHET), "{workflow}");
+    let text = planned.changes[REUSABLE].clone().unwrap();
     golden("coverage.yml", &text);
-    assert_eq!(text, composed.workflow(), "two renders differ");
+    assert_eq!(text, composed.reusable(), "two renders differ");
     let blocks = job_blocks(&text);
     let ids: Vec<&str> = blocks.iter().map(|(id, _)| id.as_str()).collect();
-    assert_eq!(
-        ids,
-        [
-            "scope",
-            "checks",
-            "heldout",
-            "workflow-lint",
-            SECURITY_GATE,
-            DEPS_SCAN,
-            SAST,
-            CONTAINER_SCAN,
-            COVERAGE_RATCHET,
-            DIFF_COVERAGE,
-            "required"
-        ]
-    );
-    assert!(job(&blocks, "required").contains(
-        &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, coverage-ratchet, diff-coverage]"
-            .to_owned()
-    ));
-    let scope = job(&blocks, "scope").join("\n");
-    assert!(scope.contains("            coverage-ratchet"), "{scope}");
+    assert_eq!(ids, [DIFF_COVERAGE, COVERAGE_RATCHET]);
     let ratchet = job(&blocks, COVERAGE_RATCHET);
     for line in [
-        "    needs: scope",
-        "    if: needs.scope.outputs.tier != 'docs'",
-        "    timeout-minutes: 20",
+        "    timeout-minutes: 15",
+        "          fetch-depth: \"0\"",
         "          set -- coverage-ratchet",
-        "      - name: Measure coverage of root",
-        "          cargo llvm-cov --locked --workspace --json --summary-only --output-path coverage.json",
-        "      - name: Compare coverage with the record",
+        "      - name: Download the coverage of root",
+        "      - id: combine-root",
+        "      - name: Write the coverage report of root",
+        "      - name: Compare the coverage of root with the record",
         "          COVERAGE_TOLERANCE: \"0.5\"",
-        "          tool: cargo-llvm-cov@0.9.1",
     ] {
         assert!(
             ratchet.contains(&line.to_owned()),
@@ -2784,16 +2759,21 @@ fn coverage_on_matches_the_coverage_golden_and_seeds_a_zero_record() {
             ratchet.join("\n")
         );
     }
+    let body = ratchet.join("\n");
+    for needle in [
+        "needs:",
+        "cargo llvm-cov",
+        "cargo test",
+        "tool: cargo-llvm-cov",
+    ] {
+        assert!(!body.contains(needle), "{needle}\n{body}");
+    }
     assert!(
-        ratchet
-            .join("\n")
-            .contains("COVERAGE_APPS: \"[{\\\"app\\\":\\\"root\\\",\\\"metric\\\":\\\".data[0].totals.lines.percent\\\",\\\"report\\\":\\\"coverage.json\\\"}]\""),
-        "{}",
-        ratchet.join("\n")
+        body.contains("COVERAGE_APPS: \"[{\\\"app\\\":\\\"root\\\",\\\"metric\\\":\\\".data[0].totals.lines.percent\\\",\\\"report\\\":\\\"coverage.json\\\"}]\""),
+        "{body}"
     );
     // Every step after the bypass step runs only without a grant.
-    let steps: Vec<String> = ratchet
-        .join("\n")
+    let steps: Vec<String> = body
         .split("\n      - ")
         .skip(1)
         .map(str::to_owned)
@@ -2852,12 +2832,13 @@ fn coverage_tolerance_must_be_a_percentage() {
         SECURITY,
         json!({"coverage_ratchet": true, "coverage_tolerance": "0"}),
     );
-    let text = composed.workflow();
+    let text = composed.reusable();
     assert!(text.contains("COVERAGE_TOLERANCE: \"0\""), "{text}");
 }
 
 #[test]
-fn ci_jobs_declares_coverage_ratchet_skippable_under_docs() {
+fn ci_jobs_never_contributes_coverage_ratchet() {
+    // #22: it is a job of agentic-coverage.yml, which the project's CI calls.
     let composed = Composed::new();
     let jobs = with_cx(&composed.repo, json!({"coverage_ratchet": true}), |cx| {
         jobs::contributed(cx).unwrap()
@@ -2872,15 +2853,13 @@ fn ci_jobs_declares_coverage_ratchet_skippable_under_docs() {
             (SECURITY_GATE, &[][..]),
             (DEPS_SCAN, &[CiTier::Docs][..]),
             (SAST, &[CiTier::Docs][..]),
-            (CONTAINER_SCAN, &[CiTier::Docs][..]),
-            (COVERAGE_RATCHET, &[CiTier::Docs][..]),
-            (DIFF_COVERAGE, &[CiTier::Docs][..])
+            (CONTAINER_SCAN, &[CiTier::Docs][..])
         ]
     );
 }
 
 #[test]
-fn coverage_measures_each_covered_app_in_its_directory_and_seeds_each() {
+fn coverage_ratchet_reads_each_covered_app_in_its_directory_and_seeds_each() {
     let composed = Composed::new();
     composed
         .repo
@@ -2904,11 +2883,11 @@ fn coverage_measures_each_covered_app_in_its_directory_and_seeds_each() {
         planned.changes[COVERAGE_RECORD].as_deref(),
         Some("{\n  \"schema\": 1,\n  \"apps\": {\n    \"root\": 0,\n    \"web\": 0\n  }\n}\n")
     );
-    let text = planned.changes[WORKFLOW].clone().unwrap();
+    let text = planned.changes[REUSABLE].clone().unwrap();
     let blocks = job_blocks(&text);
     let ratchet = job(&blocks, COVERAGE_RATCHET).join("\n");
     for expected in [
-        "      - name: Measure coverage of web\n        if: steps.bypass.outputs.id == ''\n        working-directory: web\n        run: |\n          COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report=",
+        "      - name: Write the coverage report of web\n        if: steps.bypass.outputs.id == '' && (steps.combine-web.outputs.skip != 'true')\n        working-directory: web\n        run: |\n          uv run --frozen --all-extras --with coverage==7.17.0 coverage json -q -i -o coverage.json",
         "\\\"report\\\":\\\"web/coverage.json\\\"",
         "\\\"report\\\":\\\"coverage.json\\\"",
     ] {
@@ -3001,7 +2980,7 @@ fn mutation_diff_for_rust_matches_its_golden_and_reaches_required() {
     let required = job(&blocks, "required").join("\n");
     assert!(
         required.contains(
-            "needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage, mutation-diff]"
+            "needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, mutation-diff]"
         ),
         "{required}"
     );
@@ -3024,8 +3003,9 @@ fn mutation_diff_for_python_matches_its_golden() {
     assert_eq!(text, composed.workflow(), "two renders differ");
 }
 
-/// The `timeout-minutes` of each coverage job when the profile declares
-/// `ci.cycle_budget_minutes` as `budget` (`None`: not declared).
+/// The `timeout-minutes` of `mutation-diff` and of the two jobs of
+/// `agentic-coverage.yml` when the profile declares `ci.cycle_budget_minutes`
+/// as `budget` (`None`: not declared).
 fn coverage_timeouts(budget: Option<Value>) -> Vec<(String, String)> {
     let composed = Composed::new();
     let path = ".agent-setup/project.json";
@@ -3035,31 +3015,32 @@ fn coverage_timeouts(budget: Option<Value>) -> Vec<(String, String)> {
         path,
         &(serde_json::to_string_pretty(&profile).unwrap() + "\n"),
     );
-    let security = json!({
-        "sast": "none", "container_scan": false,
-        "coverage_ratchet": true, "mutation_diff": true,
-    });
-    let jobs = with_cx(&composed.repo, security, |cx| {
-        jobs::contributed(cx).unwrap()
-    });
-    [COVERAGE_RATCHET, DIFF_COVERAGE, MUTATION_DIFF]
-        .into_iter()
-        .map(|id| {
-            let job = jobs.iter().find(|j| j.id == id).unwrap();
-            let timeout = job
-                .yaml
-                .lines()
-                .find_map(|l| l.strip_prefix("timeout-minutes: "))
-                .unwrap_or_else(|| panic!("{id} has a timeout\n{}", job.yaml));
-            (id.to_owned(), timeout.to_owned())
-        })
-        .collect()
+    composed.repo.answer(
+        SECURITY,
+        json!({"sast": "none", "container_scan": false, "coverage_ratchet": true, "mutation_diff": true}),
+    );
+    let reusable = composed.reusable();
+    let workflow = composed.workflow();
+    [
+        (COVERAGE_RATCHET, &reusable),
+        (DIFF_COVERAGE, &reusable),
+        (MUTATION_DIFF, &workflow),
+    ]
+    .into_iter()
+    .map(|(id, text)| {
+        let timeout = job(&job_blocks(text), id)
+            .iter()
+            .find_map(|l| l.strip_prefix("    timeout-minutes: "))
+            .unwrap_or_else(|| panic!("{id} has a timeout\n{text}"))
+            .to_owned();
+        (id.to_owned(), timeout)
+    })
+    .collect()
 }
 
 /// #1213: one measurement is `ceil(budget * 1.5)`, the checks jobs' timeout;
-/// diff-coverage may measure twice (the head, and the merge base when no base
-/// report is cached, always on the installing pull request), mutation-diff
-/// adds one to its mutants' 30 minutes; a budget never lowers a default.
+/// mutation-diff adds one to its mutants' 30 minutes; a budget never lowers a
+/// default. The coverage jobs only combine and judge (#22): 15 minutes.
 #[test]
 fn coverage_timeouts_follow_the_declared_cycle_budget() {
     let pairs = |r, d, m| -> Vec<(String, String)> {
@@ -3073,26 +3054,20 @@ fn coverage_timeouts_follow_the_declared_cycle_budget() {
         .collect()
     };
     // Undeclared, or not a finite positive number: the fixed defaults.
-    assert_eq!(coverage_timeouts(None), pairs("20", "20", "30"));
-    assert_eq!(coverage_timeouts(Some(json!(0))), pairs("20", "20", "30"));
+    // #22: the coverage jobs run no test, so the budget never reaches them.
+    assert_eq!(coverage_timeouts(None), pairs("15", "15", "30"));
+    assert_eq!(coverage_timeouts(Some(json!(0))), pairs("15", "15", "30"));
     assert_eq!(
         coverage_timeouts(Some(json!("15"))),
-        pairs("20", "20", "30")
+        pairs("15", "15", "30")
     );
-    // a 12-minute suite under coverage, twice; one measurement is 27.
-    assert_eq!(coverage_timeouts(Some(json!(18))), pairs("27", "54", "57"));
-    // #1228: each capped at GitHub's 360-minute job maximum.
-    assert_eq!(
-        coverage_timeouts(Some(json!(150))),
-        pairs("225", "360", "255")
-    );
+    assert_eq!(coverage_timeouts(Some(json!(18))), pairs("15", "15", "57"));
+    // #1228: capped at GitHub's 360-minute job maximum.
     assert_eq!(
         coverage_timeouts(Some(json!(300))),
-        pairs("360", "360", "360")
+        pairs("15", "15", "360")
     );
-    // A small budget raises only what one measurement exceeds.
-    assert_eq!(coverage_timeouts(Some(json!(5))), pairs("20", "20", "38"));
-    assert_eq!(coverage_timeouts(Some(json!(9.5))), pairs("20", "30", "45"));
+    assert_eq!(coverage_timeouts(Some(json!(5))), pairs("15", "15", "38"));
 }
 
 /// #1228: the plan notes the coverage jobs whose budget-derived timeout was
@@ -3113,18 +3088,15 @@ fn coverage_timeouts_above_the_job_maximum_are_noted() {
             "coverage_ratchet": true, "mutation_diff": true,
         });
         with_cx(&composed.repo, security, |cx| Security.notes(cx).unwrap())
+            .into_iter()
+            .filter(|n| n.starts_with("ci.cycle_budget_minutes"))
+            .collect()
     };
-    assert_eq!(notes(json!(120)), Vec::<String>::new());
-    assert_eq!(
-        notes(json!(150)),
-        [
-            "ci.cycle_budget_minutes 150 derives timeouts above GitHub's 360-minute job maximum (diff-coverage 450); those jobs render timeout-minutes: 360"
-        ]
-    );
+    assert_eq!(notes(json!(150)), Vec::<String>::new());
     assert_eq!(
         notes(json!(300)),
         [
-            "ci.cycle_budget_minutes 300 derives timeouts above GitHub's 360-minute job maximum (coverage-ratchet 450, diff-coverage 900, mutation-diff 480); those jobs render timeout-minutes: 360"
+            "ci.cycle_budget_minutes 300 derives timeouts above GitHub's 360-minute job maximum (mutation-diff 480); those jobs render timeout-minutes: 360"
         ]
     );
 }
@@ -3352,18 +3324,16 @@ fn steps_of(job: &str) -> Vec<String> {
 #[test]
 fn diff_coverage_is_derived_on_for_a_rust_root_and_matches_its_golden() {
     let composed = Composed::new();
-    let text = composed.workflow();
+    // #22: the reusable workflow the project's CI calls; no workflow of brakes runs it.
+    let text = composed.reusable();
     let job = diff_job(&text);
     golden("diff-coverage-rust.yml", &text);
     for line in [
-        "    needs: scope",
-        "    if: needs.scope.outputs.tier != 'docs'",
-        "    timeout-minutes: 20",
+        "    timeout-minutes: 15",
         "          fetch-depth: \"0\"",
         "          persist-credentials: \"false\"",
         "          set -- diff-coverage",
-        "          tool: cargo-llvm-cov@0.9.1",
-        "          cargo llvm-cov --locked --workspace --lcov --output-path lcov.info",
+        "          pattern: \"agentic-coverage-root-*\"",
         "          DIFF_COVER: \"uvx diff-cover==10.6.0\"",
         "          MIN: \"80\"",
         "          DIFF_FORMAT: lcov",
@@ -3389,7 +3359,7 @@ fn diff_coverage_is_derived_on_for_a_rust_root_and_matches_its_golden() {
     }
     let names = step_names(&job);
     for name in [
-        "Measure coverage of root",
+        "Combine the coverage of root",
         "Keep the per-file coverage reports",
         "Save the per-file coverage reports",
         "Write diff-coverage.sh",
@@ -3427,7 +3397,10 @@ fn diff_coverage_is_derived_on_for_a_rust_root_and_matches_its_golden() {
     // writer's condition is the judging one without that conjunct.
     assert_eq!(
         condition(&write)
-            .map(|c| c.replace(" }}", " && steps.measure-root.outcome == 'success' }}")),
+            .map(|c| c.replace(
+                " }}",
+                " && steps.measure-root.outcome == 'success' && steps.measure-root.outputs.skip != 'true' }}",
+            )),
         condition(&judging),
         "{write}\n{judging}"
     );
@@ -3437,14 +3410,28 @@ fn diff_coverage_is_derived_on_for_a_rust_root_and_matches_its_golden() {
             .count(),
         2
     );
+    // No test runs: no coverage tool, no declared command, and the generated
+    // workflow neither runs diff-coverage nor needs it.
+    for needle in [
+        "cargo llvm-cov",
+        "cargo test",
+        "cargo-llvm-cov",
+        "DIFF_COMMAND",
+    ] {
+        assert!(!job.contains(needle), "{needle}\n{job}");
+    }
+    let workflow = composed.workflow();
+    assert!(!has_diff_job(&workflow), "{workflow}");
+    let blocks = job_blocks(&workflow);
     assert!(
-        job_blocks(&text)
+        !blocks
             .iter()
             .find(|(id, _)| id == "required")
             .unwrap()
             .1
-            .iter()
-            .any(|l| l.starts_with("    needs: [") && l.contains("diff-coverage"))
+            .join("\n")
+            .contains(DIFF_COVERAGE),
+        "{workflow}"
     );
 }
 
@@ -3466,28 +3453,28 @@ fn step_named(job: &str, name: &str) -> String {
 }
 
 #[test]
-fn with_the_ratchet_off_diff_coverage_saves_the_base_report_on_default_branch_pushes() {
+fn diff_coverage_saves_the_base_report_on_default_branch_pushes() {
     let composed = Composed::new();
-    let job = diff_job(&composed.workflow());
+    let job = diff_job(&composed.reusable());
     let push_only = format!(
         "        if: github.event_name == 'push' && {}",
         brakes::modules::stack_packs::DEFAULT_BRANCH_CONDITION
     );
     let keep = step_named(&job, "Keep the per-file coverage reports");
     assert!(keep.lines().any(|l| l == push_only), "{keep}");
-    assert!(keep.contains("          mkdir -p .coverage-base/root\n          cp lcov.info .coverage-base/root/lcov.info"), "{keep}");
+    assert!(keep.contains("          if [ -f lcov.info ]; then\n            mkdir -p .coverage-base/root\n            cp lcov.info .coverage-base/root/lcov.info\n          fi"), "{keep}");
     let save = step_named(&job, "Save the per-file coverage reports");
     assert!(save.lines().any(|l| l == push_only), "{save}");
     assert!(save.contains("uses: actions/cache/save@"));
     assert!(save.contains("          key: \"coverage-report-${{ github.sha }}\""));
-    // Checkout, setup and measurement run on both; the judging steps on pull requests only.
+    // Checkout, setup and combine run on both; the judging steps on pull requests only.
     let both = format!(
         "(github.event_name == 'pull_request' || (github.event_name == 'push' && {}))",
         brakes::modules::stack_packs::DEFAULT_BRANCH_CONDITION
     );
     assert!(step_named(&job, "Check out").contains(&format!("        if: {both}")));
     assert!(
-        step_named(&job, "Measure coverage of root").contains(&format!(
+        step_named(&job, "Combine the coverage of root").contains(&format!(
             "        if: {both} && steps.bypass.outputs.id == ''"
         ))
     );
@@ -3507,26 +3494,46 @@ fn with_the_ratchet_off_diff_coverage_saves_the_base_report_on_default_branch_pu
 }
 
 #[test]
-fn with_the_ratchet_on_only_the_ratchet_saves_the_base_report() {
+fn with_the_ratchet_on_both_coverage_jobs_read_uploads_and_only_diff_coverage_saves() {
+    // #22: coverage-ratchet is the reusable workflow's second job; it reads the
+    // uploaded data, writes the report its metric reads, and runs no test.
     let composed = Composed::new();
     composed
         .repo
         .answer(SECURITY, json!({"coverage_ratchet": true}));
-    let text = composed.workflow();
-    let diff = diff_job(&text);
-    assert!(!diff.contains("actions/cache/save@"), "{diff}");
-    assert!(!diff.contains("'push'"), "{diff}");
-    let ratchet = job(&job_blocks(&text), COVERAGE_RATCHET).join("\n");
-    let write = step_named(&ratchet, "Write the per-file coverage report of root");
-    let push = format!(
-        "        if: steps.bypass.outputs.id == '' && (github.event_name == 'push' && {})",
-        brakes::modules::stack_packs::DEFAULT_BRANCH_CONDITION
+    let workflow = composed.workflow();
+    assert!(
+        !job_blocks(&workflow)
+            .iter()
+            .any(|(id, _)| id == COVERAGE_RATCHET),
+        "{workflow}"
     );
-    assert!(write.lines().any(|l| l == push), "{write}");
-    assert!(write.contains("cargo llvm-cov --locked --workspace --lcov --output-path lcov.info\n          mkdir -p \"$GITHUB_WORKSPACE/.coverage-base/root\"\n          cp lcov.info \"$GITHUB_WORKSPACE/.coverage-base/root/lcov.info\""), "{write}");
-    let save = step_named(&ratchet, "Save the per-file coverage reports");
-    assert!(save.lines().any(|l| l == push), "{save}");
-    assert!(save.contains("          key: \"coverage-report-${{ github.sha }}\""));
+    let text = composed.reusable();
+    assert!(diff_job(&text).contains("actions/cache/save@"));
+    let ratchet = job(&job_blocks(&text), COVERAGE_RATCHET).join("\n");
+    for name in [
+        "Download the coverage of root",
+        "Combine the coverage of root",
+        "Compare the coverage of root with the record",
+    ] {
+        step_named(&ratchet, name);
+    }
+    let report = step_named(&ratchet, "Write the coverage report of root");
+    assert!(report.contains("lcov.info > coverage.json"), "{report}");
+    assert!(
+        report.contains(
+            "        if: steps.bypass.outputs.id == '' && (steps.combine-root.outputs.skip != 'true')"
+        ),
+        "{report}"
+    );
+    for needle in [
+        "cargo llvm-cov",
+        "cargo test",
+        "pytest",
+        "actions/cache/save@",
+    ] {
+        assert!(!ratchet.contains(needle), "{needle}\n{ratchet}");
+    }
     assert_eq!(
         text.matches("uses: actions/cache/save@").count(),
         1,
@@ -3605,21 +3612,18 @@ fn coverage_changed_lines_describes_its_derived_default_over_every_app() {
 }
 
 #[test]
-fn a_monorepo_measures_and_judges_every_covered_app_in_its_directory() {
+fn a_monorepo_combines_and_judges_every_covered_app_in_its_directory() {
     let composed = monorepo(false);
-    let text = composed.workflow();
+    let text = composed.reusable();
     golden("diff-coverage-monorepo.yml", &text);
     let job = diff_job(&text);
     for (name, lines) in [
         (
-            "Measure coverage of api",
-            &[
-                "        working-directory: apps/api",
-                "          cargo llvm-cov --locked --workspace --lcov --output-path lcov.info",
-            ][..],
+            "Combine the coverage of api",
+            &["        working-directory: apps/api"][..],
         ),
         (
-            "Measure coverage of web",
+            "Combine the coverage of web",
             &["        working-directory: apps/web"][..],
         ),
         (
@@ -3642,7 +3646,6 @@ fn a_monorepo_measures_and_judges_every_covered_app_in_its_directory() {
             "Characterization first of api",
             &[
                 "          APP_PATH: apps/api",
-                "          APP_DIR: apps/api",
                 "          BASE_REPORT: \".coverage-base/api/lcov.info\"",
                 "          ABSENT: fail",
             ][..],
@@ -3670,8 +3673,8 @@ fn a_monorepo_measures_and_judges_every_covered_app_in_its_directory() {
         assert!(step.contains("\n        if: "), "{step}");
     }
     let keep = step_named(&job, "Keep the per-file coverage reports");
-    assert!(keep.contains("mkdir -p .coverage-base/api\n          cp apps/api/lcov.info .coverage-base/api/lcov.info"), "{keep}");
-    assert!(keep.contains("mkdir -p .coverage-base/web\n          cp apps/web/coverage.xml .coverage-base/web/coverage.xml"), "{keep}");
+    assert!(keep.contains("mkdir -p .coverage-base/api\n            cp apps/api/lcov.info .coverage-base/api/lcov.info"), "{keep}");
+    assert!(keep.contains("mkdir -p .coverage-base/web\n            cp apps/web/coverage.xml .coverage-base/web/coverage.xml"), "{keep}");
     assert_eq!(
         step_names(&job)
             .iter()
@@ -3685,7 +3688,7 @@ fn a_monorepo_measures_and_judges_every_covered_app_in_its_directory() {
 
 #[test]
 fn the_root_app_of_a_monorepo_excludes_the_other_apps() {
-    let job = diff_job(&monorepo(true).workflow());
+    let job = diff_job(&monorepo(true).reusable());
     let root = step_named(&job, "Characterization first of root");
     assert!(
         root.contains("          EXCLUDE_PATHS: |-\n            apps/api\n            apps/web"),
@@ -3705,7 +3708,7 @@ fn diff_coverage_for_a_python_root_matches_its_golden() {
         "stack-packs",
         json!({"apps.root.path": ".", "apps.root.stack": "python-uv", "apps.root.toolchain_version": "3.13"}),
     );
-    let text = composed.workflow();
+    let text = composed.reusable();
     golden("diff-coverage-python.yml", &text);
     let job = diff_job(&text);
     for line in [
@@ -3760,11 +3763,17 @@ fn coverage_changed_lines_false_removes_the_job_and_the_minimum_reaches_the_step
     composed
         .repo
         .answer(SECURITY, json!({"coverage_changed_lines": false}));
-    assert!(!has_diff_job(&composed.workflow()));
+    assert!(
+        !composed
+            .plan_with(&[])
+            .unwrap()
+            .changes
+            .contains_key(REUSABLE)
+    );
     composed
         .repo
         .answer(SECURITY, json!({"coverage_changed_lines_min": 90}));
-    assert!(diff_job(&composed.workflow()).contains("          MIN: \"90\""));
+    assert!(diff_job(&composed.reusable()).contains("          MIN: \"90\""));
     for bad in [json!(101), json!(-1)] {
         composed
             .repo
@@ -3778,7 +3787,7 @@ fn coverage_changed_lines_false_removes_the_job_and_the_minimum_reaches_the_step
 #[test]
 fn coverage_runner_defaults_to_the_standard_runner() {
     let composed = Composed::new();
-    let text = composed.workflow();
+    let text = composed.reusable();
     assert!(
         diff_job(&text).contains("\n    runs-on: example-cloud-2\n"),
         "{text}"
@@ -3793,7 +3802,7 @@ fn coverage_runner_large_moves_only_the_coverage_jobs_and_tells_actionlint() {
         json!({"coverage_runner": "large", "coverage_ratchet": true}),
     );
     let planned = composed.plan_with(&[]).unwrap();
-    let text = planned.changes[WORKFLOW].clone().unwrap();
+    let text = planned.changes[REUSABLE].clone().unwrap();
     assert!(
         diff_job(&text).contains("\n    runs-on: example-cloud-8\n"),
         "{text}"
@@ -3805,7 +3814,9 @@ fn coverage_runner_large_moves_only_the_coverage_jobs_and_tells_actionlint() {
     );
     let large = text.matches("runs-on: example-cloud-8").count();
     assert_eq!(large, 2, "only the two coverage jobs move\n{text}");
-    assert!(text.contains("runs-on: example-cloud-2"), "{text}");
+    let workflow = planned.changes[WORKFLOW].clone().unwrap();
+    assert!(workflow.contains("runs-on: example-cloud-2"), "{workflow}");
+    assert!(!workflow.contains("example-cloud-8"), "{workflow}");
     let lint = planned.changes[".github/actionlint.yaml"].clone().unwrap();
     assert!(lint.contains("    - example-cloud-8\n"), "{lint}");
 }
@@ -3822,24 +3833,16 @@ fn coverage_runner_refuses_an_unknown_value() {
 // ---- #1177: coverage measures the tests the project declares --------------------------
 
 #[test]
-fn coverage_test_args_select_the_tests_every_coverage_command_measures() {
+fn coverage_test_args_only_narrow_what_an_absent_rust_file_means() {
+    // #22: nothing here measures, so the selection reaches no command; it still
+    // tells characterization that a rust file outside it was not measured.
     let composed = Composed::new();
     composed.repo.answer(
         SECURITY,
         json!({"coverage_ratchet": true, "coverage_test_args.root": "-p brakes"}),
     );
-    let text = composed.workflow();
+    let text = composed.reusable();
     let diff = diff_job(&text);
-    let measured = "cargo llvm-cov --locked -p brakes --lcov --output-path lcov.info";
-    assert!(
-        step_named(&diff, "Measure coverage of root").contains(measured),
-        "{diff}"
-    );
-    assert!(
-        diff.lines()
-            .any(|l| l == format!("          DIFF_COMMAND: {measured}")),
-        "{diff}"
-    );
     assert!(
         diff.lines().any(|l| l == "          ABSENT: warn"),
         "{diff}"
@@ -3849,22 +3852,13 @@ fn coverage_test_args_select_the_tests_every_coverage_command_measures() {
             == "          ABSENT_HINT: \"it is outside coverage_test_args.root, so it is not judged\""),
         "{diff}"
     );
-    assert!(!text.contains("--workspace"), "{text}");
-    let ratchet = job(&job_blocks(&text), COVERAGE_RATCHET).join("\n");
-    assert!(
-        step_named(&ratchet, "Measure coverage of root").contains(
-            "cargo llvm-cov --locked -p brakes --json --summary-only --output-path coverage.json"
-        ),
-        "{ratchet}"
-    );
-    assert!(
-        step_named(&ratchet, "Write the per-file coverage report of root").contains(measured),
-        "{ratchet}"
-    );
+    for needle in ["-p brakes", "DIFF_COMMAND", "cargo llvm-cov --locked"] {
+        assert!(!text.contains(needle), "{needle}\n{text}");
+    }
 }
 
 #[test]
-fn coverage_test_args_append_to_pytest_for_python_uv() {
+fn coverage_test_args_leave_python_its_own_absent_rule() {
     let composed = Composed::new();
     composed
         .repo
@@ -3878,12 +3872,8 @@ fn coverage_test_args_append_to_pytest_for_python_uv() {
         SECURITY,
         json!({"coverage_test_args.root": "-m 'not services'"}),
     );
-    let diff = diff_job(&composed.workflow());
-    assert!(
-        step_named(&diff, "Measure coverage of root")
-            .contains("python -m pytest -q --cov --cov-report= -m 'not services' && uv run"),
-        "{diff}"
-    );
+    let diff = diff_job(&composed.reusable());
+    assert!(!diff.contains("pytest"), "no test runs here\n{diff}");
     // python keeps its own absent rule and hint.
     assert!(
         diff.lines().any(|l| l == "          ABSENT: warn"),
@@ -3898,9 +3888,8 @@ fn coverage_test_args_append_to_pytest_for_python_uv() {
 }
 
 #[test]
-fn unanswered_coverage_test_args_keep_the_pack_selection() {
-    let diff = diff_job(&Composed::new().workflow());
-    assert!(diff.contains("cargo llvm-cov --locked --workspace --lcov --output-path lcov.info"));
+fn unanswered_coverage_test_args_judge_an_absent_rust_file_as_unexecuted() {
+    let diff = diff_job(&Composed::new().reusable());
     assert!(
         diff.lines().any(|l| l == "          ABSENT: fail"),
         "{diff}"
@@ -4159,7 +4148,9 @@ fn monorepo_with_a_database() -> Composed {
 }
 
 #[test]
-fn the_jobs_that_measure_an_app_get_the_services_it_declares() {
+fn only_the_job_that_runs_tests_gets_the_services_an_app_declares() {
+    // #22: the coverage jobs read uploaded data and start no service; mutation
+    // testing still runs the suite.
     let composed = monorepo_with_a_database();
     composed.repo.answer(
         SECURITY,
@@ -4167,36 +4158,36 @@ fn the_jobs_that_measure_an_app_get_the_services_it_declares() {
     );
     let text = composed.workflow();
     let docs = yaml_rust2::YamlLoader::load_from_str(&text).unwrap();
-    for id in [DIFF_COVERAGE, COVERAGE_RATCHET, MUTATION_DIFF] {
-        let job = &docs[0]["jobs"][id];
-        assert_eq!(
-            job["services"]["postgres"]["image"].as_str(),
-            Some(PG),
-            "{id}: {job:?}"
-        );
-        assert_eq!(
-            job["env"]["TEST_DATABASE_URL"].as_str(),
-            Some("postgresql://postgres:test@localhost:5432/postgres"),
-            "{id}"
-        );
-    }
+    let mutation = &docs[0]["jobs"][MUTATION_DIFF];
+    assert_eq!(
+        mutation["services"]["postgres"]["image"].as_str(),
+        Some(PG),
+        "{mutation:?}"
+    );
     assert!(docs[0]["jobs"][SECURITY_GATE]["services"].is_badvalue());
+    let reusable = composed.reusable();
+    let docs = yaml_rust2::YamlLoader::load_from_str(&reusable).unwrap();
+    for id in [DIFF_COVERAGE, COVERAGE_RATCHET] {
+        let job = &docs[0]["jobs"][id];
+        assert!(!job.is_badvalue(), "{id}\n{reusable}");
+        assert!(job["services"].is_badvalue(), "{id}: {job:?}");
+    }
 }
 
 #[test]
-fn a_failed_measurement_is_reported_once_and_skips_its_judging_steps() {
+fn a_failed_combine_is_reported_once_and_skips_its_judging_steps() {
     let composed = monorepo(false);
-    let job = diff_job(&composed.workflow());
+    let job = diff_job(&composed.reusable());
     let write = step_named(&job, "Write diff-coverage.sh");
     assert!(
         write.contains("if: ${{ !cancelled() && github.event_name == 'pull_request' && steps.bypass.outputs.id == '' }}"),
         "{write}"
     );
     for app in ["api", "web"] {
-        let measure = step_named(&job, &format!("Measure coverage of {app}"));
+        let combine = step_named(&job, &format!("Combine the coverage of {app}"));
         assert!(
-            measure.starts_with(&format!("id: measure-{app}\n")),
-            "{measure}"
+            combine.starts_with(&format!("id: measure-{app}\n")),
+            "{combine}"
         );
         for name in [
             format!("Check the changed lines of {app}"),
@@ -4205,7 +4196,7 @@ fn a_failed_measurement_is_reported_once_and_skips_its_judging_steps() {
             let step = step_named(&job, &name);
             assert!(
                 step.contains(&format!(
-                    "if: ${{{{ !cancelled() && github.event_name == 'pull_request' && steps.bypass.outputs.id == '' && steps.measure-{app}.outcome == 'success' }}}}"
+                    "if: ${{{{ !cancelled() && github.event_name == 'pull_request' && steps.bypass.outputs.id == '' && steps.measure-{app}.outcome == 'success' && steps.measure-{app}.outputs.skip != 'true' }}}}"
                 )),
                 "{step}"
             );

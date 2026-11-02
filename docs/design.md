@@ -783,15 +783,30 @@ fields` (or `absent`). `observability` will read `exclude_from` for `logs` and
 is the owner's statement, audited for shape and presence, never for completeness, and
 the installer never reads production data.
 
+**The coverage jobs only judge (#22).** `diff-coverage` and `coverage-ratchet` are
+the jobs of `.github/workflows/agentic-coverage.yml` (`managed`, `on: workflow_call`),
+rendered whenever an app is judged or the ratchet is answered, under every
+`ci-baseline` workflow mode; no contributed job and no workflow of `brakes` runs them.
+The project's CI calls it from a job named `diff-coverage` that needs its test jobs,
+which upload `agentic-coverage-<app id>-<job>` as the stack pack's `CoverageUpload`
+says; its aggregate needs that job. Each job downloads and combines the parts with the
+recipe's `combine` (coverage.py's needs the pack's setup), 15 minutes, no service and
+no test command. An app with no part fails `No coverage data`, naming the artifact and
+the guide, except on a push or on a pull request that changes nothing under its path,
+where it is not judged. The base report is kept only by `diff-coverage`, on pushes to
+the default branch; a missing one warns and is never recomputed. `coverage_source` is
+retired: accepted, ignored and noted for one version.
+
 **The coverage ratchet.** Opt-in: `coverage_ratchet` (default `false`) adds the
-job `coverage-ratchet`, skippable under tier `docs` and bypassable like
+job `coverage-ratchet` to `agentic-coverage.yml`, bypassable like
 `deps-scan`, and seeds `.agent-setup/coverage.json`, one line percentage per app whose
 stack pack carries a coverage recipe (`python-uv`, `rust`), each at `0` because
-the installer never invents a measurement. The job runs each covered app's setup and
-recipe command, reads the number with the recipe's `jq` filter and compares it with
-the record in `coverage-ratchet.sh`: below the record minus `coverage_tolerance` (a
-decimal string, `0.5` by default) fails, more than one point above warns to ratchet
-the record up. Lowering the record is the bypass: the exceptions check reads the
+the installer never invents a measurement. The job writes each covered app's report
+from the combined data (`combined_report`: `coverage json` for coverage.py, the
+executed share of the LCOV `DA` lines for rust), reads the number with the recipe's
+`jq` filter and compares it with the record in `coverage-ratchet.sh`: below the
+record minus `coverage_tolerance` (a decimal string, `0.5` by default) fails, more
+than one point above warns to ratchet the record up. Lowering the record is the bypass: the exceptions check reads the
 record at the pull request's base and requires an active `coverage-reset` entry for
 every lowered or removed app, in both implementations. With the ratchet answered,
 `doctor` reports `security.coverage-ratchet` (Gold) when the record or the job is

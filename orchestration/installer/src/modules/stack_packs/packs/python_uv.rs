@@ -98,6 +98,8 @@ pub const PYTHON_UV: StackPack = StackPack {
         combine: "find {{parts}} -type f -name '.coverage*' -print0 | sort -z \
                   | xargs -0 uv run --frozen --all-extras --with coverage=={{version}} coverage combine --keep \
                   && uv run --frozen --all-extras --with coverage=={{version}} coverage xml -q -i -o coverage.xml",
+        // `combine --keep` left the combined `.coverage` in the app directory (#22).
+        combined_report: "uv run --frozen --all-extras --with coverage=={{version}} coverage json -q -i -o coverage.json",
         // coverage.py measures the interpreter it starts, so the measured
         // pytest run takes the declared test command's place; it writes the
         // data file `.coverage` that `combine` reads.

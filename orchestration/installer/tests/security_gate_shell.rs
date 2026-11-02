@@ -1924,8 +1924,8 @@ fn diff_coverage_inputs() -> Vec<String> {
     let text = fs::read_to_string(fragment("diff-coverage.sh")).unwrap();
     let line = text
         .lines()
-        .find_map(|l| l.strip_prefix("inputs=("))
-        .expect("diff-coverage.sh declares inputs=(...)");
+        .find_map(|l| l.strip_prefix("# inputs=("))
+        .expect("diff-coverage.sh lists # inputs=(...)");
     let names = line.strip_suffix(')').expect("inputs=(...) on one line");
     names.split_whitespace().map(str::to_owned).collect()
 }
@@ -1970,7 +1970,7 @@ fn diff_coverage(mode: &str, root: &Path) -> Command {
 }
 
 /// Runs `diff-coverage.sh characterization` with the base report restored
-/// from a fixture cache directory (`cached`) or recomputed by copying it.
+/// from a fixture cache directory (`cached`), or with none (#22: never recomputed).
 fn characterize(root: &Path, stack: Stack, cached: bool, pr: Option<&str>) -> (Vec<String>, i32) {
     let cache = TempDir::new().unwrap();
     let base_report = cache.path().join(stack.report());
@@ -1985,10 +1985,6 @@ fn characterize(root: &Path, stack: Stack, cached: bool, pr: Option<&str>) -> (V
         .env("APP_ID", "root")
         .env("DIFF_REPORT", stack.report())
         .env("BASE_REPORT", &base_report)
-        .env(
-            "DIFF_COMMAND",
-            format!("cp '{}' '{}'", stack.fixture().display(), stack.report()),
-        )
         .env_remove("PR_NUMBER");
     if let Some(n) = pr {
         command.env("PR_NUMBER", n);
@@ -2083,7 +2079,6 @@ fn a_rust_file_outside_the_answered_test_selection_warns_with_the_hint() {
         .env("APP_ID", "root")
         .env("DIFF_REPORT", Stack::Rust.report())
         .env("BASE_REPORT", &base_report)
-        .env("DIFF_COMMAND", "false")
         .env_remove("PR_NUMBER")
         .output()
         .unwrap();
@@ -2149,42 +2144,44 @@ fn added_files_tests_only_changes_and_non_sources_are_not_judged() {
 }
 
 #[test]
-fn the_base_report_is_recomputed_at_the_merge_base_when_the_cache_misses() {
-    let (repo, sha) = pr_repo(DIFF_RUST_BASE, &[("src/dead.rs", "pub fn dead() { }\n")]);
-    let (printed, code) = characterize(repo.path(), Stack::Rust, false, None);
-    assert_eq!(code, 1);
-    assert_eq!(printed[0], format!("base report: recomputed at {sha}"));
-    assert!(first_error(&printed).unwrap().contains("src/dead.rs"));
-    // The temporary worktree is gone afterwards.
-    let worktrees = git(repo.path(), &["worktree", "list"]);
-    assert_eq!(worktrees.lines().count(), 1, "{worktrees}");
-}
-
-#[test]
-fn a_cache_miss_under_project_ci_warns_and_never_runs_the_tests() {
-    // #1349: no DIFF_COMMAND under project-ci; recomputing would run the suite again.
-    let (repo, sha) = pr_repo(DIFF_RUST_BASE, &[("src/dead.rs", "pub fn dead() { }\n")]);
-    let cache = TempDir::new().unwrap();
-    let output = diff_coverage("characterization", repo.path())
-        .envs(Stack::Rust.env())
-        .env("SECURITY_TODAY", TODAY)
-        .env("BASE_REF", "main")
-        .env("APP_ID", "root")
-        .env("DIFF_REPORT", Stack::Rust.report())
-        .env("BASE_REPORT", cache.path().join(Stack::Rust.report()))
-        .output()
-        .unwrap();
-    let printed = lines(&output);
-    assert_eq!(output.status.code(), Some(0), "{printed:?}");
-    assert_eq!(
-        printed,
-        [format!(
-            "::warning::root: no base report for {sha}; not judged"
-        )]
-    );
-    assert!(!repo.path().join("ran-the-tests").exists());
-    let worktrees = git(repo.path(), &["worktree", "list"]);
-    assert_eq!(worktrees.lines().count(), 1, "{worktrees}");
+fn a_cache_miss_warns_and_never_runs_a_command_even_one_left_in_the_environment() {
+    // #22: the base report is never recomputed, since that would run the tests;
+    // a DIFF_COMMAND left over from an older workflow is not read.
+    for (app, path) in [("root", "."), ("api", "apps/api")] {
+        let (repo, sha) = pr_repo(
+            MONOREPO_BASE,
+            &[
+                ("apps/api/src/dead.rs", "pub fn dead() { }\n"),
+                ("src/dead.rs", "pub fn root_dead() { }\n"),
+            ],
+        );
+        let cache = TempDir::new().unwrap();
+        let ran = repo.path().join("ran-the-tests");
+        let output = diff_coverage("characterization", repo.path())
+            .envs(Stack::Rust.env())
+            .env("SECURITY_TODAY", TODAY)
+            .env("BASE_REF", "main")
+            .env("APP_ID", app)
+            .env("APP_PATH", path)
+            .env("APP_DIR", path)
+            .env("DIFF_REPORT", Stack::Rust.report())
+            .env("BASE_REPORT", cache.path().join(Stack::Rust.report()))
+            .env("DIFF_COMMAND", format!("touch '{}'", ran.display()))
+            .env_remove("PR_NUMBER")
+            .output()
+            .unwrap();
+        let printed = lines(&output);
+        assert_eq!(output.status.code(), Some(0), "{printed:?}");
+        assert_eq!(
+            printed,
+            [format!(
+                "::warning::{app}: no base report for {sha}; not judged"
+            )]
+        );
+        assert!(!ran.exists(), "{app}: a command ran");
+        let worktrees = git(repo.path(), &["worktree", "list"]);
+        assert_eq!(worktrees.lines().count(), 1, "{worktrees}");
+    }
 }
 
 #[test]
@@ -2197,58 +2194,6 @@ fn the_inputs_line_lists_exactly_the_variables_the_script_reads() {
         names_read_by("a=$A_1 b=${B:-x} c=\"$C\" ENVIRON[\"D\"] $lower $0 ${e}"),
         ["A_1", "B", "C", "D"].map(str::to_owned).into()
     );
-}
-
-#[test]
-fn the_merge_base_command_runs_without_the_steps_own_variables() {
-    // #1222: the measured tests of a repository that exercises this script
-    // read APP_DIR and APP_PATH; they must not see the step's own values.
-    let (repo, sha) = pr_repo(DIFF_RUST_BASE, &[("src/lib.rs", "pub fn covered() { }\n")]);
-    let seen = TempDir::new().unwrap();
-    let seen_env = seen.path().join("env");
-    let output = diff_coverage("characterization", repo.path())
-        .envs(Stack::Rust.env())
-        .env("ABSENT_HINT", "a hint")
-        .env("SECURITY_TODAY", TODAY)
-        .env("BASE_REF", "main")
-        .env("PR_NUMBER", "42")
-        .env("APP_ID", "root")
-        .env("APP_DIR", ".")
-        .env("APP_PATH", ".")
-        .env("EXCLUDE_PATHS", "apps/other")
-        .env("MIN", "80")
-        .env("DIFF_COVER", "diff-cover")
-        .env("DIFF_REPORT", Stack::Rust.report())
-        .env("BASE_REPORT", seen.path().join("absent.lcov"))
-        .env(
-            "DIFF_COMMAND",
-            format!(
-                "env > '{}' && cp '{}' '{}'",
-                seen_env.display(),
-                Stack::Rust.fixture().display(),
-                Stack::Rust.report()
-            ),
-        )
-        .output()
-        .unwrap();
-    assert_eq!(
-        (lines(&output), output.status.code().unwrap()),
-        (
-            vec![
-                format!("base report: recomputed at {sha}"),
-                format!(
-                    "characterization root: 1 modified source files judged at {sha}, 0 without a test"
-                ),
-            ],
-            0
-        )
-    );
-    let env = fs::read_to_string(seen_env).unwrap();
-    let leaked: Vec<String> = diff_coverage_inputs()
-        .into_iter()
-        .filter(|name| env.lines().any(|l| l.starts_with(&format!("{name}="))))
-        .collect();
-    assert!(leaked.is_empty(), "leaked into DIFF_COMMAND: {leaked:?}");
 }
 
 #[test]
@@ -2482,15 +2427,6 @@ fn characterize_app(
     if let Some(fixture) = base {
         fs::copy(fixture, &base_report).unwrap();
     }
-    let fixture = base
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| Path::new(DIFF_FIXTURES).join("apps-api.lcov"));
-    let report_name = Path::new(report)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_owned();
     let output = diff_coverage("characterization", root)
         .envs(stack.env())
         .env("SECURITY_TODAY", TODAY)
@@ -2501,10 +2437,6 @@ fn characterize_app(
         .env("APP_DIR", path)
         .env("DIFF_REPORT", report)
         .env("BASE_REPORT", &base_report)
-        .env(
-            "DIFF_COMMAND",
-            format!("cp '{}' '{report_name}'", fixture.display()),
-        )
         .env_remove("PR_NUMBER")
         .output()
         .unwrap();
@@ -2602,23 +2534,5 @@ fn the_root_app_excludes_the_other_apps_paths() {
             ],
             1
         )
-    );
-}
-
-#[test]
-fn an_app_in_a_subdirectory_recomputes_its_base_report_in_its_own_directory() {
-    let (repo, sha) = pr_repo(MONOREPO_BASE, MONOREPO_CHANGES);
-    let (printed, code) = characterize_app(
-        repo.path(),
-        Stack::Rust,
-        ("api", "apps/api", ""),
-        "apps/api/lcov.info",
-        None,
-    );
-    assert_eq!(code, 1);
-    assert_eq!(printed[0], format!("base report: recomputed at {sha}"));
-    assert_eq!(
-        printed[1],
-        characterization_error("apps/api/src/dead.rs", &sha)
     );
 }

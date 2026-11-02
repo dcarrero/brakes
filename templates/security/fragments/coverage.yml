@@ -1,12 +1,11 @@
 name: coverage-ratchet
-needs: scope
-if: needs.scope.outputs.tier != 'docs'
 runs-on: {{coverage_runner}}
 timeout-minutes: {{timeout}}
 steps:
   - name: Check out
     uses: {{checkout}}
     with:
+      fetch-depth: "0"
       persist-credentials: "false"
   - id: bypass
     name: Apply a registered bypass

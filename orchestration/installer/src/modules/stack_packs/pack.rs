@@ -221,6 +221,9 @@ pub struct CoverageRecipe {
     /// own test jobs uploaded under `{{parts}}` (security's `coverage_source:
     /// project-ci`, #1349), without running a test.
     pub combine: &'static str,
+    /// Writes `report` in the app directory from what `combine` left there,
+    /// without running a test: `coverage-ratchet` reads the uploaded data (#22).
+    pub combined_report: &'static str,
     /// What the project's own CI test job runs and uploads for `combine` (#20).
     pub upload: CoverageUpload,
 }
@@ -277,6 +280,11 @@ impl CoverageRecipe {
     /// `combine` with the pins and `parts`, the directory the parts were downloaded to.
     pub fn render_combine(&self, pins: &PinTable, parts: &str) -> Result<String> {
         Ok(with_version(self.combine, self.tool, pins)?.replace("{{parts}}", parts))
+    }
+
+    /// `combined_report` with the pins.
+    pub fn render_combined_report(&self, pins: &PinTable) -> Result<String> {
+        with_version(self.combined_report, self.tool, pins)
     }
 
     /// `diff_command`, rendered as `render_command` renders `command`.

@@ -3,8 +3,8 @@
 # `diff-coverage` job; inputs through the environment, documented in
 # SPEC-security.md, "Changed-line coverage as built". Needs bash, git, jq, awk.
 set -euo pipefail
-# Every variable read from the environment (#1222); the tests parse this line.
-inputs=(SECURITY_TODAY BASE_REF PR_NUMBER DIFF_REPORT DIFF_FORMAT APP_ID APP_DIR APP_PATH EXCLUDE_PATHS MIN DIFF_COVER SOURCE_EXT ABSENT ABSENT_HINT BASE_REPORT DIFF_COMMAND)
+# Every variable read from the environment (#1222); the tests parse the next line.
+# inputs=(SECURITY_TODAY BASE_REF PR_NUMBER DIFF_REPORT DIFF_FORMAT APP_ID APP_PATH EXCLUDE_PATHS MIN DIFF_COVER SOURCE_EXT ABSENT ABSENT_HINT BASE_REPORT)
 
 mode="${1:?usage: diff-coverage.sh changed|characterization [repository-root]}"
 cd "${2:-.}"
@@ -15,14 +15,7 @@ format="${DIFF_FORMAT:?DIFF_FORMAT is required}"
 app="${APP_ID:?APP_ID is required}"
 inventory=.agent-setup/security-exceptions.json
 work=$(mktemp -d)
-worktree=""
-cleanup() {
-  if [ -n "$worktree" ]; then
-    git worktree remove --force "$worktree" > /dev/null 2>&1 || rm -rf "$worktree"
-  fi
-  rm -rf "$work"
-}
-trap cleanup EXIT
+trap 'rm -rf "$work"' EXIT
 
 # An active coverage-reset for this pull request lets the step pass, loudly.
 if [ -n "${PR_NUMBER:-}" ] && [ -e "$inventory" ]; then
@@ -89,24 +82,10 @@ case "$mode" in
       cp "$base_report" "$work/base-report"
       echo "base report: cache ($merge_base)"
     else
-      # No command under coverage_source project-ci (#1349): recomputing would run the tests again.
-      [ -n "${DIFF_COMMAND:-}" ] || { echo "::warning::$app: no base report for $merge_base; not judged"; exit 0; }
-      diff_command="$DIFF_COMMAND"
-      app_dir="${APP_DIR:-.}"
-      worktree="$work/base"
-      git worktree add --detach --quiet "$worktree" "$merge_base"
-      # The command measures the project as at the head, where none of this
-      # script's inputs is set: a project test may read the same names (#1222).
-      if ! (cd "$worktree/$app_dir" && unset "${inputs[@]}" && bash -c "$diff_command"); then
-        echo "::error::Could not compute the coverage report at $merge_base"
-        exit 1
-      fi
-      if [ ! -s "$worktree/$report" ]; then
-        echo "::error::The coverage report $report was not written at $merge_base"
-        exit 1
-      fi
-      cp "$worktree/$report" "$work/base-report"
-      echo "base report: recomputed at $merge_base"
+      # Never recomputed (#22): that would run the tests; the next push to the
+      # default branch keeps a base report.
+      echo "::warning::$app: no base report for $merge_base; not judged"
+      exit 0
     fi
 
     # Per file of the base report: <path><TAB><1 if a line was executed, else 0>.

@@ -88,6 +88,11 @@ pub const RUST: StackPack = StackPack {
                   END { for (i = 1; i <= n; i++) { f = order[i]; print \"SF:\" f; m = split(lines[f], l, \" \"); \
                   for (j = 1; j <= m; j++) if (l[j] != \"\") print \"DA:\" l[j] \",\" hits[f SUBSEP l[j]]; print \"end_of_record\" } }' \
                   > lcov.info",
+        // The line percentage of the combined LCOV, in the shape `metric`
+        // reads: executed `DA` lines over all of them (#22).
+        combined_report: "# shellcheck disable=SC2016\nawk -F'[:,]' '/^DA:/ { n++; if ($3 + 0 > 0) h++ } \
+                          END { printf \"{\\\"data\\\":[{\\\"totals\\\":{\\\"lines\\\":{\\\"percent\\\":%s}}}]}\\n\", (n ? h * 100 / n : 0) }' \
+                          lcov.info > coverage.json",
         // The declared test command runs as declared, instrumented by the
         // environment `show-env` exports (README at v0.9.1, "Get coverage of
         // external tests"); `clean` comes after `show-env`, `report` reads

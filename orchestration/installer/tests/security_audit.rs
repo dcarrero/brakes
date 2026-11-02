@@ -2082,12 +2082,21 @@ fn the_rendered_diff_coverage_goldens_pass_the_rule() {
                 .join(name),
         )
         .unwrap();
-        let dir = repo(&[(".github/workflows/ci.yml", &text)]);
+        // #22: the golden is the reusable workflow; the project's CI calls it
+        // and its aggregate needs the caller job.
+        let caller = "name: CI\non: pull_request\npermissions:\n  contents: read\njobs:\n  diff-coverage:\n    uses: ./.github/workflows/agentic-coverage.yml\n  required:\n    if: always()\n    needs: [diff-coverage]\n    runs-on: ubuntu-24.04\n    steps:\n      - run: echo ok\n";
+        let dir = repo(&[
+            (".github/workflows/agentic-coverage.yml", &text),
+            (".github/workflows/ci.yml", caller),
+        ]);
         assert_eq!(
             audit::diff_coverage(dir.path()),
             Vec::<String>::new(),
             "{name}"
         );
+        // Without the caller nothing judges the pull request.
+        let alone = repo(&[(".github/workflows/agentic-coverage.yml", &text)]);
+        assert_eq!(audit::diff_coverage(alone.path()).len(), 1, "{name}");
     }
 }
 

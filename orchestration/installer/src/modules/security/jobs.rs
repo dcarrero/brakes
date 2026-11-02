@@ -1,8 +1,9 @@
 //! The jobs `security` contributes to `ci-baseline`'s workflow through
 //! `Module::ci_jobs` (SPEC-security.md, "Contributed CI jobs"; SPEC-ci-baseline.md,
 //! Composition): `security-gate`, never skippable, and `deps-scan`, `sast`,
-//! `container-scan` (T10, #798), `coverage-ratchet` (#799) and, opt-in,
-//! `mutation-diff` (#979), skippable under tier `docs`. Each body is the job
+//! `container-scan` (T10, #798) and, opt-in, `mutation-diff` (#979), skippable
+//! under tier `docs`. `coverage-ratchet` (#799) is a job of the reusable
+//! `agentic-coverage.yml` the project's CI calls (#22): it reads uploaded data. Each body is the job
 //! mapping at column zero, rendered from
 //! `templates/security/fragments/{secrets,deps,sast,codeql,container-*,coverage,
 //! mutation-diff}.yml`; the shells are embedded without comment-only lines
@@ -114,19 +115,8 @@ pub(super) fn fill(template: &str, pairs: &[(&str, String)]) -> String {
         })
 }
 
-/// `coverage-ratchet`'s and `diff-coverage`'s timeout without a declared budget.
-const COVERAGE_TIMEOUT: u32 = 20;
 /// `mutation-diff`'s timeout without a declared budget: the mutants' allowance.
 const MUTATION_TIMEOUT: u32 = 30;
-
-/// The uncapped timeout of a coverage job that may run the suite
-/// `measurements` times (#1213): `max(20, measurements × ceil(ci.cycle_budget_minutes × 1.5))`
-/// when the profile declares the budget, else 20. A budget never lowers it.
-fn coverage_minutes(cx: &Context<'_>, measurements: u32) -> u32 {
-    measurement_minutes(cx).map_or(COVERAGE_TIMEOUT, |m| {
-        COVERAGE_TIMEOUT.max(m.saturating_mul(measurements))
-    })
-}
 
 /// `mutation-diff`'s uncapped timeout (#1213): 30, plus one measurement of the
 /// suite (the unmutated baseline run) when the profile declares the budget.
@@ -134,32 +124,19 @@ fn mutation_minutes(cx: &Context<'_>) -> u32 {
     MUTATION_TIMEOUT.saturating_add(measurement_minutes(cx).unwrap_or(0))
 }
 
-/// [`coverage_minutes`] within GitHub's job maximum (#1228), as rendered.
-pub(super) fn coverage_timeout(cx: &Context<'_>, measurements: u32) -> String {
-    within_job_max(coverage_minutes(cx, measurements)).to_string()
-}
-
 /// [`mutation_minutes`] within GitHub's job maximum (#1228), as rendered.
 fn mutation_timeout(cx: &Context<'_>) -> String {
     within_job_max(mutation_minutes(cx)).to_string()
 }
 
-/// The coverage jobs this plan renders with their uncapped budget-derived
-/// timeouts, in contribution order; empty without a budget (#1228).
+/// The jobs this plan renders with their uncapped budget-derived timeouts, in
+/// contribution order; empty without a budget (#1228). Only `mutation-diff`
+/// runs the suite: the coverage jobs read uploaded data (#22).
 pub(super) fn budget_timeouts(cx: &Context<'_>) -> Result<Vec<(String, u32)>> {
     if measurement_minutes(cx).is_none() {
         return Ok(Vec::new());
     }
     let mut out = Vec::new();
-    if coverage(cx)?.is_some() {
-        out.push((COVERAGE_RATCHET.to_owned(), coverage_minutes(cx, 1)));
-    }
-    if super::diff_coverage::judged(cx)?.is_some() {
-        out.push((
-            super::diff_coverage::DIFF_COVERAGE.to_owned(),
-            coverage_minutes(cx, 2),
-        ));
-    }
     if !mutation_apps(cx)?.is_empty() {
         out.push((MUTATION_DIFF.to_owned(), mutation_minutes(cx)));
     }
@@ -349,8 +326,6 @@ pub fn container_scan(cx: &Context<'_>) -> Result<Option<ContainerScan>> {
 pub struct Coverage {
     pub apps: Vec<(App, CoverageRecipe)>,
     pub tolerance: String,
-    /// Per app id, the answered `coverage_test_args` (#1177).
-    pub tests: std::collections::BTreeMap<String, String>,
 }
 
 impl Coverage {
@@ -408,17 +383,7 @@ pub fn coverage(cx: &Context<'_>) -> Result<Option<Coverage>> {
             "Module security: coverage_ratchet needs an app whose stack pack declares coverage (python-uv, rust)",
         );
     }
-    let tests = apps
-        .iter()
-        .filter_map(|(app, _)| {
-            super::diff_coverage::test_args(cx, app).map(|t| (app.id.clone(), t.to_owned()))
-        })
-        .collect();
-    Ok(Some(Coverage {
-        apps,
-        tolerance,
-        tests,
-    }))
+    Ok(Some(Coverage { apps, tolerance }))
 }
 
 /// A YAML scalar that reads back as `text`: plain when it cannot be mistaken
@@ -496,44 +461,82 @@ fn unless_bypassed(mut step: Step) -> Step {
     step
 }
 
-/// The steps after the bypass step: each covered app's setup and tool install,
-/// one measurement per app, `save` (the per-file report `diff-coverage`
-/// restores, #978), then the comparison at the root.
-fn coverage_steps(coverage: &Coverage, pins: &PinTable, save: Vec<Step>) -> Result<Vec<Step>> {
+/// The steps after the bypass step (#22): the setup coverage.py needs to
+/// combine, then per app the download and combine of what its test jobs
+/// uploaded, the report its metric reads written from that data, and the
+/// comparison with the record. No step runs a test; an app with nothing to
+/// read on this event (`skip`) is not compared.
+fn coverage_steps(coverage: &Coverage, pins: &PinTable) -> Result<Vec<Step>> {
     let mut steps: Vec<Step> = Vec::new();
-    for (app, recipe) in &coverage.apps {
+    for (app, _) in &coverage.apps {
+        if app.stack != StackId::PythonUv {
+            continue;
+        }
         let pack = crate::modules::stack_packs::packs::pack(app.stack);
-        for step in (pack.ci_setup)(app, pins)?
-            .into_iter()
-            .chain(recipe.install_step(pins)?)
-        {
+        for step in (pack.ci_setup)(app, pins)? {
+            // A cache save of the pack's setup is left out, as in diff-coverage.
+            if step.condition.as_deref() == Some(DEFAULT_BRANCH_CONDITION) {
+                continue;
+            }
             if !steps.contains(&step) {
                 steps.push(step);
             }
         }
     }
     for (app, recipe) in &coverage.apps {
-        let mut measure = Step::new(format!("Measure coverage of {}", app.id))
-            .run(recipe.render_command(pins, coverage.tests.get(&app.id).map(String::as_str))?);
-        measure.working_directory = app.working_directory();
-        steps.push(measure);
+        steps.extend(super::diff_coverage::combine_steps(
+            app,
+            recipe,
+            pins,
+            "combine",
+            "${{ github.event.pull_request.base.sha }}",
+        )?);
+        let read = format!("steps.combine-{}.outputs.skip != 'true'", app.id);
+        let mut report = Step::new(format!("Write the coverage report of {}", app.id))
+            .run(recipe.render_combined_report(pins)?);
+        report.working_directory = app.working_directory();
+        report.condition = Some(read.clone());
+        steps.push(report);
+        let apps = json!([{"app": app.id, "report": format!("{}{}", app.prefix(), recipe.report),
+                           "metric": recipe.metric}]);
+        let mut compare = Step::new(format!(
+            "Compare the coverage of {} with the record",
+            app.id
+        ))
+        .env("COVERAGE_APPS", apps.to_string())
+        .env("COVERAGE_TOLERANCE", coverage.tolerance.clone())
+        .run(without_comment_lines(COVERAGE_COMPARE));
+        compare.condition = Some(read);
+        steps.push(compare);
     }
-    let apps: Vec<Value> = coverage
-        .apps
-        .iter()
-        .map(|(app, recipe)| {
-            json!({"app": app.id, "report": format!("{}{}", app.prefix(), recipe.report),
-                   "metric": recipe.metric})
-        })
-        .collect();
-    steps.extend(save);
-    steps.push(
-        Step::new("Compare coverage with the record")
-            .env("COVERAGE_APPS", Value::Array(apps).to_string())
-            .env("COVERAGE_TOLERANCE", coverage.tolerance.clone())
-            .run(without_comment_lines(COVERAGE_COMPARE)),
-    );
     Ok(steps.into_iter().map(unless_bypassed).collect())
+}
+
+/// The `coverage-ratchet` job of `agentic-coverage.yml` (#22), rendered from
+/// `coverage.yml`: it reads what the project's test jobs uploaded and runs no test.
+pub(super) fn ratchet_body(
+    cx: &Context<'_>,
+    pins: &PinTable,
+    coverage: &Coverage,
+) -> Result<String> {
+    let steps: String = coverage_steps(coverage, pins)?
+        .iter()
+        .map(step_yaml)
+        .collect();
+    Ok(fill(
+        COVERAGE_JOB,
+        &[
+            ("coverage_runner", coverage_runner(cx)?),
+            ("checkout", pins.action("actions/checkout")?.uses()),
+            ("bypass_max_days", super::diff_coverage::bypass_max_days(cx)),
+            (
+                "bypass_variable",
+                indent(&without_comment_lines(BYPASS_VARIABLE), 6),
+            ),
+            ("coverage_steps", steps.trim_end().to_owned()),
+            ("timeout", super::diff_coverage::COMBINE_TIMEOUT.to_string()),
+        ],
+    ))
 }
 
 /// The lockfiles `deps-scan` scans (#1178): the one each recorded app's pack
@@ -715,31 +718,7 @@ pub fn contributed(cx: &Context<'_>) -> Result<Vec<CiJob>> {
             app: None,
         });
     }
-    if let Some(coverage) = coverage(cx)? {
-        let save = super::diff_coverage::ratchet_save_steps(cx, &pins)?;
-        let steps: String = coverage_steps(&coverage, &pins, save)?
-            .iter()
-            .map(step_yaml)
-            .collect();
-        let ratchet = [
-            (
-                "bypass_variable",
-                indent(&without_comment_lines(BYPASS_VARIABLE), 6),
-            ),
-            ("coverage_steps", steps.trim_end().to_owned()),
-            ("timeout", coverage_timeout(cx, 1)),
-        ];
-        jobs.push(CiJob {
-            id: COVERAGE_RATCHET.to_owned(),
-            yaml: services::into_job(
-                &fill(COVERAGE_JOB, &[&common[..], &ratchet].concat()),
-                &services::of_apps(cx, coverage.apps.iter().map(|(app, _)| app))?,
-            ),
-            skippable_under: vec![CiTier::Docs],
-            app: None,
-        });
-    }
-    jobs.extend(super::diff_coverage::job(cx, &pins)?);
+    // coverage-ratchet and diff-coverage are jobs of agentic-coverage.yml (#22).
     let apps = mutation_apps(cx)?;
     if !apps.is_empty() {
         let mutation = [

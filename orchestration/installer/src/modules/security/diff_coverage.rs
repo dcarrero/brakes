@@ -1,22 +1,23 @@
 //! `diff-coverage` (SPEC-security.md, "Changed-line coverage", slice 3b; #978;
 //! decision "Testing brakes moved into the 7 November scope", points 1 and 2):
 //! every line a pull request changes is executed by a test, and a source file it
-//! modifies had a test executing it at the merge base. Contributed through
-//! `ci_jobs` like the other jobs, skippable under tier `docs`, every step
-//! conditioned on a pull request (never the job, so a push passes with no step);
-//! the shell is `templates/security/fragments/diff-coverage.sh`.
+//! modifies had a test executing it at the merge base. The shell is
+//! `templates/security/fragments/diff-coverage.sh`.
 //!
-//! The base report is one cache entry per commit, `coverage-report-<sha>`,
-//! holding `.coverage-base/<app>/<report>` for every judged app: saved on pushes
-//! to the default branch by `coverage-ratchet` when it is answered, else by this
-//! job itself (#1130); restored here by the merge-base SHA, and recomputed per app
-//! at the merge base on a miss. Every app whose pack has a per-file report is
-//! judged in its own directory (the spec's Open question 14, closed).
+//! It only judges (decision of 2026-11-02, #22): the project's own test jobs run
+//! the tests under coverage and upload the data as `agentic-coverage-<app>-<job>`
+//! (the stack pack's `CoverageUpload`, #20); the reusable workflow
+//! `.github/workflows/agentic-coverage.yml`, which the project's CI calls from a
+//! job named `diff-coverage`, downloads and combines it, judges, and on pushes to
+//! the default branch keeps the base report: one cache entry per commit,
+//! `coverage-report-<sha>`, holding `.coverage-base/<app>/<report>` for every
+//! judged app. A missing base report warns; nothing ever runs the tests here.
+//! `coverage-ratchet`, when answered, is a second job of the same workflow.
 use super::embed::without_comment_lines;
-use super::jobs::{BYPASS_VARIABLE, coverage_runner, coverage_timeout, fill, indent, step_yaml};
+use super::jobs::{BYPASS_VARIABLE, coverage_runner, fill, indent, step_yaml};
 use crate::{
     Result,
-    engine::{CiJob, CiTier, Context},
+    engine::Context,
     modules::stack_packs::{
         App, CoverageRecipe, DEFAULT_BRANCH_CONDITION, PinTable, StackId, Step, packs,
         required_packs,
@@ -46,7 +47,7 @@ fn push_to_default() -> String {
     format!("github.event_name == 'push' && {DEFAULT_BRANCH_CONDITION}")
 }
 
-/// A pull request, or a push to the default branch when this job keeps the base report.
+/// A pull request, or a push to the default branch, where the base report is kept.
 fn either_event() -> String {
     format!(
         "(github.event_name == 'pull_request' || ({}))",
@@ -54,36 +55,26 @@ fn either_event() -> String {
     )
 }
 
-/// Where the coverage data comes from (`coverage_source`, #1349).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Source {
-    /// This job runs the tests under coverage (the pack's `diff_command`).
-    Job,
-    /// The project's own test jobs upload it; the reusable workflow combines it.
-    ProjectCi,
-}
-
-/// The answer naming the source; `job` unless answered.
+/// The retired answer (#22): accepted and ignored for one version, with a note.
 pub const SOURCE: &str = "coverage_source";
-/// The `coverage_source` values.
+/// The values `coverage_source` still accepts.
 pub const SOURCES: [&str; 2] = ["job", "project-ci"];
-/// The reusable workflow the project's CI calls under `project-ci`.
+/// The reusable workflow the project's CI calls.
 pub const REUSABLE: &str = ".github/workflows/agentic-coverage.yml";
 /// Where the downloaded parts land, outside every app directory.
 pub const PARTS_DIR: &str = ".coverage-parts";
+/// Where the project finds the recipe its test jobs follow: the guide `security` manages.
+const RECIPE_GUIDE: &str = "docs/agent-setup/security-gates.md";
 
 /// The artifact name prefix the project's test jobs upload for `app`.
 pub fn artifact_prefix(app: &App) -> String {
     format!("agentic-coverage-{}-", app.id)
 }
 
-/// Every app this job judges, its minimum, and whether it saves the base report itself.
+/// Every app this job judges and its minimum.
 pub struct Judged {
     pub apps: Vec<(App, CoverageRecipe)>,
     pub min: u64,
-    /// `coverage_ratchet` is not `true`: nobody else saves the base report.
-    pub saves: bool,
-    pub source: Source,
 }
 
 /// The report format, the judged source extension and what an absent file
@@ -164,28 +155,6 @@ pub fn judged(cx: &Context<'_>) -> Result<Option<Judged>> {
         .get("coverage_changed_lines")
         .and_then(Value::as_bool);
     check_test_args(cx)?;
-    let source = if cx.answers.get(SOURCE).and_then(Value::as_str) == Some("project-ci") {
-        Source::ProjectCi
-    } else {
-        Source::Job
-    };
-    if source == Source::ProjectCi {
-        let existing = cx
-            .answers_of(crate::modules::ci_baseline::CI_BASELINE)?
-            .get("workflow")
-            .and_then(Value::as_str)
-            == Some("existing");
-        if !existing {
-            return refuse(
-                "Module security: coverage_source project-ci needs ci-baseline workflow existing: the project's own CI runs the tests",
-            );
-        }
-        if cx.answers.get("coverage_ratchet").and_then(Value::as_bool) == Some(true) {
-            return refuse(
-                "Module security: coverage_source project-ci refuses with coverage_ratchet true: coverage-ratchet still runs the tests itself",
-            );
-        }
-    }
     if answer == Some(false) {
         return Ok(None);
     }
@@ -203,13 +172,7 @@ pub fn judged(cx: &Context<'_>) -> Result<Option<Judged>> {
         .get("coverage_changed_lines_min")
         .and_then(Value::as_u64)
         .unwrap_or(DEFAULT_MIN);
-    let saves = cx.answers.get("coverage_ratchet").and_then(Value::as_bool) != Some(true);
-    Ok(Some(Judged {
-        apps,
-        min,
-        saves,
-        source,
-    }))
+    Ok(Some(Judged { apps, min }))
 }
 
 /// The cache key of the base reports: the commit they were measured at.
@@ -232,98 +195,124 @@ fn save_step(pins: &PinTable) -> Result<Step> {
     Ok(save)
 }
 
-/// What `coverage-ratchet` adds when it is answered and this job judges apps:
-/// per app, the per-file report written into `.coverage-base/<app>/`, then one
-/// save under the pushed commit; all on a push to the default branch.
-pub fn ratchet_save_steps(cx: &Context<'_>, pins: &PinTable) -> Result<Vec<Step>> {
-    let Some(judged) = judged(cx)? else {
-        return Ok(Vec::new());
-    };
-    let mut steps = Vec::new();
-    for (app, recipe) in &judged.apps {
-        let report = recipe.diff_report;
-        let kept = format!("$GITHUB_WORKSPACE/{BASE_DIR}/{}", app.id);
-        let mut write =
-            Step::new(format!("Write the per-file coverage report of {}", app.id)).run(format!(
-                "{}\nmkdir -p \"{kept}\"\ncp {report} \"{kept}/{report}\"",
-                recipe.render_diff_command(pins, test_args(cx, app))?
-            ));
-        write.working_directory = app.working_directory();
-        write.condition = Some(push_to_default());
-        steps.push(write);
-    }
-    steps.push(save_step(pins)?);
-    Ok(steps)
-}
-
-/// The job, or `None` when no app is judged or the project's CI measures.
-pub fn job(cx: &Context<'_>, pins: &PinTable) -> Result<Option<CiJob>> {
-    let Some(judged) = judged(cx)?.filter(|j| j.source == Source::Job) else {
-        return Ok(None);
-    };
-    let services =
-        crate::modules::ci_baseline::services::of_apps(cx, judged.apps.iter().map(|(app, _)| app))?;
-    let yaml = body(cx, pins, &judged)?;
-    Ok(Some(CiJob {
-        id: DIFF_COVERAGE.to_owned(),
-        yaml: crate::modules::ci_baseline::services::into_job(&yaml, &services),
-        skippable_under: vec![CiTier::Docs],
-        // Judged against the merge base for the whole pull request, as coverage-ratchet.
-        app: None,
-    }))
-}
-
-const REUSABLE_HEAD: &str = "# Managed by brakes (security, coverage_source: project-ci, #1349). Your CI calls it\n\
-# after the test jobs that upload agentic-coverage-<app>-* artifacts; it runs no test.\n\
+const REUSABLE_HEAD: &str = "# Managed by brakes (security, #22). Your CI calls it after the test jobs\n\
+# that upload agentic-coverage-<app>-* artifacts; it judges them and runs no test.\n\
 name: agentic-coverage\n\
 on:\n  workflow_call:\n\
 permissions:\n  contents: read\n\
-jobs:\n  diff-coverage:\n";
+jobs:\n";
 
-/// `.github/workflows/agentic-coverage.yml` under `coverage_source: project-ci`.
+/// `.github/workflows/agentic-coverage.yml`: `diff-coverage` when apps are
+/// judged and `coverage-ratchet` when it is answered; `None` with neither.
 pub fn reusable(cx: &Context<'_>, pins: &PinTable) -> Result<Option<String>> {
-    let Some(judged) = judged(cx)?.filter(|j| j.source == Source::ProjectCi) else {
+    let judged = judged(cx)?;
+    let ratchet = super::jobs::coverage(cx)?;
+    if judged.is_none() && ratchet.is_none() {
         return Ok(None);
-    };
-    Ok(Some(format!(
-        "{REUSABLE_HEAD}{}\n",
-        indent(body(cx, pins, &judged)?.trim_end(), 4)
-    )))
+    }
+    let mut out = REUSABLE_HEAD.to_owned();
+    if let Some(judged) = &judged {
+        out.push_str(&format!(
+            "  {DIFF_COVERAGE}:\n{}\n",
+            indent(body(cx, pins, judged)?.trim_end(), 4)
+        ));
+    }
+    if let Some(coverage) = &ratchet {
+        out.push_str(&format!(
+            "  {}:\n{}\n",
+            super::jobs::COVERAGE_RATCHET,
+            indent(super::jobs::ratchet_body(cx, pins, coverage)?.trim_end(), 4)
+        ));
+    }
+    Ok(Some(out))
 }
 
-/// The plan note telling the project what its CI must do under `project-ci`.
+/// The plan notes: `coverage_source` retired when answered, then what the
+/// project's CI must do for each app the reusable workflow reads.
 pub fn project_ci_notes(cx: &Context<'_>) -> Result<Vec<String>> {
-    let Some(judged) = judged(cx)?.filter(|j| j.source == Source::ProjectCi) else {
-        return Ok(Vec::new());
-    };
-    Ok(judged
-        .apps
-        .iter()
-        .map(|(app, recipe)| {
-            let data = if recipe.diff_report == "lcov.info" {
-                "its LCOV report (*.info)"
-            } else {
-                "its coverage.py data file (.coverage*)"
-            };
-            format!(
-                "{SOURCE} project-ci: upload {prefix}<job> from every test job of {id} with {data}, \
-                 call {REUSABLE} from a job named {DIFF_COVERAGE} that needs them, and make your aggregate need it",
-                prefix = artifact_prefix(app),
-                id = app.id,
-            )
-        })
-        .collect())
+    let mut notes = Vec::new();
+    if let Some(answered) = cx.answers.get(SOURCE).and_then(Value::as_str) {
+        notes.push(format!(
+            "{SOURCE} {answered} is retired and ignored: diff-coverage only reads the coverage data your CI uploads; remove the answer"
+        ));
+    }
+    let mut apps: Vec<(App, CoverageRecipe)> = judged(cx)?.map(|j| j.apps).unwrap_or_default();
+    for (app, recipe) in super::jobs::coverage(cx)?
+        .map(|c| c.apps)
+        .unwrap_or_default()
+    {
+        if !apps.iter().any(|(a, _)| a.id == app.id) {
+            apps.push((app, recipe));
+        }
+    }
+    notes.extend(apps.iter().map(|(app, recipe)| {
+        format!(
+            "{DIFF_COVERAGE}: upload {prefix}<job> from every test job of {id} with {data} ({RECIPE_GUIDE}), \
+             call {REUSABLE} from a job named {DIFF_COVERAGE} that needs them, and make your aggregate need it",
+            prefix = artifact_prefix(app),
+            id = app.id,
+            data = data_name(recipe),
+        )
+    }));
+    Ok(notes)
 }
 
-/// The job body, rendered from the fragment, for either source.
-fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
-    let project_ci = judged.source == Source::ProjectCi;
-    // Setup and measurement also run on a push when this job keeps the base report.
-    let measure_run = if judged.saves {
-        format!("{} && steps.bypass.outputs.id == ''", either_event())
+/// What the project's test job uploads, in words.
+fn data_name(recipe: &CoverageRecipe) -> &'static str {
+    if recipe.diff_report == "lcov.info" {
+        "its LCOV report (*.info)"
     } else {
-        PR_RUN.to_owned()
-    };
+        "its coverage.py data file (.coverage*)"
+    }
+}
+
+/// The download and combine steps of `app`: the parts its test jobs uploaded,
+/// combined into `diff_report` in the app directory. The combine step has the
+/// id `{id_prefix}-<app>` and outputs `skip=true` when there is nothing of the
+/// app to read: a push whose CI ran no test job of it, or a pull request that
+/// changes nothing under its path (`MERGE_BASE`). Any other missing data fails,
+/// naming the artifact and the recipe; it never measures.
+pub(super) fn combine_steps(
+    app: &App,
+    recipe: &CoverageRecipe,
+    pins: &PinTable,
+    id_prefix: &str,
+    merge_base: &str,
+) -> Result<Vec<Step>> {
+    let parts = format!("{PARTS_DIR}/{}", app.id);
+    let download = Step::new(format!("Download the coverage of {}", app.id))
+        .uses(pins.action("actions/download-artifact")?)
+        .with("pattern", format!("{}*", artifact_prefix(app)))
+        .with("path", parts.clone());
+    let absolute = format!("\"$GITHUB_WORKSPACE/{parts}\"");
+    let mut combine = Step::new(format!("Combine the coverage of {}", app.id))
+        .id(format!("{id_prefix}-{}", app.id))
+        .env("MERGE_BASE", merge_base)
+        .env("APP_PATH", app.path.clone())
+        .run(format!(
+            "if [ -z \"$(find {absolute} -type f 2> /dev/null)\" ]; then\n  \
+             if [ \"$GITHUB_EVENT_NAME\" = push ]; then\n    \
+             echo \"{id}: no test job uploaded coverage on this push; its previous base report is kept\"\n    \
+             echo \"skip=true\" >> \"$GITHUB_OUTPUT\"\n    exit 0\n  fi\n  \
+             if [ -n \"$MERGE_BASE\" ] && [ -z \"$(git -C \"$GITHUB_WORKSPACE\" diff --name-only \"$MERGE_BASE\" HEAD -- \"$APP_PATH\")\" ]; then\n    \
+             echo \"{id}: no test job uploaded coverage and the pull request changes nothing under $APP_PATH; not judged\"\n    \
+             echo \"skip=true\" >> \"$GITHUB_OUTPUT\"\n    exit 0\n  fi\n  \
+             echo \"::error::No coverage data: this run uploaded no {prefix}* artifact; upload {data} from every test job of {id} as {RECIPE_GUIDE} shows for {stack}. brakes never runs the tests to measure them\"\n  \
+             exit 1\nfi\n{combine}",
+            id = app.id,
+            prefix = artifact_prefix(app),
+            data = data_name(recipe),
+            stack = app.stack,
+            combine = recipe.render_combine(pins, &absolute)?
+        ));
+    combine.working_directory = app.working_directory();
+    Ok(vec![download, combine])
+}
+
+/// The job body, rendered from the fragment.
+fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
+    // Setup and combine also run on a push to the default branch, which keeps the base report.
+    let measure_run = format!("{} && steps.bypass.outputs.id == ''", either_event());
     let mut steps: Vec<Step> = Vec::new();
     let push = |steps: &mut Vec<Step>, mut step: Step, run: &str| {
         step.condition = match step.condition.take() {
@@ -336,19 +325,13 @@ fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
             steps.push(step);
         }
     };
-    for (app, recipe) in &judged.apps {
-        // Under project-ci only coverage.py needs the project's environment to combine.
-        if project_ci && app.stack != StackId::PythonUv {
+    // Only coverage.py needs the project's environment to combine.
+    for (app, _) in &judged.apps {
+        if app.stack != StackId::PythonUv {
             continue;
         }
         for step in (packs::pack(app.stack).ci_setup)(app, pins)? {
             push(&mut steps, step, &measure_run);
-        }
-        if project_ci {
-            continue;
-        }
-        if let Some(install) = recipe.install_step(pins)? {
-            push(&mut steps, install, &measure_run);
         }
     }
     // diff-cover is a Python tool run with uvx on both packs (SPEC-security.md).
@@ -380,91 +363,53 @@ fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
         PR_RUN,
     );
     for (app, recipe) in &judged.apps {
-        if project_ci {
-            let parts = format!("{PARTS_DIR}/{}", app.id);
-            push(
-                &mut steps,
-                Step::new(format!("Download the coverage of {}", app.id))
-                    .uses(pins.action("actions/download-artifact")?)
-                    .with("pattern", format!("{}*", artifact_prefix(app)))
-                    .with("path", parts.clone()),
-                &measure_run,
-            );
-            let absolute = format!("\"$GITHUB_WORKSPACE/{parts}\"");
-            // A CI that filters by path runs no test job for an app the change
-            // leaves alone: nothing of it to judge, and a push keeps its last report.
-            let mut combine = Step::new(format!("Combine the coverage of {}", app.id))
-                .id(format!("measure-{}", app.id))
-                .env("MERGE_BASE", "${{ steps.merge-base.outputs.sha }}")
-                .env("APP_PATH", app.path.clone())
-                .run(format!(
-                    "if [ -z \"$(find {absolute} -type f 2> /dev/null)\" ]; then\n  \
-                     if [ \"$GITHUB_EVENT_NAME\" = push ]; then\n    \
-                     echo \"{id}: no test job uploaded coverage on this push; its previous base report is kept\"\n    \
-                     echo \"skip=true\" >> \"$GITHUB_OUTPUT\"\n    exit 0\n  fi\n  \
-                     if [ -n \"$MERGE_BASE\" ] && [ -z \"$(git -C \"$GITHUB_WORKSPACE\" diff --name-only \"$MERGE_BASE\" HEAD -- \"$APP_PATH\")\" ]; then\n    \
-                     echo \"{id}: no test job uploaded coverage and the pull request changes nothing under $APP_PATH; not judged\"\n    \
-                     echo \"skip=true\" >> \"$GITHUB_OUTPUT\"\n    exit 0\n  fi\n  \
-                     echo \"::error::No coverage data: this run uploaded no {prefix}* artifact\"\n  exit 1\nfi\n{combine}",
-                    id = app.id,
-                    prefix = artifact_prefix(app),
-                    combine = recipe.render_combine(pins, &absolute)?
-                ));
-            combine.working_directory = app.working_directory();
-            push(&mut steps, combine, &measure_run);
-            continue;
+        for step in combine_steps(
+            app,
+            recipe,
+            pins,
+            "measure",
+            "${{ steps.merge-base.outputs.sha }}",
+        )? {
+            push(&mut steps, step, &measure_run);
         }
-        let mut measure = Step::new(format!("Measure coverage of {}", app.id))
-            .id(format!("measure-{}", app.id))
-            .run(recipe.render_diff_command(pins, test_args(cx, app))?);
-        measure.working_directory = app.working_directory();
-        push(&mut steps, measure, &measure_run);
     }
-    if judged.saves && project_ci {
-        // The pushed commit's entry starts from its parent's, so an app no test
-        // job measured on this push keeps the report it had (#1349).
-        let mut previous = Step::new("Restore the previous base report")
-            .uses(pins.action("actions/cache/restore")?)
-            .with("key", cache_key("github.event.before"))
-            .with("path", BASE_DIR);
-        previous.condition = Some(push_to_default());
-        steps.push(previous);
-    }
-    if judged.saves {
-        let keep: Vec<String> = judged
-            .apps
-            .iter()
-            .map(|(app, recipe)| {
-                let copy = format!(
-                    "mkdir -p {BASE_DIR}/{}\ncp {}{} {}",
-                    app.id,
-                    app.prefix(),
-                    recipe.diff_report,
-                    base_report(app, recipe)
-                );
-                if project_ci {
-                    format!(
-                        "if [ -f {}{} ]; then\n{}\nfi",
-                        app.prefix(),
-                        recipe.diff_report,
-                        indent(&copy, 2)
-                    )
-                } else {
-                    copy
-                }
-            })
-            .collect();
-        let mut kept = Step::new("Keep the per-file coverage reports").run(keep.join("\n"));
-        kept.condition = Some(push_to_default());
-        steps.push(kept);
-        steps.push(save_step(pins)?);
-    }
+    // The pushed commit's entry starts from its parent's, so an app no test
+    // job measured on this push keeps the report it had (#1349).
+    let mut previous = Step::new("Restore the previous base report")
+        .uses(pins.action("actions/cache/restore")?)
+        .with("key", cache_key("github.event.before"))
+        .with("path", BASE_DIR);
+    previous.condition = Some(push_to_default());
+    steps.push(previous);
+    let keep: Vec<String> = judged
+        .apps
+        .iter()
+        .map(|(app, recipe)| {
+            let copy = format!(
+                "mkdir -p {BASE_DIR}/{}\ncp {}{} {}",
+                app.id,
+                app.prefix(),
+                recipe.diff_report,
+                base_report(app, recipe)
+            );
+            format!(
+                "if [ -f {}{} ]; then\n{}\nfi",
+                app.prefix(),
+                recipe.diff_report,
+                indent(&copy, 2)
+            )
+        })
+        .collect();
+    let mut kept = Step::new("Keep the per-file coverage reports").run(keep.join("\n"));
+    kept.condition = Some(push_to_default());
+    steps.push(kept);
+    steps.push(save_step(pins)?);
     // Judged even when an earlier verdict fails: each app and each rule stands
-    // alone; an app whose measurement failed is reported once, by that step (#1170).
+    // alone; an app whose combine failed is reported once, by that step (#1170).
     let judging = format!("${{{{ !cancelled() && {PR_RUN} }}}}");
     // The shell is embedded once and run by every judging step, so the job
     // stays well under the workflow reader's size cap. Written under the
-    // judging steps' base condition (#1169): after one app's failed measurement
+    // judging steps' base condition (#1169): after one app's failed combine
     // the other apps are still judged, and a missing script (exit 127) would
     // hide the cause.
     let mut write = Step::new("Write diff-coverage.sh").run(format!(
@@ -475,14 +420,9 @@ fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
     steps.push(write);
     let diff_cover = format!("uvx diff-cover=={}", pins.tool("diff-cover")?.version);
     for (app, recipe) in &judged.apps {
-        let skipped = if project_ci {
-            format!(" && steps.measure-{}.outputs.skip != 'true'", app.id)
-        } else {
-            String::new()
-        };
         let judging = format!(
-            "${{{{ !cancelled() && {PR_RUN} && steps.measure-{}.outcome == 'success'{skipped} }}}}",
-            app.id
+            "${{{{ !cancelled() && {PR_RUN} && steps.measure-{id}.outcome == 'success' && steps.measure-{id}.outputs.skip != 'true' }}}}",
+            id = app.id
         );
         let (format, ext, absent) =
             stack_shell(app.stack).expect("covered_apps keeps the supported stacks");
@@ -503,22 +443,14 @@ fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
                 .env("MIN", judged.min.to_string())
                 .env("DIFF_COVER", diff_cover.clone()),
         );
+        // A missing base report warns: recomputing it would run the tests (#22).
         let mut characterization = common(
             format!("Characterization first of {}", app.id),
             "characterization",
         )
         .env("APP_PATH", app.path.clone())
-        .env("APP_DIR", app.path.clone())
         .env("BASE_REPORT", base_report(app, recipe))
         .env("SOURCE_EXT", ext);
-        // Under project-ci there is no command: a missing base report warns instead
-        // of running the tests again at the merge base (#1349).
-        if !project_ci {
-            characterization = characterization.env(
-                "DIFF_COMMAND",
-                recipe.render_diff_command(pins, test_args(cx, app))?,
-            );
-        }
         // A narrowed rust selection leaves the other members out of the
         // report: absent there means not measured, not unexecuted (#1177).
         characterization = if app.stack == StackId::Rust && test_args(cx, app).is_some() {
@@ -542,48 +474,29 @@ fn body(cx: &Context<'_>, pins: &PinTable, judged: &Judged) -> Result<String> {
         steps.push(characterization);
     }
     let steps: String = steps.iter().map(step_yaml).collect();
-    let checkout_if = if judged.saves {
-        either_event()
-    } else {
-        "github.event_name == 'pull_request'".to_owned()
-    };
-    let gate = if project_ci {
-        String::new()
-    } else {
-        "needs: scope\nif: needs.scope.outputs.tier != 'docs'\n".to_owned()
-    };
     let pairs = [
-        ("gate", gate),
         ("coverage_runner", coverage_runner(cx)?),
         ("checkout", pins.action("actions/checkout")?.uses()),
-        ("checkout_if", checkout_if),
-        (
-            "bypass_max_days",
-            cx.answers
-                .get("bypass_max_days")
-                .and_then(Value::as_u64)
-                .unwrap_or(30)
-                .to_string(),
-        ),
+        ("checkout_if", either_event()),
+        ("bypass_max_days", bypass_max_days(cx)),
         (
             "bypass_variable",
             indent(&without_comment_lines(BYPASS_VARIABLE), 6),
         ),
         ("steps", steps.trim_end().to_owned()),
-        // The head, and the merge base again when no base report is cached:
-        // always on the pull request that installs the job (#1213). No test
-        // runs under project-ci.
-        (
-            "timeout",
-            if project_ci {
-                COMBINE_TIMEOUT.to_string()
-            } else {
-                coverage_timeout(cx, 2)
-            },
-        ),
+        ("timeout", COMBINE_TIMEOUT.to_string()),
     ];
     Ok(fill(JOB, &pairs))
 }
 
-/// The reusable job's timeout: it downloads, combines and judges, no test.
-const COMBINE_TIMEOUT: u32 = 15;
+/// `bypass_max_days`, 30 unless answered.
+pub(super) fn bypass_max_days(cx: &Context<'_>) -> String {
+    cx.answers
+        .get("bypass_max_days")
+        .and_then(Value::as_u64)
+        .unwrap_or(30)
+        .to_string()
+}
+
+/// The reusable jobs' timeout: they download, combine and judge, no test.
+pub const COMBINE_TIMEOUT: u32 = 15;
