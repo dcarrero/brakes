@@ -103,7 +103,10 @@ holds `stack-packs`, `merge-guard`, `repo-baseline`, `agent-guardrails`, `securi
 module is active; without it, `merge-guard` declares the `hook-registered` manual step.
 `install` reconciles every module the installed lock records and every
 `--module <id>`; an id no compiled module answers to is refused by name, and the lock
-entries of a recorded module this build does not know are carried over untouched. A
+entries of a recorded module this build does not ship are released (#48): they
+leave the lock, the plan prints `RELEASED [<module>] <path> — <what>` before the
+changes, and the files stay as the project's, a managed block losing only its
+markers; a lock a newer installer wrote is refused instead. A
 module whose `requires` is not active in the same plan is refused with the
 `--module` that adds it; nothing is installed on its behalf.
 The engine resolves and validates the answers of every active module once per

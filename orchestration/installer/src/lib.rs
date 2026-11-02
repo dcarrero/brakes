@@ -210,6 +210,50 @@ pub fn block_content(text: &str) -> Result<Option<&str>> {
     Ok(found)
 }
 
+/// `text` with its managed block's two marker lines removed and everything else kept,
+/// for a block whose module is released (#48); `None` when `text` holds no block.
+/// A marker that shares its line with other text, a duplicate or an incomplete block
+/// refuses: releasing never guesses which text is the project's.
+pub fn unmark_block(text: &str) -> Result<Option<String>> {
+    let Some(block) = block_content(text)? else {
+        return Ok(None);
+    };
+    let pair = std::iter::once((BEGIN, END))
+        .chain(legacy::BLOCK_MARKERS.iter().copied())
+        .find(|(begin, end)| block.starts_with(begin) && block.ends_with(end));
+    let Some((begin, end)) = pair else {
+        return refuse("Duplicate or incomplete managed block");
+    };
+    let start = text.find(block).expect("the block is in the text");
+    let stop = start + block.len();
+    let own_line = (start == 0 || text[..start].ends_with('\n'))
+        && block[begin.len()..].starts_with('\n')
+        && block[..block.len() - end.len()].ends_with('\n')
+        && (stop == text.len() || text[stop..].starts_with('\n'));
+    if !own_line {
+        return refuse("A managed block marker shares its line with other text");
+    }
+    let inner = &block[begin.len() + 1..block.len() - end.len()];
+    let after = text[stop..].strip_prefix('\n').unwrap_or("");
+    Ok(Some(format!("{}{inner}{after}", &text[..start])))
+}
+
+/// True when the dotted version `a` is newer than `b`, comparing numeric parts;
+/// a part that is not a number compares as 0.
+pub fn version_newer(a: &str, b: &str) -> bool {
+    let parts = |v: &str| -> Vec<u64> {
+        v.trim_start_matches('v')
+            .split('.')
+            .map(|p| p.parse().unwrap_or(0))
+            .collect()
+    };
+    let (mut a, mut b) = (parts(a), parts(b));
+    let len = a.len().max(b.len());
+    a.resize(len, 0);
+    b.resize(len, 0);
+    a > b
+}
+
 /// The current ruleset name a former one was renamed to (#1067).
 pub fn renamed_ruleset(name: &str) -> Option<&'static str> {
     legacy::RULESET_NAMES
@@ -345,7 +389,8 @@ pub fn remove(root: &Path, module_id: &str) -> Result<engine::Planned> {
 /// and the module notes. `apply_changes` picks `WRITE`/`DELETE` over `PLAN`.
 /// `configure`, `install` and `remove` print these; `mcp`'s `plan` returns them.
 pub fn plan_lines(planned: &engine::Planned, apply_changes: bool) -> Vec<String> {
-    let mut lines = Vec::new();
+    // What a module this build does not ship leaves behind comes first (#48).
+    let mut lines = planned.released.clone();
     for (name, content) in &planned.changes {
         let verb = match (apply_changes, content.is_some()) {
             (true, true) => "WRITE",

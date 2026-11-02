@@ -685,15 +685,17 @@ fn remove_works_for_a_module_recorded_in_the_lock_but_no_longer_compiled() {
 
 #[test]
 fn a_path_recorded_for_another_module_is_refused_for_every_class() {
+    // The other owner is a module this build ships, not active in this plan. A module
+    // this build does not ship is released instead (#48, tests/engine_release.rs).
     for path in [MANAGED, BLOCK, SEED, NEVER_TOUCH, REMOTE] {
         let f = Fixture::new();
         f.apply();
         let mut lock = f.lock();
-        lock["files"][path]["module"] = json!("other");
+        lock["files"][path]["module"] = json!("qa");
         f.write(LOCK, &serde_json::to_string(&lock).unwrap());
         assert_eq!(
             f.refusal(&[&SetupCore, &FixtureModule]),
-            format!("Managed destination owned by module other: {path}")
+            format!("Managed destination owned by module qa: {path}")
         );
     }
 }

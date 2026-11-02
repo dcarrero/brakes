@@ -4,6 +4,42 @@ These are the decisions the design of `brakes` depends on. They were taken durin
 earlier development, imported into this repository and rewritten in neutral terms; each keeps
 its original date and is marked "imported". Newer decisions are added above them, newest first.
 
+## A module the lock records and this build does not ship is released, not refused — 2026-11-02
+
+Decided upstream by the owner when the installer's earlier copy was retired. Context: repositories
+installed by an earlier, larger build carry about 29 lock entries of `setup-core` (guides under
+`docs/agent-setup/`, the managed block of `AGENTS.md` and `CLAUDE.md`). This product never ships
+that module, so every plan refused them (`Managed destination owned by module setup-core:
+AGENTS.md`) and no build of this repository could update them.
+
+1. **Released.** In an `install` or `configure` plan, a module the lock records that is neither
+   active nor compiled into this build leaves the lock with every entry of every class. Nothing
+   on disk is deleted: its files stay as the project's own content, a managed block loses its two
+   marker lines and keeps its text, `managed-entries` stay as the project's members, and its
+   answers file stays.
+2. **Seen before `--apply`.** The plan prints one `RELEASED [<module>] <path> — <what>` line per
+   path, before the changes. A second plan after `--apply` prints `No changes.`: every module
+   renders against the lock as it is once released, so both plans agree.
+3. **Refusals that stay.**
+   - A lock written by a newer installer is refused instead: an older build never drops what a
+     newer one owns.
+   - A released `never-touch` path still refuses a render in the plan that releases it.
+   - A block marker that shares its line with other text, or a duplicate or incomplete block,
+     refuses rather than guess which text is the project's.
+   - A `managed` render over a released file still refuses, as over any unowned file.
+4. **Accepted trade-offs**, named so nobody rediscovers them:
+   - Switching to a build that ships the module again does not take its files back; the owner
+     moves them aside or adopts them.
+   - Released remote settings stay as they are on the host and are no longer tracked.
+   - `remove <module>` cannot clean up after a release; the plan shows the released paths first,
+     so an owner who wants the files gone removes the module before applying.
+   - Released text may contradict a block an active module adds after it (`AGENTS.md`); the owner
+     edits the released text, which is now theirs.
+   - A kept answers file can be stale if the module is installed again later.
+   - `remove` plans never release; only `install` and `configure` do.
+
+Reviewed before implementation by a fresh-context reviewer and by a second model family.
+
 ## A project declares the paths that are not its files; `doctor`'s file scans skip them — 2026-11-02
 
 Context (#16): `doctor` walks the checkout for Dockerfiles and Playwright specs and judges every

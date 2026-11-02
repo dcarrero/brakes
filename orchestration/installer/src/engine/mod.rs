@@ -70,6 +70,9 @@ pub struct Planned {
     /// What each `SKIP` seed would have written, by path: `adopt` compares it
     /// with what exists to tell an open proposal from a seed already in place.
     pub skipped_seeds: BTreeMap<String, String>,
+    /// One `RELEASED [<module>] <path> — <what>` line per path of a module the lock
+    /// records and this build does not ship (#48), printed before the changes.
+    pub released: Vec<String>,
 }
 
 /// `owner/name` of the checkout's `origin`, as its fetch URLs write it (without
@@ -314,7 +317,7 @@ fn plan_with(
         .find(|m| m.id() == lock::SETUP_CORE)
         .map_or("0.0.0", |m| m.version());
     let old_raw = read(root, LOCK)?;
-    let previous = match &old_raw {
+    let mut previous = match &old_raw {
         Some(raw) => Lock::parse(raw, core_version, known)?,
         None => Lock {
             schema: lock::SCHEMA,
@@ -354,7 +357,79 @@ fn plan_with(
         modules: BTreeMap::new(),
         files: BTreeMap::new(),
     };
-    // Entries of modules this invocation does not know are carried over untouched.
+    // A module the lock records and this build does not ship is released (#48): its
+    // entries leave the lock, its files stay as the project's own content, a managed
+    // block losing only its markers. A lock a newer installer wrote is refused
+    // instead: an older build never drops what a newer one owns.
+    let shipped = |id: &str| active.contains(id) || crate::modules::find(id).is_some();
+    let released_modules: BTreeSet<String> = previous
+        .modules
+        .keys()
+        .map(String::as_str)
+        .chain(previous.files.values().map(|e| e.module.as_str()))
+        .filter(|id| !shipped(id))
+        .map(str::to_owned)
+        .collect();
+    if !released_modules.is_empty()
+        && crate::version_newer(&previous.version, env!("CARGO_PKG_VERSION"))
+    {
+        return refuse(format!(
+            "The lock was written by brakes {}, newer than this build ({}); it records {}, which this build does not ship. Update brakes before planning this repository",
+            previous.version,
+            env!("CARGO_PKG_VERSION"),
+            released_modules
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    let mut released = Vec::new();
+    // The text a released managed block leaves, by path: what an active module
+    // rendering there reads instead of the file on disk.
+    let mut unmarked: BTreeMap<String, String> = BTreeMap::new();
+    let mut released_never_touch: BTreeSet<String> = BTreeSet::new();
+    for (path, entry) in &previous.files {
+        if !released_modules.contains(entry.module.as_str()) {
+            continue;
+        }
+        let what = match entry.class {
+            Ownership::ManagedBlock => {
+                if let Some(text) = read(root, path)? {
+                    match crate::unmark_block(&text) {
+                        Ok(Some(kept)) => {
+                            unmarked.insert(path.clone(), kept);
+                        }
+                        Ok(None) => {}
+                        Err(error) => {
+                            return refuse(format!(
+                                "Cannot release {path} of module {}: {error}",
+                                entry.module
+                            ));
+                        }
+                    }
+                }
+                "the managed block loses its markers and keeps its text"
+            }
+            Ownership::Remote => "a host setting, left as it is",
+            Ownership::NeverTouch => {
+                released_never_touch.insert(path.clone());
+                "kept as the project's own file"
+            }
+            _ => "kept as the project's own file",
+        };
+        released.push(format!("RELEASED [{}] {path} — {what}", entry.module));
+    }
+    // Every module renders against the lock as it is once released, so this plan and
+    // the next one agree (a released workflow is foreign to both).
+    previous
+        .modules
+        .retain(|id, _| !released_modules.contains(id));
+    previous
+        .files
+        .retain(|_, entry| !released_modules.contains(&entry.module));
+    // Entries of modules not active in this plan that this build ships are carried
+    // over untouched.
     for (id, entry) in &previous.modules {
         if !active.contains(id.as_str()) {
             next.modules.insert(id.clone(), entry.clone());
@@ -476,10 +551,12 @@ fn plan_with(
         }));
     }
     steps.sort_by(|a, b| (&a.module, &a.id).cmp(&(&b.module, &b.id)));
+    // A released never-touch path stays protected in the plan that releases it.
     let never_touch: BTreeSet<&str> = items
         .iter()
         .filter(|(_, item)| item.class == Ownership::NeverTouch)
         .map(|(_, item)| item.path.as_str())
+        .chain(released_never_touch.iter().map(String::as_str))
         .collect();
     let mut rendered_paths: BTreeSet<String> = BTreeSet::new();
     for (module, item) in &items {
@@ -494,6 +571,7 @@ fn plan_with(
             return refuse(format!("Path rendered by two modules: {}", item.path));
         }
         tags.insert(item.path.clone(), (item.class, module.id().to_owned()));
+        // A released entry left `previous` above: the module renders its path as unowned.
         let prior = previous.files.get(&item.path);
         if let Some(prior) =
             prior.filter(|p| p.module != module.id() && !took_over(*module, &p.module, &item.path))
@@ -545,7 +623,10 @@ fn plan_with(
             }
             (_, Some(content)) => content,
         };
-        let current = read(root, &item.path)?;
+        let current = match unmarked.get(&item.path) {
+            Some(text) => Some(text.clone()),
+            None => read(root, &item.path)?,
+        };
         if item.class == Ownership::ManagedEntries {
             // The module owns the fragment's entries inside the project's file (#747):
             // missing ones are appended, present ones left alone, edited ones refused,
@@ -720,6 +801,10 @@ fn plan_with(
             next = kept;
         }
     }
+    // A released block nobody rendered over is written without its markers.
+    for (path, text) in unmarked {
+        changes.entry(path).or_insert(Some(text));
+    }
     let serialized = next.to_json_string()?;
     if old_raw.as_deref() != Some(&serialized) {
         changes.insert(LOCK.to_owned(), Some(serialized));
@@ -735,6 +820,7 @@ fn plan_with(
         steps,
         plan_notes,
         skipped_seeds,
+        released,
     })
 }
 
@@ -1116,6 +1202,7 @@ pub fn remove(
         steps: Vec::new(),
         plan_notes: Vec::new(),
         skipped_seeds: BTreeMap::new(),
+        released: Vec::new(),
     })
 }
 
