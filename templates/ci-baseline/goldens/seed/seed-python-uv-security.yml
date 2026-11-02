@@ -1,0 +1,130 @@
+name: CI
+# Seeded by brakes ci-baseline 1.0.0: this workflow is yours from now on. brakes
+# wrote it once and never rewrites it; `brakes doctor` audits it and proposes patches.
+# Your CI runs your declared commands, once per pull request, read at run time from
+# .agent-setup/project.json; `required` passes only when every job succeeded. brakes'
+# own jobs only judge, in agentic-security.yml (`agentic-required`). Workflows are a
+# protected path: a change to this file needs the human-approved label.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  lint:
+    name: lint
+    runs-on: example-cloud-2
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: "false"
+          version: "0.13.6"
+      - name: Restore uv cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: "${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}"
+          path: "~/.cache/uv"
+      - name: Install Python
+        run: uv python install 3.13
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Save uv cache
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: "${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}"
+          path: "~/.cache/uv"
+      - name: Run declared lint
+        env:
+          NAME: lint
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          : "${NAME:?NAME is not set}"
+          cmd="$(jq -r --arg name "$NAME" '.commands[$name] // empty' .agent-setup/project.json)"
+          if [ -z "$cmd" ]; then
+            echo "::error::Verification command missing: commands.$NAME is not declared in .agent-setup/project.json"
+            exit 1
+          fi
+          echo "$NAME: $cmd"
+          bash -euo pipefail -c "$cmd"
+  test:
+    name: test
+    runs-on: example-cloud-2
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: "false"
+          version: "0.13.6"
+      - name: Restore uv cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: "${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}"
+          path: "~/.cache/uv"
+      - name: Install Python
+        run: uv python install 3.13
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Save uv cache
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: "${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}"
+          path: "~/.cache/uv"
+      - name: "Run the tests under coverage, in place of the declared test command"
+        run: "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report="
+      - name: Upload the coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          if-no-files-found: error
+          include-hidden-files: "true"
+          name: agentic-coverage-root-test
+          path: ".coverage"
+  diff-coverage:
+    name: diff-coverage
+    needs: test
+    uses: ./.github/workflows/agentic-coverage.yml
+  required:
+    name: required
+    needs: [lint, test, diff-coverage]
+    if: always()
+    runs-on: example-cloud-2
+    timeout-minutes: 5
+    steps:
+      - name: Decide the required check
+        env:
+          NEEDS: "${{ toJSON(needs) }}"
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          : "${NEEDS:?NEEDS is not set}"
+          if ! failed="$(printf '%s' "$NEEDS" | jq -er 'if type == "object" and length > 0 then [to_entries[] | select(.value.result != "success") | "\(.key): \(.value.result)"] | join("\n") else error("no jobs") end')"; then
+            echo "::error::required: cannot read the results of the jobs it needs"
+            exit 1
+          fi
+          if [ -n "$failed" ]; then
+            while IFS= read -r line; do
+              printf '::error::required: %s\n' "$line"
+            done <<< "$failed"
+            exit 1
+          fi
+          echo "required: every job succeeded"

@@ -585,8 +585,29 @@ This section states what the module
 check, the runner policy, remote settings and its rules' levels) are in
 `docs/decisions.md`; this section repeats none of them.
 
-**Commands are read at run time.** `ci-baseline` requires `stack-packs` and renders
-one `managed` workflow, `.github/workflows/ci.yml` (`name: CI`). Which commands run is
+**The project's CI is a seed (`workflow: seed`, the default).** The project's CI runs
+the project's commands; `brakes` installs and audits the gates around it and never runs
+them (decision 2026-11-02). Under `seed`, `ci-baseline` writes `.github/workflows/ci.yml`
+once, as class `seed`, and never re-renders it: one job per declared command (`lint`,
+`test` or `verify` when `test` is `null`, `build`; in a monorepo `<app>-<command>` in
+each app's directory, from its own profile, plus the root profile's commands when no app
+sits at `.`), each with its pack's `ci_setup` and the command read at run time; when
+`security` is active and judges changed lines, the test job runs its pack's
+`upload_steps` (`stack-packs`, `CoverageUpload`) and a `diff-coverage` job calls
+`./.github/workflows/agentic-coverage.yml`; `required` (`if: always()`) passes only when
+every other job succeeded (`seed-required.sh`). A pack without coverage is named in the
+seed's header with its `no_coverage` reason; a macOS-target app is left to the project.
+From then on the module behaves as under `existing` with `aggregate_check` `required`:
+its judges (scope, `workflow-lint`, the held-out jobs and every contributed job) go to
+`agentic-security.yml` with `agentic-required`, and the required checks are `required`
+and `agentic-required`. With a workflow of the project's own already present no seed is
+written and a plan note says to answer `existing`. Unanswered, `workflow` is `generate`
+where the installed lock records a workflow this module generated, so an install from
+before `seed` keeps its output; `generate` prints a deprecation note.
+
+**Commands are read at run time (`workflow: generate`, deprecated).** `ci-baseline`
+requires `stack-packs` and renders one `managed` workflow, `.github/workflows/ci.yml`
+(`name: CI`). Which commands run is
 decided at render time: the `commands` answer, or, unanswered, `lint`, then `test` (or
 `verify` when `test` is `null`), then `build`, each where the profile declares it; with
 no declared command at all the plan refuses. What each command is, the workflow reads

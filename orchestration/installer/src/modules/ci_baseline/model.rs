@@ -4,7 +4,7 @@
 //! the composition contract beside `Module` in the engine.
 use crate::{
     Result,
-    engine::Context,
+    engine::{Context, Lock, Ownership},
     host::desired::Supersession,
     modules::{qa, stack_packs},
     refuse,
@@ -88,17 +88,61 @@ pub enum Skippable {
 /// `workflow`: render the baseline, or record and audit the project's own.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorkflowMode {
+    /// The project's CI is a seed written once and owned by the project; the
+    /// brakes' judges go to `agentic-security.yml` (#21, decision 2026-11-02).
+    Seed,
+    /// Deprecated: one managed workflow that runs the declared commands.
     Generate,
     Existing,
 }
 
 impl WorkflowMode {
-    pub const ALL: [WorkflowMode; 2] = [WorkflowMode::Generate, WorkflowMode::Existing];
+    pub const ALL: [WorkflowMode; 3] = [
+        WorkflowMode::Seed,
+        WorkflowMode::Generate,
+        WorkflowMode::Existing,
+    ];
     pub const fn as_str(self) -> &'static str {
         match self {
+            WorkflowMode::Seed => "seed",
             WorkflowMode::Generate => "generate",
             WorkflowMode::Existing => "existing",
         }
+    }
+    /// The project's own CI runs the declared commands: no workflow `brakes`
+    /// owns runs them, and its judges report through `agentic-required`.
+    pub const fn project_owns_ci(self) -> bool {
+        !matches!(self, WorkflowMode::Generate)
+    }
+}
+
+/// The effective `workflow` (#21): the answer; unanswered, `generate` where the
+/// installed lock records a workflow this module generated, so an install from
+/// before `seed` keeps its output until it migrates (#25), else `seed`.
+pub fn workflow_mode(answers: &crate::engine::answers::Answers, previous: &Lock) -> WorkflowMode {
+    if let Some(answer) = answers.get("workflow").and_then(Value::as_str) {
+        return pick(
+            &WorkflowMode::ALL,
+            WorkflowMode::as_str,
+            Some(answer),
+            WorkflowMode::Seed,
+        );
+    }
+    let generated = [
+        super::render::WORKFLOW_PATH,
+        super::brownfield::BROWNFIELD_PATH,
+    ]
+    .iter()
+    .any(|path| {
+        previous
+            .files
+            .get(*path)
+            .is_some_and(|e| e.module == super::CI_BASELINE && e.class == Ownership::Managed)
+    });
+    if generated {
+        WorkflowMode::Generate
+    } else {
+        WorkflowMode::Seed
     }
 }
 
@@ -279,7 +323,7 @@ pub struct AppCommands {
 /// The profile of an app: `.agent-setup/project.json` under its path (Decision
 /// 8). Read at render time only to decide which steps exist; the workflow reads
 /// it again at run time.
-fn app_profile(root: &std::path::Path, id: &str, path: &str) -> Result<Value> {
+pub(super) fn app_profile(root: &std::path::Path, id: &str, path: &str) -> Result<Value> {
     let file = format!("{path}/.agent-setup/project.json");
     let Some(text) = crate::read(root, &file)? else {
         return refuse(format!(
@@ -345,12 +389,7 @@ impl CiBaselineAnswers {
                     .collect()
             })
         };
-        let workflow = pick(
-            &WorkflowMode::ALL,
-            WorkflowMode::as_str,
-            text("workflow"),
-            WorkflowMode::Generate,
-        );
+        let workflow = workflow_mode(a, cx.previous);
         // The engine drops `aggregate_check` unless `workflow == existing`.
         let aggregate_check = text("aggregate_check")
             .unwrap_or(AGGREGATE_CHECK)
@@ -395,7 +434,7 @@ impl CiBaselineAnswers {
             Vec::new()
         };
         let commands = match workflow {
-            WorkflowMode::Existing => Vec::new(),
+            WorkflowMode::Existing | WorkflowMode::Seed => Vec::new(),
             WorkflowMode::Generate => match strings("commands") {
                 Some(names) => names
                     .iter()
@@ -454,13 +493,13 @@ impl CiBaselineAnswers {
         let answered_heldout = a.get("heldout").and_then(Value::as_bool);
         // Under existing the directory still decides: no silent new required check.
         let heldout = answered_heldout.unwrap_or_else(|| {
-            workflow == WorkflowMode::Generate || cx.root.join(&heldout_dir).is_dir()
+            workflow != WorkflowMode::Existing || cx.root.join(&heldout_dir).is_dir()
         });
         // No held-out tests yet (#1362): the default job is pending, never an
         // invented command; a test in the directory needs the answer.
         let pending = heldout
             && answered_heldout.is_none()
-            && workflow == WorkflowMode::Generate
+            && workflow != WorkflowMode::Existing
             && text("heldout_command").is_none()
             && !holds_files(&cx.root.join(&heldout_dir));
         let heldout_command = if heldout && !pending {
@@ -656,7 +695,7 @@ pub fn is_declared(cx: &Context<'_>, command: Command) -> bool {
 
 /// `lint`, `test`, `build` where declared, in that order; `verify` in place of
 /// `test` when `test` is null.
-fn derive(declared: impl Fn(Command) -> bool) -> Vec<Command> {
+pub(super) fn derive(declared: impl Fn(Command) -> bool) -> Vec<Command> {
     let test = if declared(Command::Test) {
         Some(Command::Test)
     } else {
@@ -709,14 +748,15 @@ pub fn required_checks(cx: &Context<'_>) -> Result<Option<Vec<String>>> {
     let Some(ci) = ci_context(cx) else {
         return Ok(None);
     };
-    let existing =
-        ci.answers.get("workflow").and_then(Value::as_str) == Some(WorkflowMode::Existing.as_str());
-    if !existing {
+    if !workflow_mode(ci.answers, ci.previous).project_owns_ci() {
         return Ok(Some(vec![AGGREGATE_CHECK.to_owned()]));
     }
     let loaded = CiBaselineAnswers::load(&ci)?;
     let mut checks = vec![loaded.aggregate_check];
-    if loaded.heldout || !super::compose::contributed(&ci)?.is_empty() {
+    if loaded.workflow == WorkflowMode::Seed
+        || loaded.heldout
+        || !super::compose::contributed(&ci)?.is_empty()
+    {
         checks.push(super::CONTRIBUTED_AGGREGATE_CHECK.to_owned());
     }
     Ok(Some(checks))
@@ -735,9 +775,7 @@ pub fn switches_required_check(cx: &Context<'_>) -> Result<bool> {
     if super::brownfield::switch_checks(&cx.profile.value) != [AGGREGATE_CHECK] {
         return Ok(false);
     }
-    let existing =
-        ci.answers.get("workflow").and_then(Value::as_str) == Some(WorkflowMode::Existing.as_str());
-    if existing {
+    if workflow_mode(ci.answers, ci.previous).project_owns_ci() {
         return Ok(false);
     }
     let foreign = super::brownfield::foreign_workflows(&ci)?;

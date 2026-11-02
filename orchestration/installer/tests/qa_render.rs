@@ -71,6 +71,8 @@ impl Repo {
         assert!(status.success());
         let repo = Self { _temp: temp, root };
         repo.ok(&["install", "<repo>", "--new-personal", "--apply"]);
+        // The deprecated generated `ci.yml` these goldens are (#21), pinned until #25.
+        repo.answer("ci-baseline", json!({"workflow": "generate"}));
         let path = ".agent-setup/project.json";
         let mut profile: Value = serde_json::from_str(&repo.read(path)).unwrap();
         profile["commands"]["test"] = "cargo test --locked".into();
@@ -553,7 +555,10 @@ mod resolved {
             )
             .unwrap(),
         );
-        resolved.insert("ci-baseline".to_owned(), Answers::new());
+        resolved.insert(
+            "ci-baseline".to_owned(),
+            serde_json::from_value::<Answers>(json!({"workflow": "generate"})).unwrap(),
+        );
         let cx = Context::new(
             &repo.root, &profile, &source, &lock, &answers, &Qa, &resolved,
         );
@@ -596,7 +601,10 @@ mod resolved {
             "stack-packs".to_owned(),
             serde_json::from_value::<Answers>(packs).unwrap(),
         );
-        resolved.insert("ci-baseline".to_owned(), Answers::new());
+        resolved.insert(
+            "ci-baseline".to_owned(),
+            serde_json::from_value::<Answers>(json!({"workflow": "generate"})).unwrap(),
+        );
         if !inactive.contains(&"qa") {
             resolved.insert("qa".to_owned(), qa);
         }
@@ -3145,7 +3153,10 @@ mod several_contracts {
     #[test]
     fn a_declared_compatibility_command_renders_lint_only() {
         let repo = repo();
-        repo.answer("ci-baseline", json!({"commands": ["test"]}));
+        repo.answer(
+            "ci-baseline",
+            json!({"workflow": "generate", "commands": ["test"]}),
+        );
         repo.answer(
             QA,
             with(json!({"openapi": lists(), "contract_published": pairs(), "contract_compat_by": "test"})),
@@ -3234,7 +3245,7 @@ mod several_contracts {
         );
         repo.answer(
             "ci-baseline",
-            json!({"commands": ["test"], "inert_paths": ["contratos/**"]}),
+            json!({"workflow": "generate", "commands": ["test"], "inert_paths": ["contratos/**"]}),
         );
         assert_eq!(
             refused("test"),
@@ -3242,7 +3253,10 @@ mod several_contracts {
                 "REFUSED: qa: contract_compat_by test is not a command required runs: {LIVE_A} is an inert path of ci-baseline, so a pull request changing only it skips checks"
             )
         );
-        repo.answer("ci-baseline", json!({"commands": ["test"]}));
+        repo.answer(
+            "ci-baseline",
+            json!({"workflow": "generate", "commands": ["test"]}),
+        );
         repo.answer(
             QA,
             with(json!({"openapi": LIVE_A, "contract_compat_by": "test"})),

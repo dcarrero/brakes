@@ -200,7 +200,7 @@ pub fn over_job_max_note(cx: &Context<'_>, timeouts: &[(String, u32)]) -> Option
 }
 
 /// [`measurement_minutes`] when declared, else `CHECKS_TIMEOUT`; uncapped.
-fn checks_timeout(cx: &Context<'_>) -> u32 {
+pub(super) fn checks_timeout(cx: &Context<'_>) -> u32 {
     measurement_minutes(cx).unwrap_or(CHECKS_TIMEOUT)
 }
 
@@ -275,11 +275,17 @@ pub fn app_job(id: &str) -> String {
 pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<Workflow>> {
     // Checked before anything else: a collision refuses even when nothing renders.
     let contributed = compose::contributed(cx)?;
-    let existing = answers.workflow == WorkflowMode::Existing;
-    if existing && contributed.is_empty() && !answers.heldout {
+    // Under `seed` and `existing` the project's CI runs the commands: this is the
+    // separate workflow of the judges alone (#21).
+    let existing = answers.workflow.project_owns_ci();
+    // Under `seed` the judges always render: `agentic-required` alone checks
+    // `human-approved` on protected paths, which the seed does not (#21).
+    if answers.workflow == WorkflowMode::Existing && contributed.is_empty() && !answers.heldout {
         return Ok(None);
     }
-    if existing && answers.aggregate_check == CONTRIBUTED_AGGREGATE_CHECK {
+    if answers.workflow == WorkflowMode::Existing
+        && answers.aggregate_check == CONTRIBUTED_AGGREGATE_CHECK
+    {
         return refuse(format!(
             "ci-baseline: aggregate_check {CONTRIBUTED_AGGREGATE_CHECK} is the check of {SEPARATE_PATH}; answer the project's own required check"
         ));
@@ -572,7 +578,9 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
             ..job(MACOS_JOB, MACOS_TIMEOUT, steps)
         });
     }
-    if !existing {
+    // workflow-lint is a judge: under `existing` the project's own workflow
+    // already carries one, under `seed` the seed does not (#21).
+    if answers.workflow != WorkflowMode::Existing {
         let tool = |key: &str| -> Result<String> { Ok(pins.tool(key)?.version.clone()) };
         // actionlint is a checksum-pinned binary from security's table, installed
         // by security's fragment; it reads `.github/actionlint.yaml` for the label.
@@ -767,7 +775,12 @@ fn contributed_job(out: &mut String, job: &Contributed) {
 
 /// The workflow text: the header fragment, then every job in order.
 pub fn to_yaml(workflow: &Workflow) -> String {
-    let mut out = HEADER
+    to_yaml_with(HEADER, workflow)
+}
+
+/// `to_yaml` under another header fragment (the seed's, #21).
+pub(super) fn to_yaml_with(header: &str, workflow: &Workflow) -> String {
+    let mut out = header
         .replace("{{name}}", &workflow.name)
         .replace("{{version}}", CI_BASELINE_VERSION)
         .replace("{{default_branch}}", DEFAULT_BRANCH)

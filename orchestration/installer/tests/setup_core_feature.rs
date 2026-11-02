@@ -64,6 +64,12 @@ fn without_the_feature_agent_guardrails_renders_the_technical_debt_line() {
         r#"{"module": "stack-packs", "version": "1.0.0", "answers": {"apps.root.path": ".", "apps.root.stack": "rust", "apps.root.container": false}}"#,
     )
     .unwrap();
+    // A managed `ci.yml` is the deprecated generated workflow (#21), pinned here.
+    fs::write(
+        root.join(".agent-setup/modules/ci-baseline.json"),
+        r#"{"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate"}}"#,
+    )
+    .unwrap();
     cli(&[
         "--module",
         "stack-packs",
@@ -168,6 +174,12 @@ fn installed_without_setup_core() -> tempfile::TempDir {
     fs::write(
         root.join(".agent-setup/modules/stack-packs.json"),
         r#"{"module": "stack-packs", "version": "1.0.0", "answers": {"apps.root.path": ".", "apps.root.stack": "rust", "apps.root.container": false}}"#,
+    )
+    .unwrap();
+    // A managed `ci.yml` is the deprecated generated workflow (#21), pinned here.
+    fs::write(
+        root.join(".agent-setup/modules/ci-baseline.json"),
+        r#"{"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate"}}"#,
     )
     .unwrap();
     cli(&[

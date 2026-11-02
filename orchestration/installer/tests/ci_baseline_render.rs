@@ -53,6 +53,19 @@ fn recorded_stack_packs(root: &std::path::Path) -> BTreeMap<String, Answers> {
     resolved
 }
 
+/// The note every plan under `generate` prints first (#21); `ci_baseline_seed.rs` checks it.
+const DEPRECATED: &str = "workflow generate is deprecated";
+
+/// `raw` with `workflow: generate` unless it answers `workflow`: these tests pin
+/// the deprecated generated workflow, whose output must not change until it
+/// migrates (#21, #25); `ci_baseline_seed.rs` covers the default `seed`.
+fn generate(mut raw: Value) -> Value {
+    if let Some(map) = raw.as_object_mut() {
+        map.entry("workflow").or_insert_with(|| json!("generate"));
+    }
+    raw
+}
+
 struct Repo {
     _temp: TempDir,
     root: PathBuf,
@@ -86,6 +99,12 @@ impl Repo {
             serde_json::to_string_pretty(&profile).unwrap() + "\n",
         )
         .unwrap();
+        // Pinned to the deprecated generated workflow, as `generate` pins the
+        // in-process helpers (#21).
+        let ci = repo.root.join(answers::path("ci-baseline"));
+        fs::create_dir_all(ci.parent().unwrap()).unwrap();
+        let file = json!({"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate"}});
+        fs::write(ci, serde_json::to_string_pretty(&file).unwrap()).unwrap();
         repo
     }
 
@@ -116,7 +135,7 @@ impl Repo {
 
     /// The loaded answers for `raw`, as `render` sees them.
     fn load(&self, raw: Value) -> brakes::Result<CiBaselineAnswers> {
-        let raw: Answers = serde_json::from_value(raw).unwrap();
+        let raw: Answers = serde_json::from_value(generate(raw)).unwrap();
         let validated =
             CiBaseline
                 .questions()
@@ -139,7 +158,7 @@ impl Repo {
 
     /// What `CiBaseline::render` returns for `raw`, with stack-packs' recorded answers.
     fn render(&self, raw: Value) -> brakes::Result<Vec<Rendered>> {
-        let raw: Answers = serde_json::from_value(raw).unwrap();
+        let raw: Answers = serde_json::from_value(generate(raw)).unwrap();
         let validated =
             CiBaseline
                 .questions()
@@ -162,7 +181,7 @@ impl Repo {
 
     /// What `CiBaseline::notes` returns for `raw`.
     fn notes(&self, raw: Value) -> Vec<String> {
-        let raw: Answers = serde_json::from_value(raw).unwrap();
+        let raw: Answers = serde_json::from_value(generate(raw)).unwrap();
         let validated = CiBaseline
             .questions()
             .validate("ci-baseline", &raw, answers::DEFAULT_TIER)
@@ -180,7 +199,12 @@ impl Repo {
             &CiBaseline,
             &resolved,
         );
-        CiBaseline.notes(&cx).unwrap()
+        CiBaseline
+            .notes(&cx)
+            .unwrap()
+            .into_iter()
+            .filter(|n| !n.starts_with(DEPRECATED))
+            .collect()
     }
 
     /// The rendered text at `path`, which must be a `managed` file.
@@ -885,7 +909,7 @@ fn the_plan_notes_a_null_answered_command_at_the_cli() {
     let repo = rust_repo("cargo test --locked");
     null_command(&repo, "test");
     let path = repo.root.join(answers::path("ci-baseline"));
-    let file = json!({"module": "ci-baseline", "version": "1.0.0", "answers": {"commands": ["lint", "test"]}});
+    let file = json!({"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate", "commands": ["lint", "test"]}});
     fs::write(path, serde_json::to_string_pretty(&file).unwrap()).unwrap();
     let note = format!("NOTE [ci-baseline] {TEST_NULL_NOTE}");
     let result = repo.cli(&[
@@ -1351,7 +1375,11 @@ fn generate_steps_and_writes(
 ) {
     let validated = CiBaseline
         .questions()
-        .validate("ci-baseline", &Answers::new(), answers::DEFAULT_TIER)
+        .validate(
+            "ci-baseline",
+            &serde_json::from_value(generate(json!({}))).unwrap(),
+            answers::DEFAULT_TIER,
+        )
         .unwrap();
     let profile = profile_for(&repo.root).unwrap();
     let source = Source::embedded();
@@ -2517,7 +2545,7 @@ fn a_github_hosted_macos_runner_renders_its_label_and_is_flagged() {
         .unwrap();
     assert!(!config.contains(&mac.label), "{config}");
     // The flag: the auditor's warning from the answers, whatever the workflow says.
-    let raw: Answers = serde_json::from_value(raw).unwrap();
+    let raw: Answers = serde_json::from_value(generate(raw)).unwrap();
     let findings = ci_baseline::audit::findings(
         &repo.root,
         &profile_for(&repo.root).unwrap().value,
@@ -2709,7 +2737,7 @@ const SHA: &str = "bcdc074fc1344779e6c8c3b5617cbaf4a2ff762f";
 impl Repo {
     /// What `render` returns for `raw` when the checkout's origin is `repository`.
     fn render_as(&self, raw: Value, repository: &str) -> brakes::Result<Vec<Rendered>> {
-        let raw: Answers = serde_json::from_value(raw).unwrap();
+        let raw: Answers = serde_json::from_value(generate(raw)).unwrap();
         let validated =
             CiBaseline
                 .questions()
@@ -2741,7 +2769,7 @@ impl Repo {
     }
     /// Notes and manual steps for `raw` when the origin is `repository`.
     fn notes_and_steps_as(&self, raw: Value, repository: &str) -> (Vec<String>, Vec<String>) {
-        let raw: Answers = serde_json::from_value(raw).unwrap();
+        let raw: Answers = serde_json::from_value(generate(raw)).unwrap();
         let validated = CiBaseline
             .questions()
             .validate("ci-baseline", &raw, answers::DEFAULT_TIER)
@@ -2765,7 +2793,15 @@ impl Repo {
             .into_iter()
             .map(|s| format!("{} {:?}", s.id, s.probe))
             .collect();
-        (CiBaseline.notes(&cx).unwrap(), steps)
+        (
+            CiBaseline
+                .notes(&cx)
+                .unwrap()
+                .into_iter()
+                .filter(|n| !n.starts_with(DEPRECATED))
+                .collect(),
+            steps,
+        )
     }
 }
 
@@ -2914,7 +2950,7 @@ fn a_cross_owner_caller_falls_back_to_the_single_repo_workflow_with_a_note() {
 #[test]
 fn without_a_configured_callee_reusable_falls_back_with_a_note() {
     let repo = rust_repo("cargo test --locked");
-    let raw: Answers = serde_json::from_value(reusable()).unwrap();
+    let raw: Answers = serde_json::from_value(generate(reusable())).unwrap();
     let validated = CiBaseline
         .questions()
         .validate("ci-baseline", &raw, answers::DEFAULT_TIER)

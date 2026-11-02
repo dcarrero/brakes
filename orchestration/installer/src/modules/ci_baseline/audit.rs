@@ -183,14 +183,14 @@ impl Default for Recorded {
 impl From<&Answers> for Recorded {
     fn from(a: &Answers) -> Self {
         let text = |id: &str| a.get(id).and_then(Value::as_str);
-        let workflow = if text("workflow") == Some(WorkflowMode::Existing.as_str()) {
-            WorkflowMode::Existing
-        } else {
-            WorkflowMode::Generate
+        let workflow = match text("workflow") {
+            Some("existing") => WorkflowMode::Existing,
+            Some("seed") => WorkflowMode::Seed,
+            _ => WorkflowMode::Generate,
         };
         let aggregate = match workflow {
             WorkflowMode::Existing => text("aggregate_check").unwrap_or(AGGREGATE_CHECK),
-            WorkflowMode::Generate => AGGREGATE_CHECK,
+            WorkflowMode::Generate | WorkflowMode::Seed => AGGREGATE_CHECK,
         };
         Self {
             workflow,

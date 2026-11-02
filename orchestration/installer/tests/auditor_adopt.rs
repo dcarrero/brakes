@@ -168,11 +168,18 @@ fn collisions_become_proposals_and_nothing_is_written() {
     assert_only_additive(&output);
     let text = stdout(&output);
     assert!(!text.contains(".github/CODEOWNERS"), "{text}");
-    for path in [
-        ".github/dependabot.yml",
-        ".github/pull_request_template.md",
-        ".github/workflows/ci.yml",
-    ] {
+    // The project's own CI is never a collision (#21): `workflow: seed` writes
+    // no seed beside it and the judges go to `agentic-security.yml`.
+    let ci = ".github/workflows/ci.yml";
+    assert!(
+        !text.contains(&format!(" {ci}")),
+        "{ci} is planned:\n{text}"
+    );
+    assert!(
+        text.contains("SEED .github/workflows/agentic-security.yml"),
+        "{text}"
+    );
+    for path in [".github/dependabot.yml", ".github/pull_request_template.md"] {
         assert!(
             text.contains(&format!("PROPOSE {path}: ")),
             "no proposal for {path}:\n{text}"

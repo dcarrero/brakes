@@ -1,0 +1,162 @@
+name: CI
+# Seeded by brakes ci-baseline 1.0.0: this workflow is yours from now on. brakes
+# wrote it once and never rewrites it; `brakes doctor` audits it and proposes patches.
+# Your CI runs your declared commands, once per pull request, read at run time from
+# .agent-setup/project.json; `required` passes only when every job succeeded. brakes'
+# own jobs only judge, in agentic-security.yml (`agentic-required`). Workflows are a
+# protected path: a change to this file needs the human-approved label.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  lint:
+    name: lint
+    runs-on: example-cloud-2
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          components: "clippy, rustfmt"
+          toolchain: "1.99"
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
+          workspaces: "."
+      - name: Run declared lint
+        env:
+          NAME: lint
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          : "${NAME:?NAME is not set}"
+          cmd="$(jq -r --arg name "$NAME" '.commands[$name] // empty' .agent-setup/project.json)"
+          if [ -z "$cmd" ]; then
+            echo "::error::Verification command missing: commands.$NAME is not declared in .agent-setup/project.json"
+            exit 1
+          fi
+          echo "$NAME: $cmd"
+          bash -euo pipefail -c "$cmd"
+  test:
+    name: test
+    runs-on: example-cloud-2
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          components: "clippy, rustfmt"
+          toolchain: "1.99"
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
+          workspaces: "."
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        with:
+          tool: "cargo-llvm-cov@0.9.1"
+      - name: Run the tests under coverage
+        env:
+          NAME: test
+        run: |-
+          source <(cargo llvm-cov show-env --sh)
+          cargo llvm-cov clean --workspace
+          set -euo pipefail
+
+          : "${NAME:?NAME is not set}"
+          cmd="$(jq -r --arg name "$NAME" '.commands[$name] // empty' .agent-setup/project.json)"
+          if [ -z "$cmd" ]; then
+            echo "::error::Verification command missing: commands.$NAME is not declared in .agent-setup/project.json"
+            exit 1
+          fi
+          echo "$NAME: $cmd"
+          bash -euo pipefail -c "$cmd"
+          cargo llvm-cov report --lcov --output-path lcov.info
+      - name: Upload the coverage data
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          if-no-files-found: error
+          name: agentic-coverage-root-test
+          path: lcov.info
+  build:
+    name: build
+    runs-on: example-cloud-2
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99
+        with:
+          components: "clippy, rustfmt"
+          toolchain: "1.99"
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: "${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}"
+          workspaces: "."
+      - name: Run declared build
+        env:
+          NAME: build
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          : "${NAME:?NAME is not set}"
+          cmd="$(jq -r --arg name "$NAME" '.commands[$name] // empty' .agent-setup/project.json)"
+          if [ -z "$cmd" ]; then
+            echo "::error::Verification command missing: commands.$NAME is not declared in .agent-setup/project.json"
+            exit 1
+          fi
+          echo "$NAME: $cmd"
+          bash -euo pipefail -c "$cmd"
+  diff-coverage:
+    name: diff-coverage
+    needs: test
+    uses: ./.github/workflows/agentic-coverage.yml
+  required:
+    name: required
+    needs: [lint, test, build, diff-coverage]
+    if: always()
+    runs-on: example-cloud-2
+    timeout-minutes: 5
+    steps:
+      - name: Decide the required check
+        env:
+          NEEDS: "${{ toJSON(needs) }}"
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          : "${NEEDS:?NEEDS is not set}"
+          if ! failed="$(printf '%s' "$NEEDS" | jq -er 'if type == "object" and length > 0 then [to_entries[] | select(.value.result != "success") | "\(.key): \(.value.result)"] | join("\n") else error("no jobs") end')"; then
+            echo "::error::required: cannot read the results of the jobs it needs"
+            exit 1
+          fi
+          if [ -n "$failed" ]; then
+            while IFS= read -r line; do
+              printf '::error::required: %s\n' "$line"
+            done <<< "$failed"
+            exit 1
+          fi
+          echo "required: every job succeeded"

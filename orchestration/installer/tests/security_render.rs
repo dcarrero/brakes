@@ -867,6 +867,8 @@ impl Composed {
         // The slice-1 set: `sast` defaults to `semgrep` and `container_scan` applies
         // to a container app (T10), so both are answered off here.
         repo.answer(SECURITY, json!({"sast": "none", "container_scan": false}));
+        // The deprecated generated `ci.yml` these goldens are (#21), pinned until #25.
+        repo.answer("ci-baseline", json!({"workflow": "generate"}));
         Self { repo }
     }
     /// `Composed` with `security` answered `answers` and a root `Dockerfile`
@@ -1068,7 +1070,10 @@ fn with_cx<R>(repo: &Repo, security: Value, f: impl FnOnce(&Context<'_>) -> R) -
                 .validate("stack-packs", &packs_raw, answers::DEFAULT_TIER)
                 .unwrap(),
         ),
-        ("ci-baseline".to_owned(), Answers::new()),
+        (
+            "ci-baseline".to_owned(),
+            serde_json::from_value::<Answers>(json!({"workflow": "generate"})).unwrap(),
+        ),
     ]);
     let profile = profile_for(&repo.root).unwrap();
     let source = Source::embedded();

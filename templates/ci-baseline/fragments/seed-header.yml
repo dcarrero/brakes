@@ -1,0 +1,17 @@
+name: {{name}}
+# Seeded by brakes ci-baseline {{version}}: this workflow is yours from now on. brakes
+# wrote it once and never rewrites it; `brakes doctor` audits it and proposes patches.
+# Your CI runs your declared commands, once per pull request, read at run time from
+# .agent-setup/project.json; `required` passes only when every job succeeded. brakes'
+# own jobs only judge, in agentic-security.yml (`agentic-required`). Workflows are a
+# protected path: a change to this file needs the human-approved label.
+{{notes}}on:
+  pull_request:
+  push:
+    branches: [{{default_branch}}]
+  workflow_dispatch:
+{{merge_group}}permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}

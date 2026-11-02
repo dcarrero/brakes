@@ -1137,6 +1137,12 @@ impl Repo {
         repo.write_json(&answers::path("stack-packs"), &file);
         repo
     }
+    /// Pins ci-baseline to the deprecated generated `ci.yml` these tests read (#21).
+    fn generate(&self) -> &Self {
+        let file = json!({"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate"}});
+        self.write_json(&answers::path("ci-baseline"), &file);
+        self
+    }
     /// Declares `verify` (and `test`, which ci-baseline runs) in project.json.
     fn declare(&self, verify: &str) {
         let mut profile = self.json(PROFILE);
@@ -2783,6 +2789,14 @@ fn reviewed(answers: Value) -> Fixture {
         &(serde_json::to_string_pretty(&profile).unwrap() + "\n"),
     );
     f.answer(answers);
+    // These goldens are the deprecated generated `ci.yml` (#21): pinned until it migrates (#25).
+    if !f.root.join(answers::path("ci-baseline")).exists() {
+        let file = json!({"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate"}});
+        f.write(
+            &answers::path("ci-baseline"),
+            &serde_json::to_string_pretty(&file).unwrap(),
+        );
+    }
     f
 }
 
@@ -3746,6 +3760,7 @@ fn an_unconfirmed_vendor_fact_refuses_at_render_time() {
 #[test]
 fn agents_cross_review_passes_with_the_job_in_the_aggregate() {
     let repo = Repo::new("cargo test --locked");
+    repo.generate();
     assert!(repo.install(&["--apply"]).status.success());
     let ci = fs::read_to_string(repo.root.join(CI_YML)).unwrap();
     assert!(ci.contains("\n  cross-review-model:\n"), "{ci}");
@@ -3786,6 +3801,7 @@ fn agents_cross_review_fails_when_the_aggregate_does_not_need_either_job() {
         (", cross-review-model,", ",", "cross-review-model"),
     ] {
         let repo = Repo::new("cargo test --locked");
+        repo.generate();
         assert!(repo.install(&["--apply"]).status.success());
         let path = repo.root.join(CI_YML);
         let ci = fs::read_to_string(&path).unwrap();

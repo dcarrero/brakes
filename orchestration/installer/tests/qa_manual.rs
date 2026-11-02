@@ -84,6 +84,8 @@ impl Repo {
             "stack-packs",
             json!({"apps.root.path": ".", "apps.root.stack": "rust", "apps.root.container": false}),
         );
+        // The deprecated generated `ci.yml` these tests read (#21), pinned until #25.
+        repo.answer("ci-baseline", json!({"workflow": "generate"}));
         repo
     }
     fn write(&self, path: &str, text: &str) {
@@ -153,7 +155,10 @@ impl Repo {
             )
             .unwrap(),
         );
-        resolved.insert("ci-baseline".to_owned(), Answers::new());
+        resolved.insert(
+            "ci-baseline".to_owned(),
+            serde_json::from_value::<Answers>(json!({"workflow": "generate"})).unwrap(),
+        );
         let cx = Context::new(
             &self.root, &profile, &source, &lock, &answers, &Qa, &resolved,
         );

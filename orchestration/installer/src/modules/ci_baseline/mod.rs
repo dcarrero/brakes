@@ -8,12 +8,13 @@ pub mod model;
 pub mod render;
 pub mod reusable;
 pub mod scope;
+pub mod seed;
 pub mod services;
 
 pub use aggregate::{AGGREGATE_CHECK, CONTRIBUTED_AGGREGATE_CHECK, REQUIRED_SH};
 pub use model::{
     ActionRef, CiBaselineAnswers, CiTier, Command, Job, MacosRunner, Matrix, Runner, Skippable,
-    Step, Workflow, WorkflowMode,
+    Step, Workflow, WorkflowMode, workflow_mode,
 };
 pub use scope::DEFAULT_HELDOUT_DIR;
 
@@ -37,8 +38,8 @@ pub fn schema() -> Schema {
     let names = |all: &[&'static str]| all.to_vec();
     Schema::parse(&json!([
         {"id": "workflow", "type": "string",
-         "enum": names(&WorkflowMode::ALL.map(WorkflowMode::as_str)), "default": "generate",
-         "description": "`generate` renders the baseline; `existing` records the project's own workflow and audits it."},
+         "enum": names(&WorkflowMode::ALL.map(WorkflowMode::as_str)),
+         "description": "`seed` writes the project's CI once (`ci.yml`, yours from then on) and renders only the judges; `existing` records the project's own workflow and audits it; `generate` (deprecated) renders one workflow that runs the commands. Unanswered: `generate` where the lock records a generated workflow, else `seed`."},
         {"id": "aggregate_check", "type": "string", "minLength": 1, "default": AGGREGATE_CHECK,
          "when": "workflow == existing",
          "description": "The check name the ruleset requires; fixed to `required` when generating."},
@@ -113,6 +114,29 @@ fn seed_files(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Vec<Rende
         .collect())
 }
 
+/// The notes of the mode (#21): under `seed` with workflows of the project's
+/// own, that no seed is written; under `generate`, that it is deprecated.
+fn seed_notes(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Vec<String>> {
+    Ok(match answers.workflow {
+        WorkflowMode::Seed => {
+            let foreign = brownfield::foreign_workflows(cx)?;
+            if foreign.is_empty() {
+                Vec::new()
+            } else {
+                vec![format!(
+                    "workflow seed writes no {}: the project has workflows of its own ({}); answer workflow=existing and aggregate_check=<the check your CI reports> so brakes audits that CI",
+                    render::WORKFLOW_PATH,
+                    foreign.join(", ")
+                )]
+            }
+        }
+        WorkflowMode::Generate => vec![
+            "workflow generate is deprecated: it runs the declared commands in a workflow brakes owns; answer workflow=seed (the project owns its CI) or workflow=existing (decision 2026-11-02)".to_owned(),
+        ],
+        WorkflowMode::Existing => Vec::new(),
+    })
+}
+
 impl Module for CiBaseline {
     fn id(&self) -> &'static str {
         CI_BASELINE
@@ -142,11 +166,22 @@ impl Module for CiBaseline {
         } else {
             None
         };
-        let Some(mut workflow) = render::workflow(cx, &answers)? else {
-            return Ok(kept.into_iter().collect());
-        };
-        let existing = answers.workflow == WorkflowMode::Existing;
         let foreign = brownfield::foreign_workflows(cx)?;
+        // The project's CI, written once (#21): only where it has none of its own.
+        let seed = if answers.workflow == WorkflowMode::Seed && foreign.is_empty() {
+            Some(Rendered {
+                path: render::WORKFLOW_PATH.to_owned(),
+                class: Ownership::Seed,
+                content: Some(seed::render(cx, &answers)?),
+                scaffold: None,
+            })
+        } else {
+            None
+        };
+        let Some(mut workflow) = render::workflow(cx, &answers)? else {
+            return Ok(kept.into_iter().chain(seed).collect());
+        };
+        let existing = answers.workflow.project_owns_ci();
         if existing {
             brownfield::refuse_contributed_job(cx.root, &foreign)?;
         } else {
@@ -212,6 +247,7 @@ impl Module for CiBaseline {
             rendered.extend(brownfield::separate_remote_items());
         }
         rendered.extend(kept);
+        rendered.extend(seed);
         Ok(rendered)
     }
     /// The switch and its gate when the workflow is `agentic-ci.yml`; under
@@ -226,15 +262,12 @@ impl Module for CiBaseline {
         ))
     }
     fn manual_steps(&self, cx: &Context<'_>) -> Vec<ManualStep> {
-        let existing = cx
-            .answers
-            .get("workflow")
-            .and_then(serde_json::Value::as_str)
-            == Some(WorkflowMode::Existing.as_str());
-        if existing {
+        if workflow_mode(cx.answers, cx.previous).project_owns_ci() {
             let contributed = compose::contributed(cx).unwrap_or_default();
-            let heldout = CiBaselineAnswers::load(cx).is_ok_and(|a| a.heldout);
-            let mut steps = if contributed.is_empty() && !heldout {
+            let loaded = CiBaselineAnswers::load(cx).ok();
+            let heldout = loaded.as_ref().is_some_and(|a| a.heldout);
+            let seed = loaded.is_some_and(|a| a.workflow == WorkflowMode::Seed);
+            let mut steps = if contributed.is_empty() && !heldout && !seed {
                 Vec::new()
             } else {
                 brownfield::separate_steps(cx.root)
@@ -291,7 +324,7 @@ impl Module for CiBaseline {
         // Monorepo mode: what the root profile declares and `required` does not run (#1165).
         let root = model::root_unrun_notes(cx, &answers);
         let path = match answers.workflow {
-            WorkflowMode::Existing => brownfield::SEPARATE_PATH,
+            WorkflowMode::Existing | WorkflowMode::Seed => brownfield::SEPARATE_PATH,
             WorkflowMode::Generate => {
                 brownfield::workflow_path(cx, &brownfield::foreign_workflows(cx)?)
             }
@@ -333,7 +366,9 @@ impl Module for CiBaseline {
         } else {
             Vec::new()
         };
-        Ok(missing
+        Ok(seed_notes(cx, &answers)?
+            .into_iter()
+            .chain(missing)
             .chain(root)
             .chain(idle)
             .chain(fallback)

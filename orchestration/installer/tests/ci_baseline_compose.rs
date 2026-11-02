@@ -126,6 +126,14 @@ impl Repo {
             serde_json::to_string_pretty(&profile).unwrap() + "\n",
         )
         .unwrap();
+        // The deprecated generated `ci.yml` these tests read (#21), pinned until #25.
+        let ci = root.join(".agent-setup/modules/ci-baseline.json");
+        fs::create_dir_all(ci.parent().unwrap()).unwrap();
+        fs::write(
+            ci,
+            r#"{"module": "ci-baseline", "version": "1.0.0", "answers": {"workflow": "generate"}}"#,
+        )
+        .unwrap();
         Self { _temp: temp, root }
     }
 
@@ -350,7 +358,10 @@ fn in_a_brownfield_repository_the_note_names_agentic_ci() {
     let notes: Vec<String> = planned.plan_notes.iter().map(PlanNote::to_string).collect();
     assert_eq!(
         notes,
-        ["NOTE [ci-baseline] JOB [gatekeeper] gate-job → .github/workflows/agentic-ci.yml"]
+        [
+            "NOTE [ci-baseline] workflow generate is deprecated: it runs the declared commands in a workflow brakes owns; answer workflow=seed (the project owns its CI) or workflow=existing (decision 2026-11-02)",
+            "NOTE [ci-baseline] JOB [gatekeeper] gate-job → .github/workflows/agentic-ci.yml"
+        ]
     );
     let workflow = planned.changes[".github/workflows/agentic-ci.yml"]
         .as_ref()
@@ -365,7 +376,7 @@ fn missing_command_notes_come_before_the_job_notes() {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     let file = serde_json::json!({
         "module": "ci-baseline", "version": "1.0.0",
-        "answers": {"commands": ["lint", "test"]},
+        "answers": {"workflow": "generate", "commands": ["lint", "test"]},
     });
     fs::write(&path, serde_json::to_string_pretty(&file).unwrap()).unwrap();
     let notes: Vec<String> = repo
@@ -378,6 +389,7 @@ fn missing_command_notes_come_before_the_job_notes() {
     assert_eq!(
         notes,
         [
+            "NOTE [ci-baseline] workflow generate is deprecated: it runs the declared commands in a workflow brakes owns; answer workflow=seed (the project owns its CI) or workflow=existing (decision 2026-11-02)".to_owned(),
             "NOTE [ci-baseline] Verification command missing: commands.lint is null in .agent-setup/project.json; the workflow renders without its step until it is declared".to_owned(),
             format!("NOTE [ci-baseline] JOB [gatekeeper] gate-job → {WORKFLOW}"),
             format!("NOTE [ci-baseline] JOB [scanner] scan-job → {WORKFLOW}"),
