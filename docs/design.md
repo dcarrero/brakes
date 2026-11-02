@@ -6,6 +6,8 @@ repository controls, and GitHub checks, rendered from a declared set of commands
 answers, for any language, stack, agent host and model provider. It covers enforcement
 only: it knows nothing about where work is planned or how a team works, and it ships no
 engineering guide, workflow framework or instruction prose beyond what a brake needs.
+The project's CI runs the project's commands; `brakes` installs and audits the gates around
+it and never runs them (decision of 2026-11-02).
 
 This document states what the code does, module by module. The decisions it depends on
 are in `docs/decisions.md`.

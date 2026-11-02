@@ -245,7 +245,21 @@ pub fn project_ci_notes(cx: &Context<'_>) -> Result<Vec<String>> {
             apps.push((app, recipe));
         }
     }
+    // Under `workflow: seed` with no workflow of the project's own, the seed
+    // writes the upload and the call itself (#21); the note says so (#26).
+    let ci = crate::modules::ci_baseline::CI_BASELINE;
+    let seeded = crate::modules::ci_baseline::model::workflow_mode(cx.answers_of(ci)?, cx.previous)
+        == crate::modules::ci_baseline::WorkflowMode::Seed
+        && crate::modules::ci_baseline::brownfield::foreign_workflows(cx)?.is_empty();
     notes.extend(apps.iter().map(|(app, recipe)| {
+        if seeded {
+            return format!(
+                "{DIFF_COVERAGE}: the seed .github/workflows/ci.yml uploads {prefix}<job> from the test job of {id} \
+                 and calls {REUSABLE}; for a ci.yml written before, `brakes doctor . --propose` shows what is missing",
+                prefix = artifact_prefix(app),
+                id = app.id,
+            );
+        }
         format!(
             "{DIFF_COVERAGE}: upload {prefix}<job> from every test job of {id} with {data} ({RECIPE_GUIDE}), \
              call {REUSABLE} from a job named {DIFF_COVERAGE} that needs them, and make your aggregate need it",

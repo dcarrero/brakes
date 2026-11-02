@@ -8,50 +8,54 @@ audits any repository against the same rules, whether `brakes` installed it or n
 
 It covers enforcement only. It does not decide where work is planned or how a team works:
 it ships no engineering guide, no workflow framework and no instruction prose beyond what a
-brake needs, and it never runs a project's commands.
+brake needs. Your CI runs your commands, once; `brakes` installs and audits the gates around
+it and never runs them: when a repository has no CI it guides you to one you own, when it
+has one it audits it and proposes patches it never applies, and its own jobs only judge
+what your CI produced.
 
 Home: <https://github.com/gemba-app/brakes>. License: [Apache-2.0](LICENSE).
 
 ## Example
 
-A repository whose tests run with `make test`, given the brakes for Claude Code:
+A Rust crate with no CI yet, given its CI and the brakes for Claude Code:
 
 ```sh
-cargo install --locked --git https://github.com/gemba-app/brakes
-
 mkdir -p ~/.config/brakes
 echo '{"schema": 1, "owner": "octo-dev", "write_allowlist": ["octo-dev/*"]}' \
   > ~/.config/brakes/config.json                     # who you are, what brakes may write
 
 cd toy                                               # a clone of octo-dev/toy
 mkdir -p .agent-setup
-echo '{"purpose": "A toy service.", "commands": {"verify": "make test"}}' \
+echo '{"purpose": "A toy service.", "commands": {"verify": "cargo test --locked"}, "criticality": "internal"}' \
   > .agent-setup/project.json                        # what it is, how it is verified
 
+brakes doctor .                                      # FAIL ci-health.workflow-exists → run `brakes ci init .`
+brakes ci init . --no-input --apply                  # your CI, written once: it is yours from now on
 brakes install . --preset personal-paas \
   --module stack-packs --module repo-baseline --module ci-baseline \
   --module security --module merge-guard --module agent-guardrails --apply
 ```
 
-The install writes files you review and commit like any change:
+They write files you review and commit like any change:
 
 | Written | What it does |
 |---|---|
-| `.github/workflows/ci.yml` | CI on every pull request: one aggregate job, `required`, over `make test` and the other gates |
-| `.github/rulesets/main.json` | the default-branch ruleset: `required` must pass, no bypass; `brakes apply . --remote` sends it to GitHub |
-| `.claude/settings.json`, `.claude/hooks/` | the agent's hooks: refuse `gh pr merge` on red, run `make test` before the agent may stop, deny secrets and the lock |
+| `.github/workflows/ci.yml` | **your** CI, a seed `brakes` writes once and never rewrites: one job per declared command (here `verify`, which also uploads its coverage data), `diff-coverage`, and the aggregate `required`, which fails unless every job succeeded |
+| `.github/workflows/agentic-security.yml` | the brakes' judges, which never run your commands: the scope of the change, the secrets, dependency and static scans, and the aggregate `agentic-required`, which also refuses a change to a protected path without the `human-approved` label |
+| `.github/workflows/agentic-coverage.yml` | the coverage judge your CI calls: it reads the coverage data your test job uploaded and fails a changed line no test executed; it runs no test |
+| `.github/rulesets/main.json` | the default-branch ruleset: `required` and `agentic-required` must pass, no bypass; `brakes apply . --remote` sends it to GitHub |
+| `.claude/settings.json`, `.claude/hooks/` | the agent's hooks: refuse `gh pr merge` on red, run `cargo test --locked` before the agent may stop, deny secrets and the lock |
 | `AGENTS.md`, `docs/agent-setup/` | the rules the agent reads, inside a block `brakes` manages |
 | `.github/` templates, `dependabot.yml`, `SECURITY.md` | pull request and issue templates, dependency updates with a cooldown |
-| `.gitleaks.toml`, `osv-scanner.toml`, `.agent-setup/security-exceptions.json` | the security gate's configuration: `ci.yml` gains a gitleaks secrets scan and dependency and static scans; every exception carries an expiry |
-| `.agent-setup/lock.json` | what was installed and the digest of every file, so a hand edit is never overwritten |
+| `.gitleaks.toml`, `osv-scanner.toml`, `.agent-setup/security-exceptions.json` | the scans' configuration; every exception carries an expiry |
+| `.agent-setup/lock.json` | what was installed and the digest of every file `brakes` manages, so a hand edit is never overwritten |
 
-From then on, when the agent tries to end its turn with a failing test, the Stop hook
-runs the declared command and sends the agent back to work:
+On a pull request your tests run once, in your CI's job; `diff-coverage` judges the data
+that job uploaded. From then on, when the agent tries to end its turn with a failing test,
+the Stop hook runs the declared command on the agent's machine and sends it back to work:
 
 ```text
-verify failed (exit 2, 1s): make test
-1 failed: test_total
-make: *** [test] Error 1
+verify failed (exit 101, 4s): cargo test --locked
 ```
 
 `brakes doctor .` says what is still missing, each line with its fix.
@@ -59,12 +63,9 @@ make: *** [test] Error 1
 
 ## Requirements
 
-- **Rust 1.99 or later** and Cargo, to build from source. Or, instead of building, a
-  prebuilt binary: each release attaches `brakes-<tag>-<target>.tar.gz` for
-  `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` and `aarch64-apple-darwin`,
-  with `SHA256SUMS` and a build-provenance attestation. Check the download before you
-  run it, with `sha256sum -c SHA256SUMS --ignore-missing` and
-  `gh attestation verify brakes-<tag>-<target>.tar.gz --repo gemba-app/brakes`.
+- **A prebuilt binary** for Linux (x86_64, aarch64) or macOS (aarch64), checked against
+  `SHA256SUMS` and its attestation (see Install), or **Rust 1.99 or later** to build from
+  source.
 - **GitHub only.** The host adapter reads and writes GitHub (`github.com`); other hosts
   are not supported.
 - **The GitHub CLI, `gh`, signed in**, for everything that reads or writes the remote
@@ -81,8 +82,26 @@ make: *** [test] Error 1
 
 ## Install
 
+Each release attaches a binary for `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`
+and `aarch64-apple-darwin`, a `SHA256SUMS` file and a build-provenance attestation. With
+the GitHub CLI (`gh`):
+
 ```sh
-cargo install --locked --git https://github.com/gemba-app/brakes
+V=v0.5.2 T=aarch64-apple-darwin   # or x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu
+gh release download "$V" -R gemba-app/brakes -p "brakes-$V-$T.tar.gz" -p SHA256SUMS
+shasum -a 256 --ignore-missing -c SHA256SUMS   # prints "brakes-…tar.gz: OK"
+gh attestation verify "brakes-$V-$T.tar.gz" -R gemba-app/brakes
+tar -xzf "brakes-$V-$T.tar.gz"
+install -m 0755 brakes ~/.local/bin/brakes     # any directory on your PATH
+brakes --version
+```
+
+`gh attestation verify` exits 0 only when the archive was built by this repository's
+release workflow; a modified archive fails. On another platform, build from source with
+Rust 1.99 or later:
+
+```sh
+cargo install --locked --git https://github.com/gemba-app/brakes --tag v0.5.2
 ```
 
 Without a configuration `brakes` diagnoses and plans but refuses every write; the next
@@ -106,7 +125,7 @@ NOT READY: Setup not installed: project profile missing
 ...
 FAIL        [basic:baseline.purpose-declared] .agent-setup/project.json missing → manual step declare-purpose: ...
 FAIL        [basic:baseline.verify-declared] .agent-setup/project.json missing → manual step declare-verify: ...
-FAIL        [basic:ci-health.workflow-exists] no workflow under .github/workflows → module ci-baseline
+FAIL        [basic:ci-health.workflow-exists] no workflow under .github/workflows → run `brakes ci init .`; module ci-baseline
 FAIL        [bronze:governance.pr-template-and-issue-forms] no pull request template in .github/, ... → module repo-baseline
 UNAVAILABLE [basic:posture.default-branch-protected] ... is unavailable without --remote
 ...
@@ -130,14 +149,31 @@ change. The smallest one, in `~/.config/brakes/config.json` (or
 ```
 
 The repository declares what it is and how it is verified, in `.agent-setup/project.json`;
-`purpose` and `commands.verify` are the only required fields:
+`purpose` and `commands.verify` are the only required fields, and `criticality` (`internal`,
+`customers` or `personal-data-or-payments`) sets how strict the audit is:
 
 ```json
 {
   "purpose": "One sentence: what this repository is for.",
-  "commands": { "verify": "make test" }
+  "commands": { "verify": "cargo test --locked" },
+  "criticality": "internal"
 }
 ```
+
+**No CI yet?** `brakes ci init .` writes yours. It detects the stack (here `Cargo.toml`),
+proposes the commands you left `null` and never invents one, and asks only what it cannot
+detect; `--no-input` takes the proposals as they are. It prints the plan; `--apply` writes it:
+
+```sh
+brakes ci init .                     # plan only
+brakes ci init . --no-input --apply
+```
+
+It writes `.github/workflows/ci.yml` once, as a seed: one job per declared command, the
+coverage upload in the test job, `diff-coverage` and the aggregate `required`. From then on
+the file is yours; `brakes` never rewrites it, and `brakes doctor . --propose` audits it and
+prints each fix as a diff it never applies. A repository that already has a CI skips this
+step: `doctor --propose` audits that CI the same way.
 
 Then plan an installation, read it, and apply it:
 
@@ -151,18 +187,23 @@ brakes install . --preset personal-paas \
 brakes doctor .
 ```
 
-The plan lists every file with its owner (`PLAN .github/workflows/ci.yml
-[managed:ci-baseline]`), every remote step it cannot take from your machine
+The plan lists every file with its owner (`PLAN .github/workflows/agentic-security.yml
+[managed:ci-baseline]`, and `SKIP .github/workflows/ci.yml [seed:ci-baseline]` for your CI), every remote step it cannot take from your machine
 (`STEP [unavailable:repo-baseline] repo-settings — ...`) and ends with `Plan only; no
 writes.` `--apply` writes the same list and records it in `.agent-setup/lock.json`. The
 second `doctor` shows what is left, each line with its fix, for example:
 
 ```text
-FAIL        [basic:baseline.criticality-declared] criticality undeclared in .agent-setup/project.json (audited as internal) → manual step declare-criticality: ...
+FAIL        [silver:ci.heldout-present] No held-out tests yet: the heldout job is in the aggregate and tests/heldout holds no test → module ci-baseline
+FAIL        [silver:stack.toolchain-pinned] app `root` (rust at .) has no toolchain pin (rust-toolchain.toml) → module stack-packs
 FAIL        [bronze:baseline.security.hooks-installed] .git/hooks/pre-commit is absent → manual step hooks-installed: Install the pre-commit hook in this clone
 ```
 
-Commit the files, open a pull request, and add the cross-review key (Requirements). The
+Held-out tests are tests the agent can neither read nor edit; you write them under
+`tests/heldout/` and answer `heldout_command`, and the `heldout` job runs them.
+
+Commit the files, open a pull request, and add the cross-review key (Requirements). On
+that pull request `required` (your CI) and `agentic-required` (the judges) report. The
 repository's settings and its ruleset are written by `brakes apply . --remote`, which
 reads and writes GitHub through `gh` and only for a repository your `write_allowlist`
 names. `brakes presets` lists the presets; `brakes doctor . --json` gives the same
@@ -171,10 +212,12 @@ diagnosis as JSON.
 ## Use
 
 ```sh
+brakes ci init <repo> [--no-input] [--apply]  # a repository without CI: write yours, once
 brakes install <repo>                         # plan only: prints every change
 brakes install <repo> --module stack-packs --module ci-baseline --apply
 brakes configure <repo> security --set deps=true --apply
 brakes doctor <repo> [--remote] [--json]      # read-only diagnosis and audit
+brakes doctor <repo> --propose                # also each fix to your CI, as a diff it never applies
 brakes doctor --fleet <org-or-user>           # audit every repository, read-only
 brakes adopt <repo>                           # what would bring an untouched repository under the brakes
 brakes apply <repo> --remote                  # write the repository's settings, rulesets and environments
@@ -192,14 +235,14 @@ configuration, writes and remote reads need one. A repository declares its comma
 
 | # | Brake | Module | Rendered as |
 |---|---|---|---|
-| 1 | CI required on every pull request | `ci-baseline` | a workflow whose single aggregate job, `required`, needs every verification job, rendered from the declared commands |
+| 1 | CI required on every pull request | `ci-baseline` | your CI, seeded once by `brakes ci init` or your own, audited by `doctor --propose`; its aggregate `required` and the judges' `agentic-required` are both required |
 | 2 | Protected default branch, no bypass for administrators | `repo-baseline` | a ruleset with `enforcement: active` and no bypass actors, applied with `apply --remote` |
 | 3 | Never merge on red, also locally | `merge-guard` | the `guard pre-bash` hook for the agent host, light and full mode |
 | 4 | Touching CI needs approval | `repo-baseline`, `ci-baseline` | CODEOWNERS over `.github/workflows/` with code-owner review in the ruleset; protected paths that need the `human-approved` label |
 | 5 | Cross-family model review as a gate | `agent-guardrails` | a review by another model family, in two jobs, inside the aggregate |
 | 6 | Human review when the team has more than one person | `repo-baseline` | the review count of the ruleset, from the repository's profile |
 | 7 | Held-out tests | `ci-baseline`, `agent-guardrails` | a held-out directory and job, denied to agents for reading and editing |
-| 8 | Coverage over changed lines | `security` | a `diff-coverage` job over the stack pack's per-file report against the merge base |
+| 8 | Coverage over changed lines | `security`, `stack-packs` | your test job uploads its coverage data with the stack pack's recipe; `agentic-coverage.yml` judges it against the merge base and runs no test |
 | 9 | Characterisation tests before touching old code | `security` | the same job fails a change to a file no test executed |
 | 10 | User-visible tests | `qa` | Hurl for the API, Playwright for the web with screenshot comparison; screenshot baselines are a protected path |
 | 11 | Property-based tests and mutation on the diff | `stack-packs`, `ci-baseline`, `security` | property and mutation recipes per pack, held-out properties with a fresh recorded seed, an opt-in `mutation-diff` job with a minimum score |

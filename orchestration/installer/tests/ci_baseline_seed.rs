@@ -222,6 +222,23 @@ fn with_security_the_test_job_uploads_coverage_and_the_seed_calls_the_judge() {
 }
 
 #[test]
+fn under_the_seed_the_coverage_note_says_the_seed_already_uploads_and_calls_the_judge() {
+    // #26: the seed writes the upload and the diff-coverage call itself, so the plan
+    // does not ask the project to add them; it names how to audit a ci.yml that predates them.
+    let repo = rust_repo();
+    let plan = repo.install(&["stack-packs", "security", "ci-baseline"], false);
+    assert!(
+        plan.lines().any(|l| l
+            == "NOTE [security] diff-coverage: the seed .github/workflows/ci.yml uploads agentic-coverage-root-<job> from the test job of root and calls .github/workflows/agentic-coverage.yml; for a ci.yml written before, `brakes doctor . --propose` shows what is missing"),
+        "{plan}"
+    );
+    assert!(
+        !plan.contains("call .github/workflows/agentic-coverage.yml from a job named"),
+        "{plan}"
+    );
+}
+
+#[test]
 fn a_python_root_runs_pytest_under_coverage_in_its_test_job() {
     let repo = Repo::new(
         "python-uv",
