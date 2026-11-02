@@ -89,7 +89,9 @@ case "$mode" in
       cp "$base_report" "$work/base-report"
       echo "base report: cache ($merge_base)"
     else
-      diff_command="${DIFF_COMMAND:?DIFF_COMMAND is required}"
+      # No command under coverage_source project-ci (#1349): recomputing would run the tests again.
+      [ -n "${DIFF_COMMAND:-}" ] || { echo "::warning::$app: no base report for $merge_base; not judged"; exit 0; }
+      diff_command="$DIFF_COMMAND"
       app_dir="${APP_DIR:-.}"
       worktree="$work/base"
       git worktree add --detach --quiet "$worktree" "$merge_base"

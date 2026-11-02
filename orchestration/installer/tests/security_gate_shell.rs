@@ -2161,6 +2161,33 @@ fn the_base_report_is_recomputed_at_the_merge_base_when_the_cache_misses() {
 }
 
 #[test]
+fn a_cache_miss_under_project_ci_warns_and_never_runs_the_tests() {
+    // #1349: no DIFF_COMMAND under project-ci; recomputing would run the suite again.
+    let (repo, sha) = pr_repo(DIFF_RUST_BASE, &[("src/dead.rs", "pub fn dead() { }\n")]);
+    let cache = TempDir::new().unwrap();
+    let output = diff_coverage("characterization", repo.path())
+        .envs(Stack::Rust.env())
+        .env("SECURITY_TODAY", TODAY)
+        .env("BASE_REF", "main")
+        .env("APP_ID", "root")
+        .env("DIFF_REPORT", Stack::Rust.report())
+        .env("BASE_REPORT", cache.path().join(Stack::Rust.report()))
+        .output()
+        .unwrap();
+    let printed = lines(&output);
+    assert_eq!(output.status.code(), Some(0), "{printed:?}");
+    assert_eq!(
+        printed,
+        [format!(
+            "::warning::root: no base report for {sha}; not judged"
+        )]
+    );
+    assert!(!repo.path().join("ran-the-tests").exists());
+    let worktrees = git(repo.path(), &["worktree", "list"]);
+    assert_eq!(worktrees.lines().count(), 1, "{worktrees}");
+}
+
+#[test]
 fn the_inputs_line_lists_exactly_the_variables_the_script_reads() {
     let text = fs::read_to_string(fragment("diff-coverage.sh")).unwrap();
     let declared: std::collections::BTreeSet<String> = diff_coverage_inputs().into_iter().collect();

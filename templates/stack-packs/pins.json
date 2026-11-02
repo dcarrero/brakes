@@ -41,6 +41,7 @@
     "uv": { "version": "0.13.6" },
     "nextest": { "version": "0.9.150" },
     "coverage-py": { "version": "7.17.0" },
+    "pytest-cov": { "version": "7.1.0" },
     "cargo-llvm-cov": { "version": "0.9.1" },
     "diff-cover": { "version": "10.6.0" },
     "cargo-mutants": { "version": "27.1.0" },

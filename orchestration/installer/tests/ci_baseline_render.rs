@@ -259,7 +259,8 @@ fn defaults_follow_the_answer_table() {
                 .map(|p| (*p).to_owned())
                 .collect(),
             heldout_dir: ci_baseline::DEFAULT_HELDOUT_DIR.to_owned(),
-            heldout: false,
+            // #1362: on by default when generating, pending without a command.
+            heldout: true,
             heldout_command: None,
             heldout_properties_command: None,
             heldout_examples: 200,
@@ -667,8 +668,13 @@ fn every_job_is_hardened() {
             };
             assert_eq!(field("runs-on"), runner, "{name}: {id}");
             let timeout: u32 = field("timeout-minutes").parse().unwrap();
+            // The pending held-out job only lists a directory (#1362).
+            let pending = lines
+                .iter()
+                .any(|l| l.contains("Check held-out tests are pending"));
             let expected = match (name.as_str(), id.as_str()) {
                 (_, "scope" | "workflow-lint" | "required") => 5,
+                (_, "heldout") if pending => 5,
                 (_, "macos") => 40,
                 (_, "heldout-properties") => 20,
                 ("sharded.yml", _) => 18,
@@ -763,7 +769,17 @@ fn the_sharded_golden_runs_lint_and_a_fail_slow_matrix() {
         .unwrap()
         .1;
     let ids: Vec<String> = jobs(&text).into_iter().map(|(id, _)| id).collect();
-    assert_eq!(ids, ["scope", "lint", "shard", "workflow-lint", "required"]);
+    assert_eq!(
+        ids,
+        [
+            "scope",
+            "lint",
+            "shard",
+            "heldout",
+            "workflow-lint",
+            "required"
+        ]
+    );
     assert!(text.contains("      fail-fast: false\n"));
     assert!(text.contains("        shard: [1, 2, 3, 4]\n"));
     assert!(text.contains("    name: \"shard ${{ matrix.shard }}/4\"\n"));
@@ -783,7 +799,10 @@ fn the_single_golden_runs_every_declared_command_in_one_job() {
         .unwrap()
         .1;
     let ids: Vec<String> = jobs(&text).into_iter().map(|(id, _)| id).collect();
-    assert_eq!(ids, ["scope", "checks", "workflow-lint", "required"]);
+    assert_eq!(
+        ids,
+        ["scope", "checks", "heldout", "workflow-lint", "required"]
+    );
     let names: Vec<&str> = text
         .lines()
         .filter_map(|l| l.trim().strip_prefix("- name: Run declared "))
@@ -819,7 +838,8 @@ fn runner_and_merge_queue_answers_reach_the_workflow() {
     let repo = rust_repo("cargo test --locked");
     let text = repo.workflow(json!({"runner": "github", "merge_queue": true}));
     assert!(!text.contains(&configured::linux_runner().label));
-    assert_eq!(text.matches("    runs-on: ubuntu-24.04\n").count(), 4);
+    // scope, checks, heldout (#1362), workflow-lint, required.
+    assert_eq!(text.matches("    runs-on: ubuntu-24.04\n").count(), 5);
     assert!(text.contains("  workflow_dispatch:\n  merge_group:\npermissions:\n"));
 }
 
@@ -940,6 +960,8 @@ fn install_writes_the_managed_workflow_and_a_second_plan_has_no_changes() {
     }
     let written = fs::read_to_string(repo.root.join(".github/workflows/ci.yml")).unwrap();
     assert_eq!(written, expected);
+    // #1362: the pending held-out job writes nothing under the held-out directory.
+    assert!(!repo.root.join("tests/heldout").exists(), "{out}");
     let again = repo.cli(&["install", "<repo>"]);
     let out = String::from_utf8_lossy(&again.stdout).into_owned();
     assert!(again.status.success(), "{again:?}");
@@ -1060,7 +1082,12 @@ fn actionlint_is_installed_from_the_security_pin_table() {
             );
         }
         assert!(
-            text.contains(INSTALL_TOOL.lines().nth(1).unwrap()),
+            text.contains(
+                brakes::modules::security::embed::without_comment_lines(INSTALL_TOOL)
+                    .lines()
+                    .nth(1)
+                    .unwrap()
+            ),
             "{name}"
         );
         assert!(
@@ -1314,6 +1341,118 @@ fn brownfield_differs_from_the_single_golden_only_in_its_name() {
     );
 }
 
+/// ci-baseline's manual steps and remote writes for `repo` under
+/// `workflow: generate`, through the module as the engine calls it.
+fn generate_steps_and_writes(
+    repo: &Repo,
+) -> (
+    Vec<engine::ManualStep>,
+    Vec<brakes::host::desired::RemoteWrite>,
+) {
+    let validated = CiBaseline
+        .questions()
+        .validate("ci-baseline", &Answers::new(), answers::DEFAULT_TIER)
+        .unwrap();
+    let profile = profile_for(&repo.root).unwrap();
+    let source = Source::embedded();
+    let previous = empty_lock();
+    let resolved = recorded_stack_packs(&repo.root);
+    let cx = Context::new(
+        &repo.root,
+        &profile,
+        &source,
+        &previous,
+        &validated,
+        &CiBaseline,
+        &resolved,
+    );
+    (
+        CiBaseline.manual_steps(&cx),
+        CiBaseline.remote_writes(&cx).unwrap(),
+    )
+}
+
+/// #1373: a declared `ci.required_checks` that names the aggregate is the
+/// post-switch state, so the switch requires the declared checks, not only
+/// `required`, in its instructions, its probe and its desired state.
+#[test]
+fn a_declared_list_naming_the_aggregate_is_what_the_switch_requires() {
+    let repo = brownfield_repo();
+    repo.ci("required_checks", json!(["required", "neutrality"]));
+    let (steps, writes) = generate_steps_and_writes(&repo);
+    let switch = steps
+        .iter()
+        .find(|s| s.id == "switch-required-check")
+        .unwrap();
+    assert!(
+        switch.instructions.contains(
+            "gh api -X PATCH repos/{owner}/{repo}/branches/main/protection/required_status_checks -f 'contexts[]=required' -f 'contexts[]=neutrality'"
+        ),
+        "{}",
+        switch.instructions
+    );
+    assert!(
+        switch
+            .instructions
+            .contains("[{\"context\": \"required\"}, {\"context\": \"neutrality\"}]"),
+        "{}",
+        switch.instructions
+    );
+    match &switch.probe {
+        brakes::engine::Probe::Remote { id, args } => {
+            assert_eq!(id, "ruleset-required-checks");
+            assert_eq!(args["checks"], json!(["required", "neutrality"]));
+        }
+        other => panic!("{other:?}"),
+    }
+    let write = writes
+        .iter()
+        .find(|w| w.id == "switch-required-check")
+        .unwrap();
+    assert_eq!(
+        write.desired,
+        Desired::RequiredChecks {
+            branch: "main".to_owned(),
+            checks: vec!["required".to_owned(), "neutrality".to_owned()],
+            keep_others: false,
+        }
+    );
+}
+
+/// #1373: a declared list without the aggregate is what the switch
+/// supersedes; the switch still requires `required` alone (#1299).
+#[test]
+fn a_declared_list_without_the_aggregate_leaves_the_switch_on_required_alone() {
+    let repo = brownfield_repo();
+    repo.ci(
+        "required_checks",
+        json!(["Orchestration / verify", "build"]),
+    );
+    let (steps, writes) = generate_steps_and_writes(&repo);
+    let switch = steps
+        .iter()
+        .find(|s| s.id == "switch-required-check")
+        .unwrap();
+    match &switch.probe {
+        brakes::engine::Probe::Remote { args, .. } => {
+            assert_eq!(args["checks"], json!(["required"]));
+        }
+        other => panic!("{other:?}"),
+    }
+    let write = writes
+        .iter()
+        .find(|w| w.id == "switch-required-check")
+        .unwrap();
+    assert_eq!(
+        write.desired,
+        Desired::RequiredChecks {
+            branch: "main".to_owned(),
+            checks: vec!["required".to_owned()],
+            keep_others: false,
+        }
+    );
+}
+
 #[test]
 fn the_switch_instructions_are_the_exact_gh_commands() {
     let repo = brownfield_repo();
@@ -1321,7 +1460,7 @@ fn the_switch_instructions_are_the_exact_gh_commands() {
     let doctor = repo.cli(&["doctor", "<repo>", "--json"]);
     let text = stdout(&doctor);
     assert!(text.contains("switch-required-check"), "{doctor:?}");
-    let steps = ci_baseline::brownfield::steps(&repo.root);
+    let (steps, _) = generate_steps_and_writes(&repo);
     let switch = steps
         .iter()
         .find(|s| s.id == "switch-required-check")
@@ -1797,9 +1936,14 @@ fn needs_of(text: &str, id: &str) -> String {
 }
 
 #[test]
-fn heldout_defaults_to_whether_the_directory_exists() {
+fn heldout_defaults_to_true_when_generating_and_to_the_directory_under_existing() {
     let repo = rust_repo("cargo test --locked");
-    assert!(!repo.load(json!({})).unwrap().heldout);
+    // #1362: on by default when generating, pending until a command is answered.
+    let fresh = repo.load(json!({})).unwrap();
+    assert!(fresh.heldout);
+    assert_eq!(fresh.heldout_command, None);
+    // Under existing the directory still decides: no silent new required check.
+    assert!(!repo.load(json!({"workflow": "existing"})).unwrap().heldout);
     repo.file("tests/heldout/test_kept.py");
     let answers = repo
         .load(json!({"heldout_command": HELDOUT_COMMAND}))
@@ -1952,13 +2096,126 @@ fn the_heldout_fragment_runs_the_command_and_fails_red() {
 }
 
 #[test]
-fn without_the_directory_and_the_answer_there_is_no_heldout_job() {
+fn heldout_false_opts_out_of_the_job() {
     let repo = rust_repo("cargo test --locked");
-    let text = repo.workflow(json!({}));
-    assert!(!job_ids(&text).contains(&"heldout".to_owned()), "{text}");
+    let off = repo.workflow(json!({"heldout": false}));
+    assert!(!job_ids(&off).contains(&"heldout".to_owned()), "{off}");
     repo.file("tests/heldout/test_kept.py");
     let off = repo.workflow(json!({"heldout": false}));
     assert!(!job_ids(&off).contains(&"heldout".to_owned()), "{off}");
+}
+
+// ---- #1362: held-out tests on by default, pending until the first test ----
+
+#[test]
+fn a_default_install_renders_the_pending_heldout_job_in_required_needs() {
+    let repo = rust_repo("cargo test --locked");
+    let text = repo.workflow(json!({}));
+    // The default install is the single-repository golden.
+    golden("single.yml", &text);
+    assert_eq!(
+        job_ids(&text),
+        ["scope", "checks", "heldout", "workflow-lint", "required"]
+    );
+    assert_eq!(
+        needs_of(&text, "required"),
+        "    needs: [scope, checks, heldout, workflow-lint]"
+    );
+    let body = jobs(&text)
+        .into_iter()
+        .find(|(id, _)| id == "heldout")
+        .unwrap()
+        .1
+        .join("\n");
+    assert!(body.contains("Check held-out tests are pending"), "{body}");
+    assert!(
+        body.contains("          HELDOUT_DIR: tests/heldout"),
+        "{body}"
+    );
+    assert!(!body.contains("HELDOUT_COMMAND"), "{body}");
+}
+
+#[test]
+fn a_pending_heldout_job_follows_the_answered_directory_and_writes_nothing() {
+    let repo = rust_repo("cargo test --locked");
+    let rendered = repo.render(json!({"heldout_dir": "qa/held-out"})).unwrap();
+    let paths: Vec<&str> = rendered.iter().map(|r| r.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        [".github/actionlint.yaml", ".github/workflows/ci.yml"]
+    );
+    let text = repo.workflow(json!({"heldout_dir": "qa/held-out"}));
+    assert!(
+        text.contains("          HELDOUT_DIR: qa/held-out\n"),
+        "{text}"
+    );
+    // An answered command is no longer pending: the command's job.
+    let answered = repo.workflow(json!({"heldout_command": HELDOUT_COMMAND}));
+    assert!(answered.contains("Run held-out tests"), "{answered}");
+    assert!(!answered.contains("HELDOUT_DIR"), "{answered}");
+}
+
+#[test]
+fn an_empty_directory_stays_pending_and_any_file_in_it_refuses() {
+    let repo = rust_repo("cargo test --locked");
+    fs::create_dir_all(repo.root.join("tests/heldout/nested")).unwrap();
+    let pending = repo.load(json!({})).unwrap();
+    assert!(pending.heldout);
+    assert_eq!(pending.heldout_command, None);
+    repo.file("tests/heldout/nested/test_kept.py");
+    assert_eq!(repo.refusal(json!({})), HELDOUT_MISSING);
+}
+
+#[test]
+fn under_workflow_existing_a_default_install_still_renders_nothing() {
+    let repo = rust_repo("cargo test --locked");
+    let rendered = repo.render(json!({"workflow": "existing"})).unwrap();
+    assert!(
+        rendered.is_empty(),
+        "{:?}",
+        rendered.iter().map(|r| &r.path).collect::<Vec<_>>()
+    );
+}
+
+/// `heldout-pending.sh` under bash in `dir`, with `HELDOUT_DIR` when given.
+fn run_pending(dir: &std::path::Path, held: Option<&str>) -> std::process::Output {
+    let mut command = Command::new("bash");
+    command
+        .arg(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../templates/ci-baseline/fragments/heldout-pending.sh"),
+        )
+        .current_dir(dir)
+        .env_remove("HELDOUT_DIR");
+    if let Some(held) = held {
+        command.env("HELDOUT_DIR", held);
+    }
+    command.output().unwrap()
+}
+
+#[test]
+fn the_pending_fragment_passes_only_while_the_directory_holds_no_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = run_pending(dir.path(), Some("tests/heldout"));
+    assert!(missing.status.success(), "{missing:?}");
+    assert!(
+        stdout(&missing).contains("heldout: no held-out tests yet under tests/heldout"),
+        "{missing:?}"
+    );
+    fs::create_dir_all(dir.path().join("tests/heldout/deep")).unwrap();
+    let empty = run_pending(dir.path(), Some("tests/heldout"));
+    assert!(empty.status.success(), "{empty:?}");
+    fs::write(dir.path().join("tests/heldout/README.md"), "how\n").unwrap();
+    fs::write(dir.path().join("tests/heldout/deep/test_x.py"), "").unwrap();
+    let red = run_pending(dir.path(), Some("tests/heldout"));
+    assert!(!red.status.success(), "{red:?}");
+    assert_eq!(
+        stdout(&red),
+        "heldout: tests/heldout holds tests and heldout_command is not answered; answer it so the job runs them\n\
+         tests/heldout/README.md\ntests/heldout/deep/test_x.py\n"
+    );
+    let unset = run_pending(dir.path(), None);
+    assert!(!unset.status.success(), "{unset:?}");
 }
 
 #[test]
@@ -2141,6 +2398,7 @@ fn the_monorepo_golden_runs_each_app_in_its_directory_from_its_own_profile() {
             "scope",
             "backend-checks",
             "web-checks",
+            "heldout",
             "workflow-lint",
             "required"
         ]
@@ -2195,7 +2453,14 @@ fn the_macos_golden_runs_the_macos_target_app_on_the_configured_mac_on_pushes_on
     // no Linux job: its commands run in `macos`.
     assert_eq!(
         ids,
-        ["scope", "checks", "macos", "workflow-lint", "required"]
+        [
+            "scope",
+            "checks",
+            "heldout",
+            "macos",
+            "workflow-lint",
+            "required"
+        ]
     );
     let (_, macos) = jobs.iter().find(|(id, _)| id == "macos").unwrap();
     assert!(
@@ -2220,7 +2485,9 @@ fn the_macos_golden_runs_the_macos_target_app_on_the_configured_mac_on_pushes_on
     );
     assert!(
         text.contains("          APPS: \"\"\n")
-            && text.contains("          DOCS_SKIPPABLE: checks\n"),
+            && text.contains(
+                "          DOCS_SKIPPABLE: |-\n            checks\n            heldout\n"
+            ),
         "{text}"
     );
     // actionlint learns the macOS label beside the Linux one.
@@ -2324,6 +2591,7 @@ fn a_root_profile_with_commands_runs_them_in_a_root_checks_job() {
             "backend-checks",
             "web-checks",
             "checks",
+            "heldout",
             "workflow-lint",
             "required"
         ]
@@ -2572,7 +2840,10 @@ fn the_caller_keeps_scope_workflow_lint_and_required_local_and_pins_the_callee()
     let text = repo.workflow_as(reusable(), &same_owner_caller());
     let jobs = jobs(&text);
     let ids: Vec<&str> = jobs.iter().map(|(id, _)| id.as_str()).collect();
-    assert_eq!(ids, ["scope", "checks", "workflow-lint", "required"]);
+    assert_eq!(
+        ids,
+        ["scope", "checks", "heldout", "workflow-lint", "required"]
+    );
     let (_, checks) = jobs.iter().find(|(id, _)| id == "checks").unwrap();
     assert!(
         checks.contains(&format!(
@@ -2599,7 +2870,7 @@ fn the_caller_keeps_scope_workflow_lint_and_required_local_and_pins_the_callee()
         assert!(checks.contains(&line), "{line}\n{checks:#?}");
     }
     let (_, required) = jobs.iter().find(|(id, _)| id == "required").unwrap();
-    assert!(required.contains(&"    needs: [scope, checks, workflow-lint]".to_owned()));
+    assert!(required.contains(&"    needs: [scope, checks, heldout, workflow-lint]".to_owned()));
 }
 
 #[test]
@@ -3573,4 +3844,131 @@ fn a_root_declaration_with_a_reusable_checks_refuses() {
             .to_string(),
         "ci-baseline: ci.services and ci.env need checks to run in this workflow; reusable: true calls a workflow that cannot carry them"
     );
+}
+
+// ---- #1354: generate → existing keeps the generated workflow until it is retired ----
+
+const GENERATED: &str = ".github/workflows/agentic-ci.yml";
+
+impl Repo {
+    fn configure_ci(&self, sets: &[&str]) -> std::process::Output {
+        let mut args = vec!["configure", "<repo>", "ci-baseline"];
+        for set in sets {
+            args.extend(["--set", set]);
+        }
+        args.push("--apply");
+        self.cli(&args)
+    }
+}
+
+#[test]
+fn switching_to_existing_keeps_the_generated_workflow_until_it_is_retired() {
+    let repo = brownfield_repo();
+    assert!(repo.install().status.success());
+    let generated = repo.read(GENERATED).unwrap();
+
+    // Step 1: both aggregates keep reporting on the default branch.
+    let result = repo.configure_ci(&["workflow=existing", "aggregate_check=verify"]);
+    assert!(result.status.success(), "{result:?}");
+    let out = stdout(&result);
+    assert!(!out.contains(&format!("DELETE {GENERATED}")), "{out}");
+    assert_eq!(repo.read(GENERATED).unwrap(), generated);
+    assert_eq!(repo.lock_entry(GENERATED)["class"], "managed");
+    let doctor = stdout(&repo.cli(&["doctor", "<repo>"]));
+    assert!(
+        doctor
+            .lines()
+            .any(|l| l.starts_with("STEP [")
+                && l.contains(":ci-baseline] retire-generated-workflow — ")),
+        "{doctor}"
+    );
+    let again = repo.cli(&["install", "<repo>"]);
+    assert!(
+        stdout(&again).lines().any(|l| l == "No changes."),
+        "{again:?}"
+    );
+
+    // Step 2: once the ruleset requires the new checks, the answer retires it.
+    let result = repo.configure_ci(&["retire_generated=true"]);
+    assert!(result.status.success(), "{result:?}");
+    let out = stdout(&result);
+    assert!(
+        out.lines()
+            .any(|l| l == format!("DELETE {GENERATED} [managed:ci-baseline]")),
+        "{out}"
+    );
+    assert!(repo.read(GENERATED).is_none());
+    let doctor = stdout(&repo.cli(&["doctor", "<repo>"]));
+    assert!(!doctor.contains("retire-generated-workflow"), "{doctor}");
+}
+
+#[test]
+fn a_repository_installed_as_existing_never_sees_the_retirement_step() {
+    let repo = brownfield_repo();
+    let answers = repo.root.join("answers.json");
+    fs::write(
+        &answers,
+        json!({"modules": {"ci-baseline": {"workflow": "existing", "aggregate_check": "verify"}}})
+            .to_string(),
+    )
+    .unwrap();
+    let result = repo.cli(&[
+        "install",
+        "<repo>",
+        "--module",
+        "stack-packs",
+        "--module",
+        "ci-baseline",
+        "--answers",
+        answers.to_str().unwrap(),
+        "--apply",
+    ]);
+    assert!(result.status.success(), "{result:?}");
+    assert!(repo.read(GENERATED).is_none());
+    let doctor = stdout(&repo.cli(&["doctor", "<repo>"]));
+    assert!(!doctor.contains("retire-generated-workflow"), "{doctor}");
+}
+
+// ---- #1362: ci-baseline's shells are embedded without comment-only lines (#1088) ----
+
+#[test]
+fn every_embedded_ci_baseline_shell_is_its_fragment_without_comment_only_lines() {
+    use brakes::modules::ci_baseline::render::{
+        DECLARED_SH, HELDOUT_PENDING_SH, HELDOUT_SH, SHARD_SH,
+    };
+    use brakes::modules::security::embed::without_comment_lines;
+    let body = |shell: &str| -> String {
+        without_comment_lines(shell)
+            .lines()
+            .map(|l| {
+                if l.is_empty() {
+                    "\n".to_owned()
+                } else {
+                    format!("          {l}\n")
+                }
+            })
+            .collect()
+    };
+    let goldens: BTreeMap<String, String> = every_golden().into_iter().collect();
+    for (golden, name, shell) in [
+        ("single.yml", "scope.sh", scope::FRAGMENT),
+        ("single.yml", "declared.sh", DECLARED_SH),
+        ("single.yml", "heldout-pending.sh", HELDOUT_PENDING_SH),
+        ("single.yml", "required.sh", ci_baseline::REQUIRED_SH),
+        ("sharded.yml", "shard.sh", SHARD_SH),
+        ("heldout.yml", "heldout.sh", HELDOUT_SH),
+    ] {
+        let text = &goldens[golden];
+        assert_ne!(without_comment_lines(shell), shell, "{name} has comments");
+        assert!(text.contains(&body(shell)), "{golden}: {name}");
+    }
+    // No comment-only line reaches a `run:` body of any golden.
+    for (name, text) in &goldens {
+        assert!(
+            !text.lines().any(|l| l.starts_with("          #")
+                && !l.starts_with("          #!")
+                && !l.starts_with("          # shellcheck ")),
+            "{name}"
+        );
+    }
 }

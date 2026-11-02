@@ -114,6 +114,10 @@ pub fn schema() -> Schema {
          "description": "Adds diff-coverage (changed lines covered, characterization first); unanswered, on where any app's stack pack has a per-file coverage report."},
         {"id": "coverage_changed_lines_min", "type": "integer", "default": 80, "minimum": 0, "maximum": 100,
          "description": "Percentage of the changed lines a pull request must cover."},
+        {"id": "coverage_source", "type": "string", "enum": diff_coverage::SOURCES, "default": "job",
+         "description": "Where diff-coverage gets its data: job runs the tests again under coverage; project-ci reads what the project's own test jobs upload (needs ci-baseline workflow existing), so the suite runs once."},
+        {"id": "coverage_runner", "type": "string", "enum": jobs::coverage_runners(), "default": "standard",
+         "description": "Runner of coverage-ratchet and diff-coverage: standard is ci-baseline's; large is the configuration's runners.linux_large, for a suite that runs in parallel."},
         {"id": "coverage_test_args.*", "type": "string", "minLength": 1,
          "description": "Tests coverage measures for that app, as its declared test selects them: rust replaces --workspace (-p my-crate), python-uv appends to pytest -q (-m 'not services')."},
         {"id": "mutation_diff", "type": "boolean", "default": false,
@@ -329,11 +333,12 @@ impl Module for Security {
     /// maximum, capped (#1228).
     fn notes(&self, cx: &Context<'_>) -> Result<Vec<String>> {
         let timeouts = jobs::budget_timeouts(cx)?;
-        Ok(
+        let mut notes: Vec<String> =
             crate::modules::ci_baseline::render::over_job_max_note(cx, &timeouts)
                 .into_iter()
-                .collect(),
-        )
+                .collect();
+        notes.extend(diff_coverage::project_ci_notes(cx)?);
+        Ok(notes)
     }
     fn render(&self, cx: &Context<'_>) -> Result<Vec<Rendered>> {
         if text(cx.answers, "secrets_scanner", "gitleaks") == "betterleaks" {
@@ -375,6 +380,9 @@ impl Module for Security {
                 Ownership::Seed,
                 &coverage.seed(),
             ));
+        }
+        if let Some(text) = diff_coverage::reusable(cx, &stack_packs::PinTable::embedded()?)? {
+            out.push(item(diff_coverage::REUSABLE, Ownership::Managed, &text));
         }
         out.push(item(GUIDE_PATH, Ownership::Managed, GUIDE));
         // #854: lock-recorded, never written by the engine; `apply --remote` writes them.

@@ -135,30 +135,44 @@ pub struct Ruleset {
     pub findings: Vec<String>,
 }
 
+/// The checks the ruleset requires unless the project declares others.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Standard {
+    /// `required`, or ci-baseline's required checks when it is active (#1159).
+    pub checks: Vec<String>,
+    /// True when ci-baseline's `github:switch-required-check` leaves `checks`
+    /// the only required ones on the host, so a declared `ci.required_checks`
+    /// is replaced rather than rendered (#1299).
+    pub replaces_declared: bool,
+}
+
 /// The contexts the ruleset requires: the project's declared `ci.required_checks`
-/// verbatim when it lists any, else `standard`: ci-baseline's required checks
-/// when it is active (#1159), else the cross-module `required`. Declared checks
-/// are followed by `agentic-required` when `standard` holds it and they do not:
-/// ci-baseline's `github:add-agentic-required-check` adds it to the live
-/// ruleset, so the rendered one lists it too and `ruleset-main` can verify (#1297).
-pub fn required_checks(project: &profile::Profile, standard: &[String]) -> Vec<String> {
+/// verbatim when it lists any and the standard does not replace them, else the
+/// standard's checks. Declared checks are followed by `agentic-required` when
+/// the standard holds it and they do not: ci-baseline's
+/// `github:add-agentic-required-check` adds it to the live ruleset, so the
+/// rendered one lists it too and `ruleset-main` can verify (#1297).
+pub fn required_checks(project: &profile::Profile, standard: &Standard) -> Vec<String> {
     let mut declared: Vec<String> = profile::strings(&project.value["ci"]["required_checks"])
         .into_iter()
         .map(str::to_owned)
         .collect();
-    if declared.is_empty() {
-        return standard.to_vec();
+    if declared.is_empty() || standard.replaces_declared {
+        return standard.checks.clone();
     }
     let added = CONTRIBUTED_AGGREGATE_CHECK.to_owned();
-    if standard.contains(&added) && !declared.contains(&added) {
+    if standard.checks.contains(&added) && !declared.contains(&added) {
         declared.push(added);
     }
     declared
 }
 
 /// The standard when ci-baseline is not active: the cross-module `required`.
-pub fn default_checks() -> Vec<String> {
-    vec![REQUIRED_CHECK.to_owned()]
+pub fn default_checks() -> Standard {
+    Standard {
+        checks: vec![REQUIRED_CHECK.to_owned()],
+        replaces_declared: false,
+    }
 }
 
 /// Pure: same profile, answers, project and standard, same ruleset. The
@@ -169,7 +183,7 @@ pub fn ruleset(
     tier: Tier,
     answers: &Answers,
     project: &profile::Profile,
-    standard: &[String],
+    standard: &Standard,
 ) -> Result<Ruleset> {
     match answers.approvals {
         Approvals::ChecksOnlyOwnerBypass if tier != Tier::P1 => {
@@ -191,7 +205,7 @@ pub fn ruleset(
     }
     let actors = bypass_actors(answers)?;
     let checks = required_checks(project, standard);
-    let findings = if checks == standard {
+    let findings = if checks == standard.checks {
         Vec::new()
     } else {
         vec![format!(

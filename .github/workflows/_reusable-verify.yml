@@ -57,13 +57,6 @@ jobs:
           WORKING_DIRECTORY: "${{ inputs.working-directory }}"
         run: |
           #!/usr/bin/env bash
-          # ci-baseline: the reusable verify workflow's first step. Checks the caller's
-          # inputs before anything runs: the stack and the runner label from the two
-          # enums the installer renders, the tier, the command names, and two paths that
-          # stay inside the checkout. Every input arrives through `env:`.
-          #   STACK, RUNS_ON, TIER, COMMANDS, WORKING_DIRECTORY, PROFILE_PATH  the inputs
-          #   STACKS   the stacks this workflow sets up, space-separated
-          #   LABELS   the runner labels a caller may pass, JSON-quoted, space-separated
           set -euo pipefail
 
           fail() {
@@ -180,12 +173,6 @@ jobs:
           PROFILE_PATH: "${{ inputs.profile-path }}"
         run: |
           #!/usr/bin/env bash
-          # ci-baseline: the reusable verify workflow's run step. Runs each declared
-          # command the caller names, in order, read at run time from its profile; the
-          # workflow never carries a command. A null or absent command fails red, so a
-          # deleted command cannot pass the gate.
-          #   COMMANDS      JSON array of lint, test, verify, build (checked before)
-          #   PROFILE_PATH  the profile, relative to the working directory
           set -euo pipefail
 
           : "${COMMANDS:?COMMANDS is not set}"

@@ -1,7 +1,7 @@
 name: coverage-ratchet
 needs: scope
 if: needs.scope.outputs.tier != 'docs'
-runs-on: {{runner}}
+runs-on: {{coverage_runner}}
 timeout-minutes: {{timeout}}
 steps:
   - name: Check out

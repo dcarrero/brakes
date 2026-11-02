@@ -241,9 +241,12 @@ pub struct CiBaselineAnswers {
     pub protected_paths: Vec<String>,
     /// The held-out directory, normalised: no leading `./`, no trailing `/`.
     pub heldout_dir: String,
-    /// Unanswered, whether `heldout_dir` exists at plan time.
+    /// Unanswered, `true` under `generate` (#1362); under `existing`, whether
+    /// `heldout_dir` exists at plan time.
     pub heldout: bool,
-    /// `Some` exactly when `heldout` is true: the command the `heldout` job runs.
+    /// The command the `heldout` job runs; `None` when `heldout` is false, or
+    /// while the job is pending (#1362): `heldout` and the command unanswered
+    /// under `generate`, on a `heldout_dir` that holds no file.
     pub heldout_command: Option<String>,
     /// `Some` exactly when `heldout` and `heldout_properties` are true: the
     /// command the `heldout-properties` job runs (#980).
@@ -448,11 +451,19 @@ impl CiBaselineAnswers {
             None
         };
         let heldout_dir = heldout_dir(text("heldout_dir").unwrap_or(DEFAULT_HELDOUT_DIR))?;
-        let heldout = a
-            .get("heldout")
-            .and_then(Value::as_bool)
-            .unwrap_or_else(|| cx.root.join(&heldout_dir).is_dir());
-        let heldout_command = if heldout {
+        let answered_heldout = a.get("heldout").and_then(Value::as_bool);
+        // Under existing the directory still decides: no silent new required check.
+        let heldout = answered_heldout.unwrap_or_else(|| {
+            workflow == WorkflowMode::Generate || cx.root.join(&heldout_dir).is_dir()
+        });
+        // No held-out tests yet (#1362): the default job is pending, never an
+        // invented command; a test in the directory needs the answer.
+        let pending = heldout
+            && answered_heldout.is_none()
+            && workflow == WorkflowMode::Generate
+            && text("heldout_command").is_none()
+            && !holds_files(&cx.root.join(&heldout_dir));
+        let heldout_command = if heldout && !pending {
             Some(heldout_command(text("heldout_command"))?)
         } else {
             None
@@ -572,6 +583,16 @@ pub fn heldout_dir(dir: &str) -> Result<String> {
         ));
     }
     Ok(trimmed.to_owned())
+}
+
+/// True when `dir` holds a file at any depth (#1362): a pending held-out job
+/// passes only on a directory without one, as `heldout-pending.sh` checks.
+fn holds_files(dir: &std::path::Path) -> bool {
+    std::fs::read_dir(dir).is_ok_and(|entries| {
+        entries
+            .flatten()
+            .any(|entry| !entry.path().is_dir() || holds_files(&entry.path()))
+    })
 }
 
 /// The default of the `heldout_examples` answer (coordinator, unsourced).
@@ -699,6 +720,28 @@ pub fn required_checks(cx: &Context<'_>) -> Result<Option<Vec<String>>> {
         checks.push(super::CONTRIBUTED_AGGREGATE_CHECK.to_owned());
     }
     Ok(Some(checks))
+}
+
+/// True when ci-baseline is active and renders `github:switch-required-check`
+/// (`workflow: generate` with the generated workflow at `agentic-ci.yml`), whose
+/// write leaves `required` the only required check of the default branch, so
+/// `repo-baseline` renders that and not a declared `ci.required_checks` (#1299).
+/// False when the declared list names `required`: it is then the post-switch
+/// state, which the switch keeps (#1373).
+pub fn switches_required_check(cx: &Context<'_>) -> Result<bool> {
+    let Some(ci) = ci_context(cx) else {
+        return Ok(false);
+    };
+    if super::brownfield::switch_checks(&cx.profile.value) != [AGGREGATE_CHECK] {
+        return Ok(false);
+    }
+    let existing =
+        ci.answers.get("workflow").and_then(Value::as_str) == Some(WorkflowMode::Existing.as_str());
+    if existing {
+        return Ok(false);
+    }
+    let foreign = super::brownfield::foreign_workflows(&ci)?;
+    Ok(super::brownfield::workflow_path(&ci, &foreign) == super::brownfield::BROWNFIELD_PATH)
 }
 
 /// What the aggregate check supersedes when `repo-baseline` retires classic

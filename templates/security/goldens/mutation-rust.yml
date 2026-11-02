@@ -37,6 +37,7 @@ jobs:
           BASE_SHA: "${{ github.event.pull_request.base.sha }}"
           DOCS_SKIPPABLE: |-
             checks
+            heldout
             deps-scan
             sast
             container-scan
@@ -56,34 +57,6 @@ jobs:
             tests/heldout/**
         run: |
           #!/usr/bin/env bash
-          # ci-baseline: the scope job. Decides the tier of this run and which jobs may
-          # report `skipped` on purpose. Anything unknown, any event but a pull request
-          # and any failure to list the changed files means tier `full` with no verification
-          # job skippable (only the push-only `macos`, which never runs on another event), so
-          # a filter can never turn the gate green over unverified work.
-          #
-          # Inputs, all through the environment (untrusted values never reach this shell
-          # inline), one entry per line where a list is expected:
-          #   EVENT           github.event_name
-          #   BASE_SHA        github.event.pull_request.base.sha (empty outside pull requests)
-          #   HEAD_SHA        github.event.pull_request.head.sha
-          #   INERT_PATHS     prefix globs (`docs/**`, `**/*.md`); a change made only of
-          #                   these is tier `docs`; `.github/workflows/**` is never inert;
-          #                   a negation is never evaluated and keeps `full`
-          #   DOCS_SKIPPABLE  job ids that may skip under tier `docs` (checks, lint, shards,
-          #                   contributed jobs that opted in)
-          #   APPS            `<id>=<path>` per app in monorepo mode; a changed path outside
-          #                   every app runs every app
-          #   PROTECTED_PATHS prefix globs whose change in a pull request needs the
-          #                   `human-approved` label; a protected path is never inert; a
-          #                   negation is never evaluated and protects nothing less
-          #   GITHUB_OUTPUT   the step output file
-          # Outputs, written to $GITHUB_OUTPUT and printed on stdout as the same lines:
-          #   tier=full|docs
-          #   skippable=<JSON array of job ids>
-          #   protected=<JSON array of changed protected paths>; `["<unknown>"]` when a
-          #             pull request's files cannot be listed; `[]` outside pull requests
-          #   changed-<id>=true|false   one per app, in APPS order
           set -euo pipefail
 
           : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is not set}"
@@ -97,11 +70,6 @@ jobs:
             printf '%s=%s\n' "$1" "$2" | tee -a "$GITHUB_OUTPUT"
           }
 
-          # 1. List the changed files; only a pull request with both SHAs can. `diffed`
-          #    says the list was computed (possibly empty); `listed` that it is not empty.
-          #    The three-dot range compares the head with its merge base with the base, so
-          #    what the base branch changed after the branch point is never this pull
-          #    request's change (#1280); no merge base in the checkout fails the diff.
           tier=full
           diffed=false
           listed=false
@@ -122,7 +90,6 @@ jobs:
             return 1
           }
 
-          # 2. The tier: docs only when every listed file matches an inert prefix glob.
           negated=""
           while IFS= read -r glob; do
             case "$glob" in '!'*) negated="$negated $glob" ;; esac
@@ -149,9 +116,7 @@ jobs:
             done <<< "$files"
           fi
 
-          # 3. The skippable list.
           ids=""
-          # Each id once: an app's checks can be skippable both under docs and unchanged.
           add() {
             case $'\n'"$ids" in *$'\n'"$1"$'\n'*) return 0 ;; esac
             ids="$ids$1"$'\n'
@@ -173,15 +138,10 @@ jobs:
               fi
             fi
           fi
-          # The macOS job runs on pushes only (`if: github.event_name == 'push'`), so on any
-          # other event its skip is by design, whether or not the files could be listed
-          # (#784); it never stands in for a verification job.
           if [ "$event" != push ]; then
             add macos
           fi
 
-          # 4. Per-app change flags; an unlisted change set or a path outside every app
-          #    means every app changed.
           changed_apps=""
           outside=false
           if $listed; then
@@ -213,7 +173,6 @@ jobs:
 
           skippable="$(printf '%s' "$ids" | jq -R . | jq -cs .)"
 
-          # 5. The protected paths this pull request changed; unknown when it could not list.
           negated=""
           while IFS= read -r glob; do
             case "$glob" in '!'*) negated="$negated $glob" ;; esac
@@ -233,7 +192,6 @@ jobs:
           fi
           protected="$(printf '%s' "$changed_protected" | jq -R . | jq -cs .)"
 
-          # 6. The claim: the same lines the workflow reads and the doctor parses.
           emit tier "$tier"
           emit skippable "$skippable"
           emit protected "$protected"
@@ -267,10 +225,6 @@ jobs:
           NAME: lint
         run: |
           #!/usr/bin/env bash
-          # ci-baseline: runs one declared command, read at run time from
-          # .agent-setup/project.json; the workflow never carries the command itself.
-          # NAME (the commands.<name> key) arrives through `env:`. A null or absent
-          # command fails the job red, so a deleted command cannot pass the gate.
           set -euo pipefail
 
           : "${NAME:?NAME is not set}"
@@ -286,10 +240,6 @@ jobs:
           NAME: test
         run: |
           #!/usr/bin/env bash
-          # ci-baseline: runs one declared command, read at run time from
-          # .agent-setup/project.json; the workflow never carries the command itself.
-          # NAME (the commands.<name> key) arrives through `env:`. A null or absent
-          # command fails the job red, so a deleted command cannot pass the gate.
           set -euo pipefail
 
           : "${NAME:?NAME is not set}"
@@ -305,10 +255,6 @@ jobs:
           NAME: build
         run: |
           #!/usr/bin/env bash
-          # ci-baseline: runs one declared command, read at run time from
-          # .agent-setup/project.json; the workflow never carries the command itself.
-          # NAME (the commands.<name> key) arrives through `env:`. A null or absent
-          # command fails the job red, so a deleted command cannot pass the gate.
           set -euo pipefail
 
           : "${NAME:?NAME is not set}"
@@ -319,6 +265,35 @@ jobs:
           fi
           echo "$NAME: $cmd"
           bash -euo pipefail -c "$cmd"
+  heldout:
+    name: heldout
+    needs: scope
+    if: needs.scope.outputs.tier != 'docs'
+    runs-on: example-cloud-2
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: "false"
+      - name: Check held-out tests are pending
+        env:
+          HELDOUT_DIR: tests/heldout
+        run: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          : "${HELDOUT_DIR:?HELDOUT_DIR is not set}"
+          files=""
+          if [ -e "$HELDOUT_DIR" ]; then
+            files="$(find "$HELDOUT_DIR" ! -type d | LC_ALL=C sort)"
+          fi
+          if [ -n "$files" ]; then
+            echo "heldout: $HELDOUT_DIR holds tests and heldout_command is not answered; answer it so the job runs them"
+            printf '%s\n' "$files"
+            exit 1
+          fi
+          echo "heldout: no held-out tests yet under $HELDOUT_DIR; answer heldout_command when the first one lands"
   workflow-lint:
     name: workflow-lint
     needs: scope
@@ -342,18 +317,6 @@ jobs:
           TOOL_VERSION: "1.7.12"
         run: |
           #!/usr/bin/env bash
-          # install-tool.sh: downloads one scanner pinned in security/pins.rs for the
-          # runner's architecture, verifies its SHA-256 and only then installs the
-          # binary. Nothing is extracted or copied before the digest matches; a mismatch
-          # is one ::error:: line and exit 1. Parameters come from the pin table:
-          #   TOOL_NAME TOOL_VERSION TOOL_BIN TOOL_FORMAT (tgz|bin)
-          #   TOOL_URL_AMD64 TOOL_SHA256_AMD64 TOOL_URL_ARM64 TOOL_SHA256_ARM64
-          # Optional: TOOL_BIN_DIR, the workspace-local bin dir (default: under
-          # RUNNER_TEMP, or the working directory); it is appended to GITHUB_PATH.
-          # Optional: TOOL_BIN_PATH (tgz only), the binary's path inside the archive
-          # when it is not at the root, `*` allowed (Hurl: hurl-*/bin/hurl); it must
-          # resolve to exactly one regular file inside the extracted archive.
-          # Needs bash, curl, tar, install and sha256sum or shasum.
           set -euo pipefail
 
           for name in TOOL_NAME TOOL_VERSION TOOL_BIN TOOL_FORMAT \
@@ -392,10 +355,6 @@ jobs:
             esac
           fi
 
-          # Sets member to the one file TOOL_BIN_PATH names under the extract dir $1:
-          # globbed by compgen -G (no word splitting), exactly one match, a regular file
-          # (not a link) whose directory resolves inside $1. Runs in this shell so fail
-          # exits it.
           archive_member() {
             local root dir found
             local matches=()
@@ -661,9 +620,10 @@ jobs:
             push) range_of "${PUSH_BEFORE:-}" "${PUSH_AFTER:-}" && claim="pushed $range" ;;
           esac
 
+          status=0
           if [ -n "$range" ]; then
             echo "history: $claim"
-            "${scan[@]}" --log-opts "$range" .
+            "${scan[@]}" --log-opts "$range" . || status=$?
           else
             echo "history: full"
             case "${EVENT:-}" in
@@ -674,8 +634,33 @@ jobs:
                 fi
                 ;;
             esac
-            "${scan[@]}" .
+            "${scan[@]}" . || status=$?
           fi
+
+          report=gitleaks.sarif
+          if ! jq -e 'type == "object"' "$report" >/dev/null 2>&1; then
+            echo "::error::gitleaks wrote no readable report (exit $status)"
+            if [ "$status" -eq 0 ]; then
+              exit 1
+            fi
+            exit "$status"
+          fi
+
+          findings='[.runs[]?.results[]? | [(.locations[0].physicalLocation.artifactLocation.uri // "unknown"), (.locations[0].physicalLocation.region.startLine // 0), (.ruleId // "unknown")] | map(tostring)]'
+          escape='def data: gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
+            def property: data | gsub(":"; "%3A") | gsub(","; "%2C");'
+          jq -r "$escape $findings"' | .[] | "::error file=\(.[0] | property),line=\(.[1] | property)::\(.[2] | data)"' "$report"
+          count=$(jq "$findings | length" "$report")
+
+          if [ "$count" -gt 0 ]; then
+            echo "::error::$count gitleaks finding(s); values withheld from the log, rotate any real credential"
+            if [ "$status" -eq 0 ]; then
+              exit 1
+            fi
+          elif [ "$status" -eq 0 ]; then
+            echo "gitleaks: no findings"
+          fi
+          exit "$status"
       - name: Check the bypass inventory
         if: ${{ !cancelled() }}
         env:
@@ -1939,7 +1924,8 @@ jobs:
                 cp "$base_report" "$work/base-report"
                 echo "base report: cache ($merge_base)"
               else
-                diff_command="${DIFF_COMMAND:?DIFF_COMMAND is required}"
+                [ -n "${DIFF_COMMAND:-}" ] || { echo "::warning::$app: no base report for $merge_base; not judged"; exit 0; }
+                diff_command="$DIFF_COMMAND"
                 app_dir="${APP_DIR:-.}"
                 worktree="$work/base"
                 git worktree add --detach --quiet "$worktree" "$merge_base"
@@ -2364,7 +2350,7 @@ jobs:
           retention-days: "7"
   required:
     name: required
-    needs: [scope, checks, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage, mutation-diff]
+    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage, mutation-diff]
     if: always()
     permissions:
       issues: read
@@ -2390,36 +2376,8 @@ jobs:
           TIER: "${{ needs.scope.outputs.tier }}"
         run: |
           #!/usr/bin/env bash
-          # The aggregate `required` job: the one required status check of the generated
-          # workflow (SPEC-ci-baseline.md, "Aggregate job: exact logic"). It runs with
-          # `if: always()` and needs `scope` and every verification job, because GitHub counts
-          # a skipped job as a passing required check. Inputs come through `env:` only:
-          #   SCOPE      needs.scope.result
-          #   TIER       needs.scope.outputs.tier       (full | docs)
-          #   SKIPPABLE  needs.scope.outputs.skippable  (JSON array of job ids that may be skipped)
-          #   NEEDS      toJSON(needs)                  (job id -> { result, outputs })
-          #   EVENT      github.event_name
-          #   PROTECTED  needs.scope.outputs.protected  (JSON array of changed protected paths;
-          #                                              ["<unknown>"] when they could not be listed)
-          #   PR_LABELS  toJSON(github.event.pull_request.labels.*.name)
-          #   PR_NUMBER, REPOSITORY, GH_TOKEN   github.event.pull_request.number, github.repository,
-          #                                     github.token (issues: read, pull-requests: read)
-          #   EVENT_ACTION, EVENT_LABEL         github.event.action, github.event.label.name
-          #   SENDER_LOGIN, SENDER_TYPE         github.event.sender.login, github.event.sender.type
-          # On a pull request that changed a protected path, the label `human-approved` must be
-          # present (rule 3); a PROTECTED that is not a JSON array of strings counts as
-          # "<unknown>" and labels that are not one count as no label, so the gate fails closed.
-          # The label counts only when a person added it (#1255), checked whenever it is on the
-          # pull request: the most recent `labeled` event for it, read through the API, and the sender of a run triggered
-          # by adding it, must be a `User` whose login does not end in `[bot]`, not acting
-          # through an App. Anything that cannot be read fails closed.
-          # Exit 0 only when every job besides scope is `success`, or `skipped` and listed in
-          # SKIPPABLE. Anything else fails, naming the job and its result, one line per job.
           set -euo pipefail
 
-          # One tab-separated verdict for an actor: `person` or `other`, the login and type
-          # reduced to the characters GitHub allows (so a log line cannot carry a workflow
-          # command; `-` when empty), and `, via an App` when an App acted for the user.
           # shellcheck disable=SC2016 # a jq program: its $names are jq variables.
           VERDICT='def verdict($login; $type; $app):
             [ (if $type == "User" and $login != "" and ($login | endswith("[bot]") | not) and $app == null
@@ -2439,7 +2397,6 @@ jobs:
               exit 1
               ;;
           esac
-          # Rule 3: a protected path changed in a pull request needs a human's label.
           if [ "${EVENT:-}" = pull_request ]; then
             if ! protected="$(printf '%s' "${PROTECTED:-}" | jq -er 'if type == "array" and all(type == "string") then (if index("<unknown>") != null then "<unknown>" else join(", ") end) else error("unreadable") end' 2>/dev/null)"; then
               protected='<unknown>'
@@ -2448,16 +2405,12 @@ jobs:
             if printf '%s' "${PR_LABELS:-}" | jq -e 'type == "array" and index("human-approved") != null' >/dev/null 2>&1; then
               approved=true
             fi
-            # Checked whenever the label is present, a protected path or not: other jobs
-            # (the contract check of qa) accept a change because of it.
             if $approved; then
               tab="$(printf '\t')"
               refuse_actor() {
                 printf '::error::Label human-approved was last added by %s (%s)%s, not by a person; a person must remove it and add it again\n' "$2" "$3" "$4"
                 exit 1
               }
-              # A run triggered by adding the label: its sender, from the payload, must be a person
-              # too, so an events list that lags behind the event cannot approve.
               if [ "${EVENT_ACTION:-}" = labeled ] &&
                 [ "$(printf '%s' "${EVENT_LABEL:-}" | tr '[:upper:]' '[:lower:]')" = human-approved ]; then
                 sender="$(jq -nr --arg l "${SENDER_LOGIN:-}" --arg t "${SENDER_TYPE:-}" "$VERDICT"' verdict($l; $t; null)')"
@@ -2514,8 +2467,6 @@ jobs:
             exit 1
           fi
 
-          # One tab-separated line per job besides scope: id, result (`missing` when absent),
-          # and whether scope listed the id as skippable.
           verdicts="$(printf '%s' "$NEEDS" | jq -r --argjson skippable "$SKIPPABLE" '
             to_entries
             | map(select(.key != "scope"))

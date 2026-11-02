@@ -228,6 +228,7 @@ fn questions_follow_the_spec_data_model() {
             "spec_dir",
             "review_family",
             "review_blocking",
+            "review_environment",
             "unattended",
             "unattended_label",
             "unattended_prompt",
@@ -3079,7 +3080,7 @@ fn golden_cross_review_codex_is_a_job_of_required() {
     assert_eq!(step.with["permission-profile"], ":read-only");
     assert!(
         text.contains(
-            "DOCS_SKIPPABLE: |-\n            checks\n            cross-review-model\n            cross-review\n"
+            "DOCS_SKIPPABLE: |-\n            checks\n            heldout\n            cross-review-model\n            cross-review\n"
         ),
         "{text}"
     );
@@ -3488,6 +3489,103 @@ fn the_secret_steps_name_both_stores_and_probe_names_only() {
     }
 }
 
+/// #1320 (owner, 2026-11-01): `review_environment` puts the model job in a GitHub
+/// environment, so the reviewer's key is an environment secret, never a repository
+/// one beside `production`. Unset, the workflow is the golden's, byte for byte.
+#[test]
+fn review_environment_puts_only_the_model_job_in_that_environment() {
+    let q = AgentGuardrails.questions();
+    let question = q.question("review_environment").unwrap();
+    assert_eq!(question.default, None, "unset by default");
+    assert_eq!(
+        question.when,
+        Some(answers::When::Ne(
+            "review_family".to_owned(),
+            "none".to_owned()
+        ))
+    );
+    let f = reviewed(json!({"review_family": "deepseek", "review_environment": "ci-review"}));
+    let text = workflow_of(&plan_composed(&f, true).unwrap(), CI_YML);
+    let wf = parsed(&text);
+    assert_eq!(
+        wf.job(CROSS_REVIEW_MODEL).unwrap().environment.as_deref(),
+        Some("ci-review")
+    );
+    assert_eq!(wf.job(CROSS_REVIEW).unwrap().environment, None);
+    assert!(
+        job_text(&text, CROSS_REVIEW_MODEL).contains("\n    environment: ci-review\n"),
+        "{text}"
+    );
+    let unset = reviewed(json!({"review_family": "deepseek"}));
+    let golden = workflow_of(&plan_composed(&unset, true).unwrap(), CI_YML);
+    assert_eq!(
+        text.replace("    environment: ci-review\n", ""),
+        golden,
+        "the answer adds one line and nothing else"
+    );
+}
+
+#[test]
+fn review_environment_moves_the_actions_secret_step_to_that_environment() {
+    let answers: Answers = serde_json::from_value(
+        json!({"review_family": "deepseek", "review_environment": "ci-review"}),
+    )
+    .unwrap();
+    let steps = review::steps(&answers);
+    let scopes: Vec<(&str, Value)> = steps
+        .iter()
+        .map(|s| match &s.probe {
+            Probe::Remote { args, .. } => (s.id.as_str(), args["scope"].clone()),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        scopes,
+        [
+            ("review-secret-present", json!("environment:ci-review")),
+            ("review-dependabot-secret-present", json!("dependabot")),
+        ]
+    );
+    for step in &steps {
+        assert!(
+            step.instructions
+                .contains("gh secret set DEEPINFRA_API_KEY --env ci-review --repo <owner>/<repo>"),
+            "{}",
+            step.instructions
+        );
+        assert!(
+            step.instructions
+                .contains("gh secret set DEEPINFRA_API_KEY --app dependabot --repo <owner>/<repo>"),
+            "{}",
+            step.instructions
+        );
+    }
+    assert_eq!(
+        steps[0].title,
+        "Create the DEEPINFRA_API_KEY secret for cross-review in the ci-review environment's secrets"
+    );
+}
+
+#[test]
+fn a_review_environment_that_could_break_the_workflow_refuses() {
+    for name in [
+        "ci review",
+        "x\n  permissions: write-all",
+        "${{ github.ref }}",
+        "",
+        &"e".repeat(256),
+    ] {
+        let f = reviewed(json!({"review_environment": name}));
+        assert_eq!(
+            plan_composed(&f, true).unwrap_err().to_string(),
+            format!(
+                "Module agent-guardrails: review_environment `{name}` must be 1 to 255 letters, digits and . _ -"
+            ),
+            "{name:?}"
+        );
+    }
+}
+
 #[test]
 fn dependabot_is_the_one_bot_allowed_and_forks_fail_closed() {
     for answers in [
@@ -3592,7 +3690,7 @@ fn a_recorded_extra_read_scope_reaches_the_model_job_as_a_read() {
         ..CLAUDE
     };
     let pins = PinTable::embedded().unwrap();
-    let jobs = review::jobs(&needy, "P0", "ubuntu-24.04", &pins).unwrap();
+    let jobs = review::jobs(&needy, "P0", "ubuntu-24.04", None, &pins).unwrap();
     assert_eq!(jobs[0].id, CROSS_REVIEW_MODEL);
     assert!(
         jobs[0]
@@ -3626,7 +3724,7 @@ fn an_unconfirmed_vendor_fact_refuses_at_render_time() {
     };
     let pins = PinTable::embedded().unwrap();
     assert_eq!(
-        review::jobs(&guessed, "P0 P1", "ubuntu-24.04", &pins)
+        review::jobs(&guessed, "P0 P1", "ubuntu-24.04", None, &pins)
             .unwrap_err()
             .to_string(),
         "Module agent-guardrails: reviewer codex: fails_on_findings is not confirmed in the vendor facts; verify it against the vendor's documentation before rendering cross-review"
@@ -3636,7 +3734,7 @@ fn an_unconfirmed_vendor_fact_refuses_at_render_time() {
         ..CLAUDE
     };
     assert!(
-        review::jobs(&guessed, "P0", "ubuntu-24.04", &pins)
+        review::jobs(&guessed, "P0", "ubuntu-24.04", None, &pins)
             .unwrap_err()
             .to_string()
             .contains("secret_input is not confirmed")
@@ -4440,6 +4538,16 @@ fn heldout_repo(dir: &str) -> Repo {
     repo
 }
 
+/// A repository whose ci-baseline answers opt out of the held-out job, on by
+/// default since #1362.
+fn no_heldout_repo() -> Repo {
+    let repo = Repo::new("cargo test --locked");
+    let file = json!({"module": "ci-baseline", "version": "1.0.0", "answers": {"heldout": false}});
+    repo.write_json(&answers::path("ci-baseline"), &file);
+    assert!(repo.install(&["--apply"]).status.success());
+    repo
+}
+
 /// The fragment as merged with the whole deny list but the held-out entries of
 /// `tools` (`Edit`, `Read`): before #945 both were absent, before #982 `Read` was.
 fn register_without_heldout_tools(repo: &Repo, dir: &str, tools: &[&str]) {
@@ -4504,8 +4612,7 @@ fn heldout_denied_requires_both_entries_and_names_the_missing_one() {
 
 #[test]
 fn heldout_denied_is_silent_without_heldout() {
-    let repo = Repo::new("cargo test --locked");
-    assert!(repo.install(&["--apply"]).status.success());
+    let repo = no_heldout_repo();
     register_without_heldout(&repo, "tests/heldout");
     assert_eq!(
         rule_lines(&repo.doctor(), HELDOUT_DENIED),
@@ -4542,8 +4649,7 @@ fn the_auditor_judges_heldout_denied_only_where_heldout_is_true() {
             .expect("the rule is in the registry");
         (rule["status"].as_str().unwrap().to_owned(), rule)
     };
-    let repo = Repo::new("cargo test --locked");
-    assert!(repo.install(&["--apply"]).status.success());
+    let repo = no_heldout_repo();
     register_without_heldout(&repo, "tests/heldout");
     assert_eq!(status(&repo).0, "not-required", "heldout false");
     let repo = heldout_repo("tests/heldout");

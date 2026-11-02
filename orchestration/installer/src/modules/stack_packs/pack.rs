@@ -203,8 +203,8 @@ pub struct CoverageRecipe {
     pub tool: &'static str,
     pub install: CoverageInstall,
     /// Runs the tests under coverage and writes `report` in the app
-    /// directory; `{{version}}` is the tool's pinned version and `{{tests}}`
-    /// the test selection.
+    /// directory; `{{version}}` is the tool's pinned version, `{{pin:<key>}}`
+    /// another tool's, and `{{tests}}` the test selection.
     pub command: &'static str,
     /// The selection `{{tests}}` takes unless `security` answers
     /// `coverage_test_args.<app id>` (#1177); empty for none.
@@ -217,6 +217,10 @@ pub struct CoverageRecipe {
     pub diff_command: &'static str,
     /// `coverage.xml` (Cobertura) or `lcov.info` (LCOV), in the app directory.
     pub diff_report: &'static str,
+    /// Writes `diff_report` in the app directory from the data the project's
+    /// own test jobs uploaded under `{{parts}}` (security's `coverage_source:
+    /// project-ci`, #1349), without running a test.
+    pub combine: &'static str,
 }
 
 impl CoverageRecipe {
@@ -224,6 +228,11 @@ impl CoverageRecipe {
     /// selection) or `default_tests`. Refuses when the pin is missing.
     pub fn render_command(&self, pins: &PinTable, tests: Option<&str>) -> Result<String> {
         Ok(self.with_tests(&with_version(self.command, self.tool, pins)?, tests))
+    }
+
+    /// `combine` with the pins and `parts`, the directory the parts were downloaded to.
+    pub fn render_combine(&self, pins: &PinTable, parts: &str) -> Result<String> {
+        Ok(with_version(self.combine, self.tool, pins)?.replace("{{parts}}", parts))
     }
 
     /// `diff_command`, rendered as `render_command` renders `command`.
@@ -309,7 +318,17 @@ impl MutationRecipe {
 }
 
 fn with_version(template: &str, tool: &str, pins: &PinTable) -> Result<String> {
-    Ok(template.replace("{{version}}", &pins.tool(tool)?.version))
+    let mut out = template.replace("{{version}}", &pins.tool(tool)?.version);
+    // `{{pin:<key>}}`: another tool's pinned version (#1342: pytest-cov beside coverage-py).
+    while let Some(start) = out.find("{{pin:") {
+        let Some(len) = out[start..].find("}}") else {
+            break;
+        };
+        let key = out[start + "{{pin:".len()..start + len].to_owned();
+        let version = pins.tool(&key)?.version.clone();
+        out.replace_range(start..start + len + "}}".len(), &version);
+    }
+    Ok(out)
 }
 
 /// The `taiki-e/install-action` step for `InstallAction`, as nextest is installed.

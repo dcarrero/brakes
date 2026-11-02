@@ -1950,6 +1950,52 @@ fn diff_coverage_passes_with_the_gate_and_is_silent_where_it_does_not_apply() {
     assert!(rule_lines(&audit::diagnose(dir.path(), today()), DIFF_RULE).is_empty());
 }
 
+/// #1349: the reusable workflow judges; the project's CI calls it and its aggregate needs it.
+fn reusable_coverage() -> String {
+    format!(
+        "name: agentic-coverage\non:\n  workflow_call:\npermissions:\n  contents: read\njobs:\n  diff-coverage:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 15\n    steps:\n      - run: {GOOD_CHANGED}\n      - run: {GOOD_CHARACTERIZATION}\n"
+    )
+}
+
+fn calling_ci(needed: bool) -> String {
+    let needs = if needed {
+        "[tests, diff-coverage]"
+    } else {
+        "[tests]"
+    };
+    format!(
+        "name: CI\non: pull_request\npermissions:\n  contents: read\njobs:\n  tests:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 20\n    steps:\n      - run: echo test\n  diff-coverage:\n    needs: [tests]\n    uses: ./.github/workflows/agentic-coverage.yml\n  all-checks-passed:\n    if: always()\n    needs: {needs}\n    runs-on: ubuntu-24.04\n    timeout-minutes: 5\n    steps:\n      - run: echo\n"
+    )
+}
+
+#[test]
+fn a_project_ci_gate_passes_when_the_caller_aggregate_needs_the_reusable_job() {
+    let packs = stack_answers("python-uv");
+    let reusable = reusable_coverage();
+    for (needed, findings) in [(true, 0), (false, 1)] {
+        let ci = calling_ci(needed);
+        let dir = repo(&[
+            (".agent-setup/modules/stack-packs.json", &packs),
+            (".github/workflows/agentic-coverage.yml", &reusable),
+            (".github/workflows/ci.yml", &ci),
+        ]);
+        assert_eq!(
+            rule_lines(&audit::diagnose(dir.path(), today()), DIFF_RULE).len(),
+            findings,
+            "needed {needed}"
+        );
+    }
+    // The reusable workflow alone, never called, gates nothing.
+    let dir = repo(&[
+        (".agent-setup/modules/stack-packs.json", &packs),
+        (".github/workflows/agentic-coverage.yml", &reusable),
+    ]);
+    assert_eq!(
+        rule_lines(&audit::diagnose(dir.path(), today()), DIFF_RULE),
+        [DIFF_FINDING]
+    );
+}
+
 #[test]
 fn a_gate_without_the_threshold_the_characterization_or_the_aggregate_fails() {
     let packs = stack_answers("rust");

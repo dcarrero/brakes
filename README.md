@@ -30,7 +30,7 @@ echo '{"purpose": "A toy service.", "commands": {"verify": "make test"}}' \
 
 brakes install . --preset personal-paas \
   --module stack-packs --module repo-baseline --module ci-baseline \
-  --module merge-guard --module agent-guardrails --apply
+  --module security --module merge-guard --module agent-guardrails --apply
 ```
 
 The install writes files you review and commit like any change:
@@ -42,6 +42,7 @@ The install writes files you review and commit like any change:
 | `.claude/settings.json`, `.claude/hooks/` | the agent's hooks: refuse `gh pr merge` on red, run `make test` before the agent may stop, deny secrets and the lock |
 | `AGENTS.md`, `docs/agent-setup/` | the rules the agent reads, inside a block `brakes` manages |
 | `.github/` templates, `dependabot.yml`, `SECURITY.md` | pull request and issue templates, dependency updates with a cooldown |
+| `.gitleaks.toml`, `osv-scanner.toml`, `.agent-setup/security-exceptions.json` | the security gate's configuration: `ci.yml` gains a gitleaks secrets scan and dependency and static scans; every exception carries an expiry |
 | `.agent-setup/lock.json` | what was installed and the digest of every file, so a hand edit is never overwritten |
 
 From then on, when the agent tries to end its turn with a failing test, the Stop hook
@@ -58,8 +59,12 @@ make: *** [test] Error 1
 
 ## Requirements
 
-- **Rust 1.99 or later** and Cargo, to build from source. There are no prebuilt binaries
-  yet.
+- **Rust 1.99 or later** and Cargo, to build from source. Or, instead of building, a
+  prebuilt binary: each release attaches `brakes-<tag>-<target>.tar.gz` for
+  `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` and `aarch64-apple-darwin`,
+  with `SHA256SUMS` and a build-provenance attestation. Check the download before you
+  run it, with `sha256sum -c SHA256SUMS --ignore-missing` and
+  `gh attestation verify brakes-<tag>-<target>.tar.gz --repo gemba-app/brakes`.
 - **GitHub only.** The host adapter reads and writes GitHub (`github.com`); other hosts
   are not supported.
 - **The GitHub CLI, `gh`, signed in**, for everything that reads or writes the remote
@@ -139,10 +144,10 @@ Then plan an installation, read it, and apply it:
 ```sh
 brakes install . --preset personal-paas \
   --module stack-packs --module repo-baseline --module ci-baseline \
-  --module merge-guard --module agent-guardrails          # plan only: prints every file
+  --module security --module merge-guard --module agent-guardrails          # plan only: prints every file
 brakes install . --preset personal-paas \
   --module stack-packs --module repo-baseline --module ci-baseline \
-  --module merge-guard --module agent-guardrails --apply
+  --module security --module merge-guard --module agent-guardrails --apply
 brakes doctor .
 ```
 
@@ -154,7 +159,7 @@ second `doctor` shows what is left, each line with its fix, for example:
 
 ```text
 FAIL        [basic:baseline.criticality-declared] criticality undeclared in .agent-setup/project.json (audited as internal) → manual step declare-criticality: ...
-FAIL        [basic:security.secrets-gate] No secrets gate: no gitleaks job and secret scanning off → module security
+FAIL        [bronze:baseline.security.hooks-installed] .git/hooks/pre-commit is absent → manual step hooks-installed: Install the pre-commit hook in this clone
 ```
 
 Commit the files, open a pull request, and add the cross-review key (Requirements). The

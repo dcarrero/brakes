@@ -244,25 +244,50 @@ fn a_group_that_ignores_term_is_killed_after_five_seconds() {
     assert!(!alive(&leader) && !alive(&child));
 }
 
+/// How many polls may start once 5 s have passed since the wait began. Each
+/// poll here costs at least 0.2 s, so 50 counted polls (#1307) start at least
+/// 25 of their polls after the 5 s; a wall-clock deadline starts only the polls
+/// that run before the script sees its deadline gone. The bound counts polls,
+/// not seconds, so a slow host does not move it: 20 runs at load 92-129 on 18
+/// cores saw at most 1, while the elapsed time reached 8.5 s (#1332).
+const LATE_POLLS: usize = 10;
+
 /// The 5 s before KILL are wall-clock time, not 50 polls: on a loaded host
 /// (a 3-vCPU macOS runner at load 10) every poll costs a slow fork and exec,
 /// and counted polls stretched the wait to 9.4 s (#1307). Here every `sleep`
-/// starts 0.1 s late, so 50 counted polls of 0.1 s would take 10 s.
+/// starts 0.1 s late and records when it started; the test counts the polls
+/// that start after 5 s instead of bounding the elapsed time, which a loaded
+/// host stretches (#1332). A script that keeps polling is killed by the fake
+/// `sleep` at its 11th late poll, so it fails instead of hanging.
 #[test]
 fn the_wait_before_kill_is_five_seconds_however_slow_each_poll_is() {
     let mut fx = Fixture::new();
     let bin = fx.dir.path().join("slow-bin");
     fs::create_dir(&bin).unwrap();
+    let events = fx.dir.path().join("sleeps");
     let real_sleep = Command::new("bash")
         .args(["-c", "command -v sleep"])
         .output()
         .unwrap();
     let real_sleep = String::from_utf8(real_sleep.stdout).unwrap();
+    // Each line is `<start time> <argument>`; the wait begins with the first
+    // `sleep` after the leader's `sleep 300`.
     common::write_executable(
         &bin.join("sleep"),
         &format!(
-            "#!/usr/bin/env bash\n{0} 0.1\nexec {0} \"$@\"\n",
-            real_sleep.trim()
+            r#"#!/usr/bin/env bash
+'{sleep}' 0.1
+now="$(perl -MTime::HiRes=time -e 'printf "%.3f", time')"
+echo "$now $1" >> '{events}'
+late="$(awk '$2 != 300 && t0 == "" {{ t0 = $1 }} $2 == "0.1" && $1 >= t0 + 5 {{ n++ }} END {{ print n + 0 }}' '{events}')"
+if [ "$late" -gt {LATE_POLLS} ]; then
+  echo "more than {LATE_POLLS} polls after 5 s; killed the script" >> '{events}'
+  kill -KILL "$PPID"
+fi
+exec '{sleep}' "$@"
+"#,
+            sleep = real_sleep.trim(),
+            events = events.display(),
         ),
     );
     fx.path = format!("{}:{}", bin.display(), fx.path);
@@ -274,15 +299,29 @@ fn the_wait_before_kill_is_five_seconds_however_slow_each_poll_is() {
     let output = fx.stop("web", false);
     let took = begun.elapsed();
 
-    assert!(output.status.success(), "{output:?}");
+    let log = fs::read_to_string(&events).unwrap();
+    assert!(output.status.success(), "{output:?}\n{log}");
     assert_eq!(
         stdout(&output),
         format!(
             "stop: web pid {leader} ignored TERM for 5 s; sent KILL\nstop: web pid {leader} group ended\n"
         )
     );
+    let sleeps: Vec<(f64, &str)> = log
+        .lines()
+        .map(|line| {
+            let (at, arg) = line.split_once(' ').unwrap();
+            (at.parse().unwrap(), arg)
+        })
+        .filter(|(_, arg)| *arg != "300")
+        .collect();
+    let begin = sleeps.first().unwrap().0;
+    let late = sleeps
+        .iter()
+        .filter(|(at, arg)| *arg == "0.1" && *at >= begin + 5.0)
+        .count();
+    assert!(late <= LATE_POLLS, "{late} polls after 5 s:\n{log}");
     assert!(took >= Duration::from_secs(5), "{took:?}");
-    assert!(took < Duration::from_secs(7), "{took:?}");
     assert!(!alive(&leader) && !alive(&child));
 }
 

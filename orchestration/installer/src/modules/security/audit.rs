@@ -163,26 +163,41 @@ fn any_app_has_diff_report(root: &Path) -> bool {
 /// `if: always()` job of the same workflow needs, with a step that runs
 /// `diff-cover` with `--fail-under` and a step that prints `Characterization first`.
 pub fn diff_coverage(root: &Path) -> Vec<String> {
-    let gated = read_all(&LocalFiles::new(root))
+    let read: Vec<(String, Workflow)> = read_all(&LocalFiles::new(root))
         .into_iter()
-        .filter_map(|(_, parsed)| parsed.ok())
-        .any(|wf| {
-            let Some(job) = wf.job(diff_coverage::DIFF_COVERAGE) else {
-                return false;
-            };
+        .filter_map(|(path, parsed)| Some((path, parsed.ok()?)))
+        .collect();
+    let judges = |wf: &Workflow| {
+        wf.job(diff_coverage::DIFF_COVERAGE).is_some_and(|job| {
             let runs = |needle: &[&str]| {
                 job.steps
                     .iter()
                     .any(|s| needle.iter().all(|n| run(s).contains(n)))
             };
-            let needed = wf.jobs.iter().any(|gate| {
-                gate.condition
-                    .as_deref()
-                    .is_some_and(|c| c.contains("always()"))
-                    && gate.needs.iter().any(|n| n == diff_coverage::DIFF_COVERAGE)
-            });
-            needed && runs(&["diff-cover", "--fail-under"]) && runs(&["Characterization first"])
-        });
+            runs(&["diff-cover", "--fail-under"]) && runs(&["Characterization first"])
+        })
+    };
+    let needed = |wf: &Workflow| {
+        wf.jobs.iter().any(|gate| {
+            gate.condition
+                .as_deref()
+                .is_some_and(|c| c.contains("always()"))
+                && gate.needs.iter().any(|n| n == diff_coverage::DIFF_COVERAGE)
+        })
+    };
+    // coverage_source project-ci (#1349): the reusable workflow judges, and the
+    // project's workflow calls it as `diff-coverage` and gates on it.
+    let reusable_judges = read
+        .iter()
+        .any(|(path, wf)| path == diff_coverage::REUSABLE && judges(wf));
+    let calls_reusable = |wf: &Workflow| {
+        wf.job(diff_coverage::DIFF_COVERAGE)
+            .and_then(|job| job.uses.as_deref())
+            .is_some_and(|uses| uses == format!("./{}", diff_coverage::REUSABLE))
+    };
+    let gated = read
+        .iter()
+        .any(|(_, wf)| needed(wf) && (judges(wf) || (reusable_judges && calls_reusable(wf))));
     if gated {
         Vec::new()
     } else {

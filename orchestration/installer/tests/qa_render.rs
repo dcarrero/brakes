@@ -1366,11 +1366,18 @@ mod api_job {
         let ids: Vec<&str> = blocks.iter().map(|(id, _)| id.as_str()).collect();
         assert_eq!(
             ids,
-            ["scope", "checks", "workflow-lint", QA_API, "required"]
+            [
+                "scope",
+                "checks",
+                "heldout",
+                "workflow-lint",
+                QA_API,
+                "required"
+            ]
         );
         assert!(
             job(&blocks, "required")
-                .contains(&"    needs: [scope, checks, workflow-lint, qa-api]".to_owned())
+                .contains(&"    needs: [scope, checks, heldout, workflow-lint, qa-api]".to_owned())
         );
         let scope = job(&blocks, "scope").join("\n");
         let docs = scope.split_once("DOCS_SKIPPABLE: |-\n").unwrap().1;
@@ -1379,7 +1386,7 @@ mod api_job {
             .take_while(|l| l.starts_with("            "))
             .map(str::trim)
             .collect();
-        assert_eq!(docs, ["checks", QA_API]);
+        assert_eq!(docs, ["checks", "heldout", QA_API]);
         let api = job(&blocks, QA_API);
         for line in [
             "    needs: scope",
@@ -1757,7 +1764,14 @@ mod web_job {
         let ids: Vec<&str> = blocks.iter().map(|(id, _)| id.as_str()).collect();
         assert_eq!(
             ids,
-            ["scope", "checks", "workflow-lint", QA_WEB, "required"]
+            [
+                "scope",
+                "checks",
+                "heldout",
+                "workflow-lint",
+                QA_WEB,
+                "required"
+            ]
         );
         let web = web_job(&text);
         for line in [
@@ -1834,16 +1848,16 @@ mod web_job {
             [
                 "scope",
                 "checks",
+                "heldout",
                 "workflow-lint",
                 QA_API,
                 QA_WEB,
                 "required"
             ]
         );
-        assert!(
-            job(&blocks, "required")
-                .contains(&"    needs: [scope, checks, workflow-lint, qa-api, qa-web]".to_owned())
-        );
+        assert!(job(&blocks, "required").contains(
+            &"    needs: [scope, checks, heldout, workflow-lint, qa-api, qa-web]".to_owned()
+        ));
         let scope = job(&blocks, "scope").join("\n");
         let docs = scope.split_once("DOCS_SKIPPABLE: |-\n").unwrap().1;
         let docs: Vec<&str> = docs
@@ -1851,7 +1865,7 @@ mod web_job {
             .take_while(|l| l.starts_with("            "))
             .map(str::trim)
             .collect();
-        assert_eq!(docs, ["checks", QA_API, QA_WEB]);
+        assert_eq!(docs, ["checks", "heldout", QA_API, QA_WEB]);
     }
 
     #[test]
@@ -2645,18 +2659,28 @@ mod contracts_job {
         let ids: Vec<&str> = blocks.iter().map(|(id, _)| id.as_str()).collect();
         assert_eq!(
             ids,
-            ["scope", "checks", "workflow-lint", QA_CONTRACTS, "required"]
+            [
+                "scope",
+                "checks",
+                "heldout",
+                "workflow-lint",
+                QA_CONTRACTS,
+                "required"
+            ]
         );
         assert!(
-            job(&blocks, "required")
-                .contains(&"    needs: [scope, checks, workflow-lint, qa-contracts]".to_owned()),
+            job(&blocks, "required").contains(
+                &"    needs: [scope, checks, heldout, workflow-lint, qa-contracts]".to_owned()
+            ),
             "{text}"
         );
-        // One skippable job renders as a scalar: only `checks`, never qa-contracts.
-        let scope = job(&blocks, "scope");
+        // Only the built-ins `checks` and `heldout` (#1362), never qa-contracts.
+        let scope = job(&blocks, "scope").join("\n");
         assert!(
-            scope.contains(&"          DOCS_SKIPPABLE: checks".to_owned()),
-            "{scope:#?}"
+            scope.contains(
+                "          DOCS_SKIPPABLE: |-\n            checks\n            heldout\n          "
+            ),
+            "{scope}"
         );
         let c = job(&blocks, QA_CONTRACTS);
         assert!(!c.iter().any(|l| l.starts_with("    if:")), "{c:#?}");

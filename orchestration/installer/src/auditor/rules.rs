@@ -458,8 +458,11 @@ pub fn allowance(id: &str) -> u32 {
 /// `--fleet`, where a file costs a call (SPEC-auditor.md, "Fleet file reads",
 /// #935): every path it reads when none exists, the worst case. The module
 /// blocks (#873) read nothing the measures have not cached. Governance 16
-/// under `--fleet`; 40 of 60.
+/// under `--fleet`; baseline 1, the lock (#1318), which the measures do not
+/// read: held for the first baseline rule, it passes on to the first that
+/// reads the lock whichever features are built. 50 of the fleet's 100.
 pub static FLEET_FILE_READS: &[(&str, u32)] = &[
+    ("baseline.purpose-declared", 1),
     ("governance.dependency-updates-with-cooldown", 3),
     ("governance.service-card-owner", 3),
     ("governance.codeowners-present", 3),

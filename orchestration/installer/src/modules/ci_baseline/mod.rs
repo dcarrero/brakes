@@ -42,6 +42,8 @@ pub fn schema() -> Schema {
         {"id": "aggregate_check", "type": "string", "minLength": 1, "default": AGGREGATE_CHECK,
          "when": "workflow == existing",
          "description": "The check name the ruleset requires; fixed to `required` when generating."},
+        {"id": "retire_generated", "type": "boolean", "default": false, "when": "workflow == existing",
+         "description": "After a switch from `generate`, deletes `agentic-ci.yml`; answer it once the default branch requires the project's aggregate and `agentic-required` (#1354)."},
         {"id": "commands", "type": "array", "minItems": 1,
          "items": {"type": "string", "enum": names(&Command::ALL.map(Command::as_str))},
          "when": "workflow == generate",
@@ -67,13 +69,13 @@ pub fn schema() -> Schema {
         {"id": "heldout_dir", "type": "string", "minLength": 1, "default": scope::DEFAULT_HELDOUT_DIR,
          "description": "The held-out test directory: a relative path inside the repository that agents may not edit."},
         {"id": "heldout", "type": "boolean",
-         "description": "Adds the `heldout` job; default: whether `heldout_dir` exists."},
+         "description": "Adds the `heldout` job; default: true under `workflow: generate` (pending until `heldout_command` is answered), whether `heldout_dir` exists under `existing`; false opts out."},
         {"id": "reusable", "type": "boolean", "default": false, "when": "workflow == generate",
          "description": "`checks` calls the reusable verify workflow the configured reusable_callee hosts, pinned by `reusable_sha`; the single-repo workflow when none is configured or the caller cannot reach it."},
         {"id": "reusable_sha", "type": "string", "when": "reusable",
          "description": "The 40-hex commit of the configured reusable_callee whose `_reusable-verify.yml` the caller pins; never a branch or tag."},
         {"id": "heldout_command", "type": "string",
-         "description": "The full command that runs only the held-out tests; required when `heldout`, never invented."},
+         "description": "The full command that runs only the held-out tests; required when `heldout` is answered true or `heldout_dir` holds a file, never invented."},
         {"id": "protected_paths", "type": "array", "items": {"type": "string"},
          "description": "Paths whose change in a pull request needs the `human-approved` label before `required` passes; default: the workflows, rulesets, CODEOWNERS, the lock and `<heldout_dir>/**`."},
         {"id": "heldout_properties", "type": "boolean", "default": false,
@@ -134,8 +136,14 @@ impl Module for CiBaseline {
     /// It loads the answers, so every rule refuses at `configure` and `install`.
     fn render(&self, cx: &Context<'_>) -> Result<Vec<Rendered>> {
         let answers = CiBaselineAnswers::load(cx)?;
+        // Step 1 of a switch to `existing` (#1354); `None` under `generate`.
+        let kept = if answers.workflow == WorkflowMode::Existing {
+            brownfield::kept_generated(cx)?
+        } else {
+            None
+        };
         let Some(mut workflow) = render::workflow(cx, &answers)? else {
-            return Ok(Vec::new());
+            return Ok(kept.into_iter().collect());
         };
         let existing = answers.workflow == WorkflowMode::Existing;
         let foreign = brownfield::foreign_workflows(cx)?;
@@ -161,7 +169,18 @@ impl Module for CiBaseline {
             .answers_if_active(AGENT_GUARDRAILS)
             .is_some_and(unattended::enabled);
         // The labels the project's own workflows run on, which workflow-lint lints too (#1167, #1215).
-        let labels = brownfield::custom_labels(cx.root, &foreign);
+        let mut labels = brownfield::custom_labels(cx.root, &foreign);
+        // security's coverage jobs on the configured large runner (#1344).
+        let large = cx
+            .answers_if_active(crate::modules::security::SECURITY)
+            .and_then(|a| a.get("coverage_runner"))
+            .and_then(serde_json::Value::as_str)
+            == Some("large");
+        if let Some(r) = crate::config::linux_large_runner().filter(|_| large)
+            && !labels.contains(&r.label)
+        {
+            labels.push(r.label.clone());
+        }
         let config = render::actionlint_config(
             answers.runner,
             answers.macos_runner,
@@ -192,6 +211,7 @@ impl Module for CiBaseline {
         if existing {
             rendered.extend(brownfield::separate_remote_items());
         }
+        rendered.extend(kept);
         Ok(rendered)
     }
     /// The switch and its gate when the workflow is `agentic-ci.yml`; under
@@ -200,7 +220,10 @@ impl Module for CiBaseline {
     /// greenfield `ci.yml`.
     /// The desired state of the switch and of the `agentic-required` addition (#902).
     fn remote_writes(&self, cx: &Context<'_>) -> Result<Vec<crate::host::desired::RemoteWrite>> {
-        Ok(brownfield::remote_writes(cx.root))
+        Ok(brownfield::remote_writes(
+            cx.root,
+            &brownfield::switch_checks(&cx.profile.value),
+        ))
     }
     fn manual_steps(&self, cx: &Context<'_>) -> Vec<ManualStep> {
         let existing = cx
@@ -211,11 +234,19 @@ impl Module for CiBaseline {
         if existing {
             let contributed = compose::contributed(cx).unwrap_or_default();
             let heldout = CiBaselineAnswers::load(cx).is_ok_and(|a| a.heldout);
-            return if contributed.is_empty() && !heldout {
+            let mut steps = if contributed.is_empty() && !heldout {
                 Vec::new()
             } else {
                 brownfield::separate_steps(cx.root)
             };
+            if brownfield::keeps_generated(cx) {
+                let checks = model::required_checks(cx)
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default();
+                steps.extend(brownfield::retire_steps(cx.root, &checks));
+            }
+            return steps;
         }
         // The callee must let this repository in (#785): its probe reads it.
         let reachable = CiBaselineAnswers::load(cx)
@@ -227,7 +258,7 @@ impl Module for CiBaseline {
         if brownfield::workflow_path(cx, &foreign) != brownfield::BROWNFIELD_PATH {
             return reachable.into_iter().collect();
         }
-        brownfield::steps(cx.root)
+        brownfield::steps(cx.root, &brownfield::switch_checks(&cx.profile.value))
             .into_iter()
             .chain(reachable)
             .collect()

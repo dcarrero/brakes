@@ -6,6 +6,7 @@
 use crate::{
     auditor::{
         Cx, WORKFLOWS,
+        catalogue::security_remote::visibility_name,
         rules::{
             Block, Cadence, Condition, Level, Milestone, Outcome, Plan, Probe, Profile,
             Remediation, Required, Rule,
@@ -13,9 +14,9 @@ use crate::{
         workflows,
     },
     host::{
-        HostError, HostErrorKind, OwnerKind, SecretScope,
+        HostError, HostErrorKind, OwnerKind, SecretScope, Visibility,
         github::names_plan,
-        types::{BranchProtection, DeploymentBranchPolicy, Ruleset},
+        types::{BranchProtection, DeploymentBranchPolicy, Environment, Ruleset},
     },
     modules::security::exceptions::{INVENTORY, Inventory, Kind},
 };
@@ -234,15 +235,17 @@ pub const PRODUCTION_ENVIRONMENT_GUARDED: Rule = Rule {
     id: "posture.production-environment-guarded",
     title: "Production environment guarded",
     block: Block::Posture,
-    checks: "The `production` environment restricts deployments to chosen branches at P1, and requires reviewers or a wait timer at P2 and P3.",
+    checks: "The `production` environment restricts deployments to chosen branches at P1, and requires reviewers or a wait timer at P2 and P3; a repository that is not public has those only on Enterprise Cloud, so without them the branch restriction decides there.",
     how: Probe::Remote { id: "environments" },
     level: Level::Silver,
     required: ALL,
     remediation: Remediation::Manual {
         step: "guard-production-environment",
-        instructions: "Under Settings > Environments > production, limit deployment branches to protected or selected branches (P1), and add required reviewers or a wait timer (P2, P3).",
+        instructions: "Under Settings > Environments > production, limit deployment branches to protected or selected branches (P1), and add required reviewers or a wait timer (P2, P3; on a repository that is not public, Enterprise Cloud only).",
     },
-    plan: Some(Plan::Team),
+    // Deployment branches need Team on a private repository, reviewers and
+    // wait timers Enterprise Cloud; the rule records the higher (#1321).
+    plan: Some(Plan::EnterpriseCloud),
     feasible_by: Milestone::Nov7,
     evaluate: production_environment_guarded,
 };
@@ -792,8 +795,39 @@ fn serialised_merges(cx: &Cx<'_>) -> Outcome {
     )
 }
 
+/// Whether `env` restricts which branches deploy: `Ok` with the passing
+/// evidence, `Err` with the failing one.
+fn branch_policy(env: &Environment) -> Result<String, String> {
+    match &env.deployment_branch_policy {
+        DeploymentBranchPolicy::Unrestricted => Err(format!(
+            "{PRODUCTION} has no deployment branch policy: any branch may deploy"
+        )),
+        DeploymentBranchPolicy::ProtectedBranches => {
+            Ok(format!("{PRODUCTION} deploys only from protected branches"))
+        }
+        DeploymentBranchPolicy::Custom { patterns } => {
+            match patterns.iter().find(|p| *p == "*" || *p == "**") {
+                Some(p) => Err(format!(
+                    "{PRODUCTION}'s deployment branch pattern {p} admits any branch"
+                )),
+                None if patterns.is_empty() => {
+                    Ok(format!("{PRODUCTION} allows no branch to deploy"))
+                }
+                None => Ok(format!(
+                    "{PRODUCTION} deploys only from {}",
+                    patterns.join(", ")
+                )),
+            }
+        }
+    }
+}
+
 /// P1 (decision "Auditor standard v1"): a deployment branch policy that does
-/// not admit every branch; P2 and P3: required reviewers or a wait timer.
+/// not admit every branch; P2 and P3: required reviewers or a wait timer. On a
+/// repository that is not public, GitHub offers reviewers and wait timers only
+/// on Enterprise Cloud ("Deployments and environments": on Free, Pro and Team
+/// they "are only available for public repositories"), so there the P1 guard
+/// decides and the missing reviewers are `not-required` for the plan (#1321).
 fn production_environment_guarded(cx: &Cx<'_>) -> Outcome {
     let environments = match cx.host.environments(cx.repo) {
         Err(e) if plan_refused(&e) => return Outcome::requires_plan(Plan::Team),
@@ -803,51 +837,51 @@ fn production_environment_guarded(cx: &Cx<'_>) -> Outcome {
     let Some(env) = environments.iter().find(|e| e.name == PRODUCTION) else {
         return Outcome::not_required("no production environment");
     };
-    match cx.profile {
-        Profile::P1 => match &env.deployment_branch_policy {
-            DeploymentBranchPolicy::Unrestricted => Outcome::failed([format!(
-                "{PRODUCTION} has no deployment branch policy: any branch may deploy"
-            )]),
-            DeploymentBranchPolicy::ProtectedBranches => {
-                Outcome::passed([format!("{PRODUCTION} deploys only from protected branches")])
-            }
-            DeploymentBranchPolicy::Custom { patterns } => {
-                match patterns.iter().find(|p| *p == "*" || *p == "**") {
-                    Some(p) => Outcome::failed([format!(
-                        "{PRODUCTION}'s deployment branch pattern {p} admits any branch"
-                    )]),
-                    None if patterns.is_empty() => {
-                        Outcome::passed([format!("{PRODUCTION} allows no branch to deploy")])
-                    }
-                    None => Outcome::passed([format!(
-                        "{PRODUCTION} deploys only from {}",
-                        patterns.join(", ")
-                    )]),
-                }
-            }
-        },
-        Profile::P2 | Profile::P3 => {
-            let mut evidence = Vec::new();
-            if !env.reviewers.is_empty() {
-                evidence.push(format!(
-                    "{PRODUCTION} requires review by {}",
-                    env.reviewers.join(", ")
-                ));
-            }
-            if let Some(n) = env.wait_timer_minutes.filter(|n| *n > 0) {
-                let plural = if n == 1 { "" } else { "s" };
-                evidence.push(format!(
-                    "{PRODUCTION} waits {n} minute{plural} before deploying"
-                ));
-            }
-            if evidence.is_empty() {
-                Outcome::failed([format!(
-                    "{PRODUCTION} has neither required reviewers nor a wait timer"
-                )])
-            } else {
-                Outcome::passed(evidence)
-            }
-        }
+    if cx.profile == Profile::P1 {
+        return match branch_policy(env) {
+            Ok(evidence) => Outcome::passed([evidence]),
+            Err(evidence) => Outcome::failed([evidence]),
+        };
+    }
+    let mut evidence = Vec::new();
+    if !env.reviewers.is_empty() {
+        evidence.push(format!(
+            "{PRODUCTION} requires review by {}",
+            env.reviewers.join(", ")
+        ));
+    }
+    if let Some(n) = env.wait_timer_minutes.filter(|n| *n > 0) {
+        let plural = if n == 1 { "" } else { "s" };
+        evidence.push(format!(
+            "{PRODUCTION} waits {n} minute{plural} before deploying"
+        ));
+    }
+    if !evidence.is_empty() {
+        return Outcome::passed(evidence);
+    }
+    let visibility = match cx.host.repository(cx.repo) {
+        Ok(settings) => settings.visibility,
+        Err(e) => return unread(&e),
+    };
+    if visibility == Visibility::Public {
+        return Outcome::failed([format!(
+            "{PRODUCTION} has neither required reviewers nor a wait timer"
+        )]);
+    }
+    match branch_policy(env) {
+        Ok(guard) => Outcome::not_required(format!(
+            "requires plan {}: required reviewers and wait timers are only available for public repositories on Free, Pro and Team, and this repository is {}; {guard}",
+            Plan::EnterpriseCloud,
+            visibility_name(visibility)
+        )),
+        Err(open) => Outcome::failed([
+            open,
+            format!(
+                "{PRODUCTION} has neither required reviewers nor a wait timer, which a {} repository has only on {}",
+                visibility_name(visibility),
+                Plan::EnterpriseCloud
+            ),
+        ]),
     }
 }
 

@@ -190,6 +190,22 @@ What is still open:
 - In `implement`, the model reaches no package registry, so a project whose tests
   need one cannot run them inside the agent's job.
 
+## The reviewer's key
+
+By default the reviewer's key (`OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN` or
+`DEEPINFRA_API_KEY`) is a repository secret. A repository with a `production`
+environment fails `posture.no-repo-secrets-with-production` while any secret sits
+at repository level. Answer `review_environment` (for example
+`configure --set review_environment=ci-review`) and `cross-review-model`, the only
+job that reads the key, declares `environment: ci-review`; the step
+`review-secret-present` then looks for the key in that environment. Give the
+environment no branch restriction: pull requests run the job, and a branch policy
+would refuse them. Each run is recorded as a deployment to that environment, never
+to `production`. Use a key of its own there, so the one that pull requests can
+reach can be revoked alone. Dependabot's pull requests still read only the
+Dependabot secrets. On a private repository, environments need GitHub Pro, Team or
+Enterprise.
+
 ## Unattended issue to pull request
 
 Off by default. With `unattended` answered true, `.github/workflows/agentic-implement.yml`

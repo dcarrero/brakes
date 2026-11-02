@@ -248,6 +248,8 @@ fn questions_are_the_slice_one_answers_with_their_defaults() {
             "coverage_tolerance",
             "coverage_changed_lines",
             "coverage_changed_lines_min",
+            "coverage_source",
+            "coverage_runner",
             "coverage_test_args.*",
             "mutation_diff",
             "mutation_min_score"
@@ -962,6 +964,7 @@ fn both_jobs_reach_required_through_ci_jobs() {
         [
             "scope",
             "checks",
+            "heldout",
             "workflow-lint",
             SECURITY_GATE,
             DEPS_SCAN,
@@ -971,7 +974,7 @@ fn both_jobs_reach_required_through_ci_jobs() {
     );
     assert!(
         job(&blocks, "required").contains(
-            &"    needs: [scope, checks, workflow-lint, security-gate, deps-scan, diff-coverage]"
+            &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, diff-coverage]"
                 .to_owned()
         )
     );
@@ -983,7 +986,7 @@ fn both_jobs_reach_required_through_ci_jobs() {
         .take_while(|l| l.starts_with("            "))
         .map(str::trim)
         .collect();
-    assert_eq!(docs, ["checks", DEPS_SCAN, DIFF_COVERAGE]);
+    assert_eq!(docs, ["checks", "heldout", DEPS_SCAN, DIFF_COVERAGE]);
     assert!(!scope.contains("security-gate"), "{scope}");
     let gate = job(&blocks, SECURITY_GATE);
     assert!(gate.contains(&"    needs: scope".to_owned()));
@@ -1424,6 +1427,7 @@ fn the_full_workflow_matches_the_full_golden() {
         [
             "scope",
             "checks",
+            "heldout",
             "workflow-lint",
             SECURITY_GATE,
             DEPS_SCAN,
@@ -1434,7 +1438,7 @@ fn the_full_workflow_matches_the_full_golden() {
         ]
     );
     assert!(job(&blocks, "required").contains(
-        &"    needs: [scope, checks, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage]".to_owned()
+        &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage]".to_owned()
     ));
     let scope = job(&blocks, "scope").join("\n");
     let docs = scope.split_once("DOCS_SKIPPABLE: |-\n").unwrap().1;
@@ -1445,7 +1449,14 @@ fn the_full_workflow_matches_the_full_golden() {
         .collect();
     assert_eq!(
         docs,
-        ["checks", DEPS_SCAN, SAST, CONTAINER_SCAN, DIFF_COVERAGE]
+        [
+            "checks",
+            "heldout",
+            DEPS_SCAN,
+            SAST,
+            CONTAINER_SCAN,
+            DIFF_COVERAGE
+        ]
     );
     let sast = job(&blocks, SAST).join("\n");
     for expected in [
@@ -1500,6 +1511,7 @@ fn with_delivery_the_container_scan_needs_the_image_job_and_scans_its_reference(
         [
             "scope",
             "checks",
+            "heldout",
             "workflow-lint",
             SECURITY_GATE,
             DEPS_SCAN,
@@ -1538,6 +1550,7 @@ fn the_codeql_answer_renders_the_pinned_action_with_the_stacks_languages() {
         [
             "scope",
             "checks",
+            "heldout",
             "workflow-lint",
             SECURITY_GATE,
             DEPS_SCAN,
@@ -1633,6 +1646,25 @@ struct ScanRun {
 /// Runs the scan fragment with `env` (`<base>` and `<head>` stand for two real
 /// commits) and, when given, `.gitleaks-baseline.json` committed with that content.
 fn scan_with(event: &str, env: &[(&str, &str)], baseline: Option<&str>) -> ScanRun {
+    scan_with_fake(
+        event,
+        env,
+        baseline,
+        &format!("cat > gitleaks.sarif <<'SARIF'\n{EMPTY_SARIF}\nSARIF"),
+    )
+}
+
+/// The report of a scan that found nothing.
+const EMPTY_SARIF: &str = r#"{"runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#;
+
+/// [`scan_with`] whose fake `gitleaks` runs `tail` (shell) after recording its
+/// arguments, in the repository root.
+fn scan_with_fake(
+    event: &str,
+    env: &[(&str, &str)],
+    baseline: Option<&str>,
+    tail: &str,
+) -> ScanRun {
     let repo = Repo::new();
     let git = |args: &[&str]| {
         let out = Command::new("git")
@@ -1665,7 +1697,10 @@ fn scan_with(event: &str, env: &[(&str, &str)], baseline: Option<&str>) -> ScanR
     let fake = bin.join("gitleaks");
     common::write_executable(
         &fake,
-        &format!("#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\n", args.display()),
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\n{tail}\n",
+            args.display()
+        ),
     );
     let pick = |v: &str| match v {
         "<base>" => base_sha.clone(),
@@ -1708,7 +1743,7 @@ const FULL_ARGS: &str =
 #[test]
 fn a_pull_request_scans_its_range() {
     let (stdout, args) = scan("pull_request", "<base>", "<head>");
-    assert_eq!(stdout, "history: <base>..<head>\n");
+    assert_eq!(stdout, "history: <base>..<head>\ngitleaks: no findings\n");
     assert_eq!(
         args,
         "git\n--redact\n--exit-code\n1\n--report-format\nsarif\n--report-path\ngitleaks.sarif\n--log-opts\n<base>..<head>\n.\n"
@@ -1718,7 +1753,7 @@ fn a_pull_request_scans_its_range() {
 #[test]
 fn a_push_without_its_range_scans_the_full_history() {
     let (stdout, args) = scan("push", "", "");
-    assert_eq!(stdout, "history: full\n");
+    assert_eq!(stdout, "history: full\ngitleaks: no findings\n");
     assert_eq!(args, FULL_ARGS);
 }
 
@@ -1737,7 +1772,10 @@ fn a_push_scans_the_commits_it_adds() {
         None,
     );
     assert!(run.success, "{}", run.stderr);
-    assert_eq!(run.stdout, "history: pushed <base>..<head>\n");
+    assert_eq!(
+        run.stdout,
+        "history: pushed <base>..<head>\ngitleaks: no findings\n"
+    );
     assert_eq!(run.args, RANGE_ARGS);
 }
 
@@ -1758,7 +1796,8 @@ fn a_push_that_creates_the_branch_or_names_no_commit_scans_the_full_history() {
         );
         assert!(run.success, "{before}: {}", run.stderr);
         assert!(
-            run.stdout.ends_with("history: full\n"),
+            run.stdout
+                .ends_with("history: full\ngitleaks: no findings\n"),
             "{before}: {}",
             run.stdout
         );
@@ -1780,7 +1819,7 @@ fn a_full_scan_outside_pull_requests_skips_the_reviewed_baseline() {
         let run = scan_with(event, &env, Some(BASELINE));
         assert!(run.success, "{event}: {}", run.stderr);
         assert_eq!(
-            run.stdout, "history: full\nbaseline: .gitleaks-baseline.json\n",
+            run.stdout, "history: full\nbaseline: .gitleaks-baseline.json\ngitleaks: no findings\n",
             "{event}"
         );
         assert_eq!(run.args, BASELINE_ARGS, "{event}");
@@ -1865,10 +1904,187 @@ fn an_unknown_range_means_full_history() {
     ] {
         let (stdout, args) = scan(event, base, head);
         assert!(
-            stdout.ends_with("history: full\n"),
+            stdout.ends_with("history: full\ngitleaks: no findings\n"),
             "{event} {base}: {stdout}"
         );
         assert_eq!(args, FULL_ARGS, "{event} {base}");
+    }
+}
+
+// ---- gitleaks-scan.sh: what it prints of a finding (#1317) ---------------------------
+
+/// A synthetic AWS access key id, assembled at run time so this file holds no token.
+fn synthetic_token() -> String {
+    ["AKIA", "QZ7XK2M4WR6T3VPB"].concat()
+}
+
+/// A gitleaks SARIF report with one finding per `(rule, path, line)`, whose message
+/// and snippet carry `secret` as an unredacted report would.
+fn sarif(findings: &[(&str, &str, u32)], secret: &str) -> String {
+    let results: Vec<serde_json::Value> = findings
+        .iter()
+        .map(|(rule, path, line)| {
+            serde_json::json!({
+                "ruleId": rule,
+                "message": {"text": format!("{rule} has detected secret {secret} for file {path}")},
+                "locations": [{"physicalLocation": {
+                    "artifactLocation": {"uri": path},
+                    "region": {"startLine": line, "snippet": {"text": secret}}
+                }}]
+            })
+        })
+        .collect();
+    serde_json::json!({"runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": results}]})
+        .to_string()
+}
+
+/// Runs the scan with a fake gitleaks that writes `report` (when given) to
+/// `gitleaks.sarif` and exits `status`.
+fn scan_reporting(report: Option<&str>, status: i32) -> ScanRun {
+    let write = match report {
+        Some(text) => format!("cat > gitleaks.sarif <<'SARIF'\n{text}\nSARIF\n"),
+        None => String::new(),
+    };
+    scan_with_fake(
+        "pull_request",
+        &[("BASE_SHA", "<base>"), ("HEAD_SHA", "<head>")],
+        None,
+        &format!("{write}exit {status}"),
+    )
+}
+
+#[test]
+fn a_finding_is_named_by_rule_file_and_line_and_its_value_never_printed() {
+    let token = synthetic_token();
+    let report = sarif(
+        &[
+            ("aws-access-token", "docs/x.md", 7),
+            ("generic-api-key", "src/config.env", 12),
+        ],
+        &token,
+    );
+    let run = scan_reporting(Some(&report), 1);
+    assert!(!run.success, "a finding passed the gate");
+    assert_eq!(
+        run.stdout,
+        "history: <base>..<head>\n\
+         ::error file=docs/x.md,line=7::aws-access-token\n\
+         ::error file=src/config.env,line=12::generic-api-key\n\
+         ::error::2 gitleaks finding(s); values withheld from the log, rotate any real credential\n"
+    );
+    assert!(!run.stdout.contains(&token) && !run.stderr.contains(&token));
+}
+
+#[test]
+fn a_finding_cannot_inject_a_workflow_command_through_its_path_or_rule() {
+    let report = sarif(
+        &[("rule%x\n::warning::y", "a,b:c%d\r\n::error::z.md", 3)],
+        "REDACTED",
+    );
+    let run = scan_reporting(Some(&report), 1);
+    assert!(!run.success);
+    assert_eq!(
+        run.stdout,
+        "history: <base>..<head>\n\
+         ::error file=a%2Cb%3Ac%25d%0D%0A%3A%3Aerror%3A%3Az.md,line=3::rule%25x%0A::warning::y\n\
+         ::error::1 gitleaks finding(s); values withheld from the log, rotate any real credential\n"
+    );
+}
+
+#[test]
+fn a_clean_scan_prints_no_finding_and_passes() {
+    let run = scan_reporting(Some(EMPTY_SARIF), 0);
+    assert!(run.success, "{}", run.stderr);
+    assert_eq!(
+        run.stdout,
+        "history: <base>..<head>\ngitleaks: no findings\n"
+    );
+}
+
+#[test]
+fn a_failing_scan_without_a_readable_report_fails_naming_its_exit() {
+    for (report, status) in [(None, 1), (Some("not json"), 1), (None, 126), (None, 0)] {
+        let run = scan_reporting(report, status);
+        assert!(!run.success, "{report:?} {status}");
+        assert_eq!(
+            run.stdout,
+            format!(
+                "history: <base>..<head>\n::error::gitleaks wrote no readable report (exit {status})\n"
+            ),
+            "{report:?}"
+        );
+    }
+}
+
+#[test]
+fn findings_with_a_zero_exit_still_fail_the_gate() {
+    let run = scan_reporting(
+        Some(&sarif(&[("aws-access-token", "a.md", 1)], "REDACTED")),
+        0,
+    );
+    assert!(!run.success, "findings passed with exit 0");
+    assert!(
+        run.stdout
+            .contains("::error file=a.md,line=1::aws-access-token\n")
+    );
+}
+
+/// The real gitleaks, when installed, against a committed synthetic token: the
+/// log names rule, file and line, and neither the log nor the report holds the
+/// value (`--redact`).
+#[test]
+fn the_installed_gitleaks_names_a_synthetic_token_without_printing_it() {
+    if Command::new("gitleaks").arg("version").output().is_err() {
+        eprintln!("gitleaks not installed; the fake-report tests cover the log");
+        return;
+    }
+    let repo = Repo::new();
+    let git = |args: &[&str]| {
+        let out = Command::new("git")
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .current_dir(&repo.root)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{out:?}");
+    };
+    let token = synthetic_token();
+    fs::create_dir_all(repo.root.join("docs")).unwrap();
+    fs::write(
+        repo.root.join("docs/x.md"),
+        format!("# x\n\n\n\n\n\naws_access_key_id = {token}\n"),
+    )
+    .unwrap();
+    git(&["add", "docs/x.md"]);
+    git(&["commit", "-q", "-m", "synthetic"]);
+    let out = Command::new("bash")
+        .arg("-c")
+        .arg(GITLEAKS_SCAN)
+        .current_dir(&repo.root)
+        .env("EVENT", "workflow_dispatch")
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let stderr = String::from_utf8(out.stderr).unwrap();
+    assert!(!out.status.success(), "{stdout}{stderr}");
+    assert!(
+        stdout.contains("::error file=docs/x.md,line=7::aws-access-token\n"),
+        "{stdout}"
+    );
+    let report = fs::read_to_string(repo.root.join("gitleaks.sarif")).unwrap();
+    for text in [&stdout, &stderr, &report] {
+        assert!(!text.contains(&token), "the synthetic token was published");
+        assert!(
+            !text.contains(&token[4..]),
+            "part of the token was published"
+        );
     }
 }
 
@@ -1952,7 +2168,7 @@ fn cli_install_module_security_plans_seeds_guide_and_both_jobs_in_required() {
     let required = job(&job_blocks(&composed.repo.read(WORKFLOW)), "required").to_vec();
     assert!(
         required.contains(
-            &"    needs: [scope, checks, workflow-lint, security-gate, deps-scan, diff-coverage]"
+            &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, diff-coverage]"
                 .to_owned()
         ),
         "{required:#?}"
@@ -2133,6 +2349,132 @@ fn existing_with_security_writes_the_separate_workflow_and_leaves_the_own_one() 
                 && l.contains(":ci-baseline] add-agentic-required-check ")),
         "{report}"
     );
+}
+
+// ---- #1349: changed-line coverage from the project's own test run --------------------
+
+const REUSABLE: &str = ".github/workflows/agentic-coverage.yml";
+
+#[test]
+fn project_ci_coverage_moves_diff_coverage_into_a_reusable_workflow_that_runs_no_test() {
+    let composed = Composed::existing("Rust (linux)");
+    composed
+        .repo
+        .answer(SECURITY, json!({"coverage_source": "project-ci"}));
+    let plan = composed.install(&WITH_REQUIREMENTS, &[]);
+    let lines: Vec<&str> = plan.lines().collect();
+    let planned = format!("PLAN {REUSABLE} [managed:security]");
+    assert!(lines.contains(&planned.as_str()), "{plan}");
+    assert!(
+        lines.iter().any(|l| l.starts_with(
+            "NOTE [security] coverage_source project-ci: upload agentic-coverage-root-<job> "
+        )),
+        "{plan}"
+    );
+    composed.install(&WITH_REQUIREMENTS, &["--apply"]);
+    let separate = composed.repo.read(SEPARATE);
+    assert!(!has_diff_job(&separate), "{separate}");
+    assert!(
+        !job(&job_blocks(&separate), "agentic-required")
+            .join("\n")
+            .contains(DIFF_COVERAGE),
+        "{separate}"
+    );
+    let text = composed.repo.read(REUSABLE);
+    golden("diff-coverage-project-ci.yml", &text);
+    assert!(text.contains("\non:\n  workflow_call:\n"), "{text}");
+    let job = diff_job(&text);
+    for needle in [
+        "pattern: \"agentic-coverage-root-*\"",
+        "name: Combine the coverage of root",
+        "- name: Check the changed lines of root",
+        "- name: Characterization first of root",
+        "- name: Save the per-file coverage reports",
+    ] {
+        assert!(job.contains(needle), "{needle}\n{job}");
+    }
+    assert!(!job.contains("needs: scope"), "{job}");
+    assert!(!job.contains("cargo llvm-cov"), "no test runs here\n{job}");
+    assert!(!job.contains("DIFF_COMMAND: "), "{job}");
+    let again = composed.install(&[], &[]);
+    assert!(again.lines().any(|l| l == "No changes."), "{again}");
+}
+
+#[test]
+fn project_ci_coverage_skips_an_app_whose_tests_did_not_run_and_carries_its_base_report() {
+    // A CI that filters by path runs no test job for an app the change leaves alone.
+    let composed = Composed::existing("Rust (linux)");
+    composed
+        .repo
+        .answer(SECURITY, json!({"coverage_source": "project-ci"}));
+    composed.install(&WITH_REQUIREMENTS, &["--apply"]);
+    let job = diff_job(&composed.repo.read(REUSABLE));
+    for needle in [
+        "MERGE_BASE: \"${{ steps.merge-base.outputs.sha }}\"",
+        "APP_PATH: \".\"",
+        "echo \"skip=true\" >> \"$GITHUB_OUTPUT\"",
+        "changes nothing under",
+        "steps.measure-root.outputs.skip != 'true'",
+        "- name: Restore the previous base report",
+        "key: \"coverage-report-${{ github.event.before }}\"",
+        "if [ -f lcov.info ]; then",
+    ] {
+        assert!(job.contains(needle), "{needle}\n{job}");
+    }
+}
+
+#[test]
+fn project_ci_coverage_for_a_python_root_matches_its_golden() {
+    let composed = Composed::existing("Rust (linux)");
+    composed
+        .repo
+        .write("pyproject.toml", "[project]\nname = \"sample\"\n");
+    composed.repo.write("uv.lock", "");
+    composed.repo.answer(
+        "stack-packs",
+        json!({"apps.root.path": ".", "apps.root.stack": "python-uv", "apps.root.toolchain_version": "3.13"}),
+    );
+    composed
+        .repo
+        .answer(SECURITY, json!({"coverage_source": "project-ci"}));
+    composed.install(&WITH_REQUIREMENTS, &["--apply"]);
+    let text = composed.repo.read(REUSABLE);
+    golden("diff-coverage-project-ci-python.yml", &text);
+    let job = diff_job(&text);
+    assert!(job.contains("-print0 | sort -z"), "{job}");
+    assert!(job.contains("| xargs -0 uv run --frozen --all-extras --with coverage==7.17.0 coverage combine --keep"), "{job}");
+    assert!(!job.contains("pytest"), "no test runs here\n{job}");
+}
+
+#[test]
+fn project_ci_coverage_refuses_a_generated_workflow_and_the_ratchet() {
+    let composed = Composed::new();
+    composed
+        .repo
+        .answer(SECURITY, json!({"coverage_source": "project-ci"}));
+    let refused = composed.refusal();
+    assert!(
+        refused.contains("coverage_source project-ci needs ci-baseline workflow existing"),
+        "{refused}"
+    );
+    let composed = Composed::existing("Rust (linux)");
+    composed.repo.answer(
+        SECURITY,
+        json!({"coverage_source": "project-ci", "coverage_ratchet": true}),
+    );
+    let refused = composed.refusal();
+    assert!(
+        refused.contains("coverage_source project-ci refuses with coverage_ratchet true"),
+        "{refused}"
+    );
+}
+
+#[test]
+fn the_job_source_keeps_diff_coverage_in_the_separate_workflow() {
+    let composed = Composed::existing("Rust (linux)");
+    composed.install(&WITH_REQUIREMENTS, &["--apply"]);
+    assert!(has_diff_job(&composed.repo.read(SEPARATE)));
+    assert!(!composed.repo.exists(REUSABLE), "no reusable workflow");
 }
 
 /// The contexts `.github/rulesets/main.json` requires.
@@ -2355,6 +2697,8 @@ fn coverage_questions_are_off_by_default_and_tolerance_is_a_decimal_string() {
             "coverage_tolerance",
             "coverage_changed_lines",
             "coverage_changed_lines_min",
+            "coverage_source",
+            "coverage_runner",
             "coverage_test_args.*",
             "mutation_diff",
             "mutation_min_score"
@@ -2405,6 +2749,7 @@ fn coverage_on_matches_the_coverage_golden_and_seeds_a_zero_record() {
         [
             "scope",
             "checks",
+            "heldout",
             "workflow-lint",
             SECURITY_GATE,
             DEPS_SCAN,
@@ -2416,7 +2761,7 @@ fn coverage_on_matches_the_coverage_golden_and_seeds_a_zero_record() {
         ]
     );
     assert!(job(&blocks, "required").contains(
-        &"    needs: [scope, checks, workflow-lint, security-gate, deps-scan, sast, container-scan, coverage-ratchet, diff-coverage]"
+        &"    needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, coverage-ratchet, diff-coverage]"
             .to_owned()
     ));
     let scope = job(&blocks, "scope").join("\n");
@@ -2563,7 +2908,7 @@ fn coverage_measures_each_covered_app_in_its_directory_and_seeds_each() {
     let blocks = job_blocks(&text);
     let ratchet = job(&blocks, COVERAGE_RATCHET).join("\n");
     for expected in [
-        "      - name: Measure coverage of web\n        if: steps.bypass.outputs.id == ''\n        working-directory: web\n        run: |\n          uv run --frozen --all-extras --with coverage==7.17.0 coverage run -m pytest -q",
+        "      - name: Measure coverage of web\n        if: steps.bypass.outputs.id == ''\n        working-directory: web\n        run: |\n          COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report=",
         "\\\"report\\\":\\\"web/coverage.json\\\"",
         "\\\"report\\\":\\\"coverage.json\\\"",
     ] {
@@ -2656,7 +3001,7 @@ fn mutation_diff_for_rust_matches_its_golden_and_reaches_required() {
     let required = job(&blocks, "required").join("\n");
     assert!(
         required.contains(
-            "needs: [scope, checks, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage, mutation-diff]"
+            "needs: [scope, checks, heldout, workflow-lint, security-gate, deps-scan, sast, container-scan, diff-coverage, mutation-diff]"
         ),
         "{required}"
     );
@@ -3428,6 +3773,52 @@ fn coverage_changed_lines_false_removes_the_job_and_the_minimum_reaches_the_step
     }
 }
 
+// ---- #1344: the coverage jobs may run on the configured large Linux runner -----------
+
+#[test]
+fn coverage_runner_defaults_to_the_standard_runner() {
+    let composed = Composed::new();
+    let text = composed.workflow();
+    assert!(
+        diff_job(&text).contains("\n    runs-on: example-cloud-2\n"),
+        "{text}"
+    );
+}
+
+#[test]
+fn coverage_runner_large_moves_only_the_coverage_jobs_and_tells_actionlint() {
+    let composed = Composed::new();
+    composed.repo.answer(
+        SECURITY,
+        json!({"coverage_runner": "large", "coverage_ratchet": true}),
+    );
+    let planned = composed.plan_with(&[]).unwrap();
+    let text = planned.changes[WORKFLOW].clone().unwrap();
+    assert!(
+        diff_job(&text).contains("\n    runs-on: example-cloud-8\n"),
+        "{text}"
+    );
+    let ratchet = job(&job_blocks(&text), COVERAGE_RATCHET).join("\n");
+    assert!(
+        ratchet.contains("\n    runs-on: example-cloud-8\n"),
+        "{ratchet}"
+    );
+    let large = text.matches("runs-on: example-cloud-8").count();
+    assert_eq!(large, 2, "only the two coverage jobs move\n{text}");
+    assert!(text.contains("runs-on: example-cloud-2"), "{text}");
+    let lint = planned.changes[".github/actionlint.yaml"].clone().unwrap();
+    assert!(lint.contains("    - example-cloud-8\n"), "{lint}");
+}
+
+#[test]
+fn coverage_runner_refuses_an_unknown_value() {
+    let composed = Composed::new();
+    composed
+        .repo
+        .answer(SECURITY, json!({"coverage_runner": "huge"}));
+    assert!(composed.plan_with(&[]).is_err());
+}
+
 // ---- #1177: coverage measures the tests the project declares --------------------------
 
 #[test]
@@ -3490,7 +3881,7 @@ fn coverage_test_args_append_to_pytest_for_python_uv() {
     let diff = diff_job(&composed.workflow());
     assert!(
         step_named(&diff, "Measure coverage of root")
-            .contains("coverage run -m pytest -q -m 'not services' && uv run"),
+            .contains("python -m pytest -q --cov --cov-report= -m 'not services' && uv run"),
         "{diff}"
     );
     // python keeps its own absent rule and hint.
@@ -3820,4 +4211,80 @@ fn a_failed_measurement_is_reported_once_and_skips_its_judging_steps() {
             );
         }
     }
+}
+
+/// #1299: under `workflow: generate` beside a project's own workflow,
+/// ci-baseline's `github:switch-required-check` leaves `required` the only
+/// required check, so the rendered ruleset lists `required` alone even when the
+/// profile declares `ci.required_checks`; otherwise `ruleset-main` could never
+/// verify after the switch is written.
+#[test]
+fn the_brownfield_switch_replaces_declared_checks_in_the_ruleset() {
+    let composed = Composed::new();
+    composed.repo.write(OWN, OWN_YML);
+    let path = ".agent-setup/project.json";
+    let mut profile: Value = serde_json::from_str(&composed.repo.read(path)).unwrap();
+    profile["ci"]["required_checks"] = json!(["Orchestration / verify", "build"]);
+    composed.repo.write(
+        path,
+        &(serde_json::to_string_pretty(&profile).unwrap() + "\n"),
+    );
+    let modules = ["stack-packs", "ci-baseline", "repo-baseline"];
+    composed.install(&modules, &["--apply"]);
+    let lock: Value = serde_json::from_str(&composed.repo.read(".agent-setup/lock.json")).unwrap();
+    assert_eq!(
+        lock["files"]["github:switch-required-check"],
+        json!({"module": "ci-baseline", "class": "remote"})
+    );
+    assert_eq!(ruleset_contexts(&composed), ["required"]);
+    let again = composed.install(&[], &[]);
+    assert!(again.lines().any(|l| l == "No changes."), "{again}");
+}
+
+/// #1373: a declared `ci.required_checks` that names the aggregate is the
+/// post-switch state, so the switch does not replace it: the ruleset renders
+/// it verbatim.
+#[test]
+fn the_brownfield_switch_keeps_a_declared_list_naming_the_aggregate() {
+    let composed = Composed::new();
+    composed.repo.write(OWN, OWN_YML);
+    let path = ".agent-setup/project.json";
+    let mut profile: Value = serde_json::from_str(&composed.repo.read(path)).unwrap();
+    profile["ci"]["required_checks"] = json!(["required", "neutrality"]);
+    composed.repo.write(
+        path,
+        &(serde_json::to_string_pretty(&profile).unwrap() + "\n"),
+    );
+    composed.install(
+        &["stack-packs", "ci-baseline", "repo-baseline"],
+        &["--apply"],
+    );
+    let lock: Value = serde_json::from_str(&composed.repo.read(".agent-setup/lock.json")).unwrap();
+    assert_eq!(
+        lock["files"]["github:switch-required-check"],
+        json!({"module": "ci-baseline", "class": "remote"})
+    );
+    assert_eq!(ruleset_contexts(&composed), ["required", "neutrality"]);
+}
+
+/// #1299: without a project workflow there is no switch; declared checks
+/// render verbatim, as before.
+#[test]
+fn without_the_switch_declared_checks_render_verbatim() {
+    let composed = Composed::new();
+    let path = ".agent-setup/project.json";
+    let mut profile: Value = serde_json::from_str(&composed.repo.read(path)).unwrap();
+    profile["ci"]["required_checks"] = json!(["Orchestration / verify", "build"]);
+    composed.repo.write(
+        path,
+        &(serde_json::to_string_pretty(&profile).unwrap() + "\n"),
+    );
+    composed.install(
+        &["stack-packs", "ci-baseline", "repo-baseline"],
+        &["--apply"],
+    );
+    assert_eq!(
+        ruleset_contexts(&composed),
+        ["Orchestration / verify", "build"]
+    );
 }

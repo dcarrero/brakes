@@ -688,6 +688,21 @@ fn plan_with(
     if profile.raw.is_none() {
         changes.insert(PROFILE.to_owned(), Some(profile::default_json().to_owned()));
     }
+    // Provenance moves with the recorded content (#1322): a clean-source record
+    // (a commit, `source_dirty` false) whose files, modules and answers this plan
+    // leaves as they are is kept, so a run from another commit plans `No changes.`.
+    // The commit it names produced exactly the recorded digests. A dirty or
+    // commit-less record never equals `kept`, so a clean run replaces it.
+    if previous.source_commit.is_some() {
+        let kept = Lock {
+            source_commit: previous.source_commit.clone(),
+            source_dirty: false,
+            ..next.clone()
+        };
+        if kept == previous {
+            next = kept;
+        }
+    }
     let serialized = next.to_json_string()?;
     if old_raw.as_deref() != Some(&serialized) {
         changes.insert(LOCK.to_owned(), Some(serialized));

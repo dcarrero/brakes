@@ -279,6 +279,83 @@ pub fn never_touch(paths: &[String]) -> Vec<Rendered> {
         .collect()
 }
 
+/// The answer that retires the generated workflow after a switch to `existing` (#1354).
+pub const RETIRE_ANSWER: &str = "retire_generated";
+/// The step that waits for the ruleset to require the new checks, and the retirement.
+pub const EXISTING_REQUIRED: &str = "existing-checks-required";
+pub const RETIRE: &str = "retire-generated-workflow";
+
+/// True while a switch from `generate` to `existing` keeps the generated
+/// workflow (#1354): the lock records `agentic-ci.yml` as ci-baseline's and
+/// `retire_generated` is not `true`.
+pub fn keeps_generated(cx: &Context<'_>) -> bool {
+    let recorded = cx
+        .previous
+        .files
+        .get(BROWNFIELD_PATH)
+        .is_some_and(|e| e.module == CI_BASELINE && e.class == Ownership::Managed);
+    recorded && cx.answers.get(RETIRE_ANSWER).and_then(Value::as_bool) != Some(true)
+}
+
+/// Step 1 of the switch to `existing` (#1354): the generated workflow as it is
+/// on disk, still `managed`, so its `required` keeps reporting on the default
+/// branch beside the project's aggregate and `agentic-required` until the
+/// ruleset requires those; `None` when nothing is kept.
+pub fn kept_generated(cx: &Context<'_>) -> Result<Option<Rendered>> {
+    if !keeps_generated(cx) {
+        return Ok(None);
+    }
+    match std::fs::read_to_string(cx.root.join(BROWNFIELD_PATH)) {
+        Ok(text) => Ok(Some(Rendered {
+            path: BROWNFIELD_PATH.to_owned(),
+            class: Ownership::Managed,
+            content: Some(text),
+            scaffold: None,
+        })),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => refuse(format!(
+            "ci-baseline: cannot read {BROWNFIELD_PATH}: {error}"
+        )),
+    }
+}
+
+/// The two steps of the switch's second half (#1354): the ruleset requires
+/// exactly `checks` on the default branch, then `retire_generated` is answered.
+pub fn retire_steps(root: &Path, checks: &[String]) -> Vec<ManualStep> {
+    let branch = default_branch(root);
+    let listed = checks.join(" and ");
+    vec![
+        ManualStep {
+            id: EXISTING_REQUIRED.to_owned(),
+            title: format!("The default branch requires {listed}"),
+            owner: Owner::Owner,
+            instructions: format!(
+                "Apply the ruleset once CI has reported {listed} on {branch} (repo-baseline's check-reported, then ruleset-main): brakes apply <repo> --remote"
+            ),
+            probe: remote(
+                "ruleset-required-checks",
+                json!({ "branch": branch, "checks": checks }),
+            ),
+            after: None,
+        },
+        ManualStep {
+            id: RETIRE.to_owned(),
+            title: format!("Retire {BROWNFIELD_PATH}: answer {RETIRE_ANSWER} true"),
+            owner: Owner::Owner,
+            instructions: format!(
+                "In a pull request: brakes configure <repo> ci-baseline --set {RETIRE_ANSWER}=true --apply\n\
+                 # it deletes {BROWNFIELD_PATH}, whose required check the ruleset no longer needs"
+            ),
+            probe: Probe::JsonPointer {
+                path: ".agent-setup/modules/ci-baseline.json".to_owned(),
+                pointer: format!("/answers/{RETIRE_ANSWER}"),
+                equals: Value::Bool(true),
+            },
+            after: Some(EXISTING_REQUIRED.to_owned()),
+        },
+    ]
+}
+
 /// The lock entry of the switch: class `remote`, no content.
 pub fn remote_items() -> Vec<Rendered> {
     vec![declared(&format!("github:{SWITCH}"), Ownership::Remote)]
@@ -346,14 +423,39 @@ pub fn separate_steps(root: &Path) -> Vec<ManualStep> {
     ]
 }
 
-/// `check-reported` and the switch, for a repository at `root`. The switch
-/// waits for `required` to have reported on the default branch, so it never
-/// requires a check nobody reports.
-pub fn steps(root: &Path) -> Vec<ManualStep> {
+/// The checks the switch leaves required on the default branch (#1373): a
+/// declared `ci.required_checks` that names `required` is the post-switch
+/// state, kept verbatim; otherwise `required` alone supersedes it (#1299).
+pub fn switch_checks(profile: &Value) -> Vec<String> {
+    let declared = crate::profile::strings(&profile["ci"]["required_checks"]);
+    if declared.contains(&AGGREGATE_CHECK) {
+        declared.into_iter().map(str::to_owned).collect()
+    } else {
+        vec![AGGREGATE_CHECK.to_owned()]
+    }
+}
+
+/// `check-reported` and the switch, for a repository at `root`; the switch
+/// leaves `checks` ([`switch_checks`]) the required ones. The switch waits for
+/// `required` to have reported on the default branch, so it never requires a
+/// check nobody reports.
+pub fn steps(root: &Path, checks: &[String]) -> Vec<ManualStep> {
     let branch = default_branch(root);
+    let contexts = checks
+        .iter()
+        .map(|c| format!("{{\"context\": \"{c}\"}}"))
+        .collect::<Vec<_>>()
+        .join(", ");
     let rules = format!(
-        "{{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == \"required_status_checks\" then .parameters.required_status_checks = [{{\"context\": \"{AGGREGATE_CHECK}\"}}] else . end))}}"
+        "{{name, target, enforcement, conditions, bypass_actors, rules: (.rules | map(if .type == \"required_status_checks\" then .parameters.required_status_checks = [{contexts}] else . end))}}"
     );
+    let fields = checks
+        .iter()
+        .map(|c| format!("-f 'contexts[]={c}'"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let named = checks.join(", ");
+    let plural = if checks.len() == 1 { "" } else { "s" };
     vec![
         ManualStep {
             id: CHECK_REPORTED.to_owned(),
@@ -371,17 +473,17 @@ pub fn steps(root: &Path) -> Vec<ManualStep> {
         ManualStep {
             id: SWITCH.to_owned(),
             title: format!(
-                "Remote item: the default branch requires only the {AGGREGATE_CHECK} check"
+                "Remote item: the default branch requires only the {named} check{plural}"
             ),
             owner: Owner::Owner,
             instructions: format!(
                 "gh api repos/{{owner}}/{{repo}}/rulesets/<id> | jq '{rules}' | gh api -X PUT repos/{{owner}}/{{repo}}/rulesets/<id> --input -\n\
                  # with classic branch protection instead of a ruleset:\n\
-                 gh api -X PATCH repos/{{owner}}/{{repo}}/branches/{branch}/protection/required_status_checks -f 'contexts[]={AGGREGATE_CHECK}'"
+                 gh api -X PATCH repos/{{owner}}/{{repo}}/branches/{branch}/protection/required_status_checks {fields}"
             ),
             probe: remote(
                 "ruleset-required-checks",
-                json!({ "branch": branch, "checks": [AGGREGATE_CHECK] }),
+                json!({ "branch": branch, "checks": checks }),
             ),
             after: Some(CHECK_REPORTED.to_owned()),
         },
@@ -389,21 +491,26 @@ pub fn steps(root: &Path) -> Vec<ManualStep> {
 }
 
 /// The desired state of both remote items (#902; SPEC-ci-baseline.md): the
-/// switch leaves `required` the only required check of the default branch of
-/// `root`; the addition adds `agentic-required` to the others. Only the items
-/// the lock records are classified, so declaring both is safe.
-pub fn remote_writes(root: &Path) -> Vec<RemoteWrite> {
+/// switch leaves `switched` ([`switch_checks`]) the only required checks of the
+/// default branch of `root`; the addition adds `agentic-required` to the
+/// others. Only the items the lock records are classified, so declaring both
+/// is safe.
+pub fn remote_writes(root: &Path, switched: &[String]) -> Vec<RemoteWrite> {
     let branch = default_branch(root);
-    let checks = |id: &str, check: &str, keep_others: bool| RemoteWrite {
+    let checks = |id: &str, checks: Vec<String>, keep_others: bool| RemoteWrite {
         id: id.to_owned(),
         desired: Desired::RequiredChecks {
             branch: branch.clone(),
-            checks: vec![check.to_owned()],
+            checks,
             keep_others,
         },
     };
     vec![
-        checks(SWITCH, AGGREGATE_CHECK, false),
-        checks(ADD_CHECK, CONTRIBUTED_AGGREGATE_CHECK, true),
+        checks(SWITCH, switched.to_vec(), false),
+        checks(
+            ADD_CHECK,
+            vec![CONTRIBUTED_AGGREGATE_CHECK.to_owned()],
+            true,
+        ),
     ]
 }

@@ -77,6 +77,17 @@ pub const RUST: StackPack = StackPack {
         // LCOV, which diff-cover reads (its README, read 2026-10-29).
         diff_command: "cargo llvm-cov --locked{{tests}} --lcov --output-path lcov.info",
         diff_report: "lcov.info",
+        // One LCOV report per test job; a line is executed when any job
+        // executed it. Only `SF` and `DA` are kept: diff-cover and the
+        // characterization check read nothing else (#1349).
+        // `$0` and `$2` are awk fields, quoted on purpose (SC2016).
+        combine: "# shellcheck disable=SC2016\nfind {{parts}} -type f -name '*.info' | sort | xargs awk -F'[:,]' \
+                  '/^SF:/ { f = substr($0, 4); if (!(f in seen)) { seen[f] = 1; order[++n] = f }; next } \
+                  /^DA:/ && f != \"\" { k = f SUBSEP $2; if (!(k in hits)) { hits[k] = 0; lines[f] = lines[f] $2 \" \" }; \
+                  if ($3 + 0 > hits[k]) hits[k] = $3 + 0; next } \
+                  END { for (i = 1; i <= n; i++) { f = order[i]; print \"SF:\" f; m = split(lines[f], l, \" \"); \
+                  for (j = 1; j <= m; j++) if (l[j] != \"\") print \"DA:\" l[j] \",\" hits[f SUBSEP l[j]]; print \"end_of_record\" } }' \
+                  > lcov.info",
     }),
     // proptest reads the seed and the case count from the environment and
     // persists failures beside the test (docs.rs `test_runner::Config`).

@@ -30,7 +30,7 @@
       "budget": {
         "api_calls": 35,
         "exhausted": false,
-        "limit": 60
+        "limit": 100
       },
       "counters": {
         "cost_per_change": {
@@ -1374,9 +1374,9 @@
         "stack": "complete"
       },
       "budget": {
-        "api_calls": 55,
-        "exhausted": true,
-        "limit": 60
+        "api_calls": 70,
+        "exhausted": false,
+        "limit": 100
       },
       "counters": {
         "cost_per_change": {
@@ -1827,8 +1827,8 @@
         {
           "block": "ci-health",
           "evidence": [
-            "median 5.2 min from run creation to job all-checks-passed over 11 first-attempt push runs of CI on main (a sample: the call budget stopped it at 11 of 20 runs) ≤ the cycle budget of 20 min",
-            "CI minutes this month (a sample, not billing): 0.0 min, the run_duration_ms of the latest 0 of 100 runs listed; stopped at run 40868002113: budget exhausted: call budget of 60 exhausted, 30 held back"
+            "median 5.2 min from run creation to job all-checks-passed over 20 first-attempt push runs of CI on main ≤ the cycle budget of 20 min",
+            "CI minutes this month (a sample, not billing): 120.5 min, the wall-clock of 100 of 100 completed runs created this month among the latest 100 listed, from run start to last update"
           ],
           "id": "ci-health.minutes-budget",
           "level": "Bronze",
@@ -1874,7 +1874,7 @@
         {
           "block": "dora",
           "evidence": [
-            "median 0.2 h from merge to successful deployment over 1 of the newest 3 of 10 production deployments in the 28 days to 2026-10-28 (a sample: the call budget stopped it at 1 of 3 deployments) ≤ 7 days"
+            "median 0.2 h from merge to successful deployment over 3 of the newest 3 of 10 production deployments in the 28 days to 2026-10-28 (a sample) ≤ 7 days"
           ],
           "id": "dora.lead-time",
           "level": "Silver",
@@ -1886,7 +1886,8 @@
         {
           "block": "dora",
           "evidence": [
-            "0 of the newest 4 of 10 production deployments in the 28 days to 2026-10-28 failed or rolled back (0.0 %) ≤ 15 % (a sample: the call budget stopped it at 4 of 8)"
+            "1 of the newest 8 of 10 production deployments in the 28 days to 2026-10-28 failed or rolled back (12.5 %) ≤ 15 %",
+            "failed: 7381596985 failure"
           ],
           "id": "dora.change-failure-rate",
           "level": "Silver",

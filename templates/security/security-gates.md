@@ -219,6 +219,30 @@ those tests. For a rust app with the answer, a modified file outside the selecti
 not in the report and only warns (`it is outside coverage_test_args.<app id>, so it is
 not judged`).
 
+### Measuring once: `coverage_source: project-ci`
+
+By default `diff-coverage` runs your tests a second time, under coverage, beside your own
+CI. When your repository keeps its own workflow (`ci-baseline` `workflow: existing`),
+answer `coverage_source: project-ci` and the suite runs once:
+
+1. Every test job of an app runs its tests under coverage and uploads the data as an
+   artifact named `agentic-coverage-<app id>-<job>`: the coverage.py data file
+   (`COVERAGE_CORE=sysmon pytest --cov --cov-report=` writes `.coverage`; upload it with
+   `include-hidden-files: true`; on Python < 3.12, or with branch coverage on 3.12 and
+   3.13, coverage.py keeps its default core and warns `no-sysmon`, which a suite that turns
+   warnings into errors silences with `disable_warnings = ["no-sysmon"]`) or the LCOV report (`*.info`, for example
+   `cargo llvm-cov nextest --lcov --output-path lcov.info`). Shards each upload their own.
+2. A job named `diff-coverage` that needs those test jobs calls
+   `uses: ./.github/workflows/agentic-coverage.yml`, which brakes renders: it combines
+   the parts, judges both rules and, on pushes to the default branch, keeps the base
+   report. It runs no test.
+3. Your aggregate check needs `diff-coverage`, so the pull request cannot merge without it.
+
+The plan prints one note per app with the artifact name. A missing base report only
+warns (`<app>: no base report for <sha>; not judged`) instead of running the tests at the merge base;
+the next push to the default branch saves one. `coverage_ratchet: true` refuses with
+`project-ci` for now: `coverage-ratchet` still measures by itself.
+
 `coverage_changed_lines` is on by default where an app is `rust` or `python-uv`, and every
 such app is measured and judged in its own directory: in a monorepo each app gets its
 own changed-lines and characterization steps, and the app at the repository root leaves

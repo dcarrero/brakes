@@ -7,9 +7,6 @@ pub mod merge_guard;
 pub mod qa;
 pub mod repo_baseline;
 pub mod security;
-#[cfg(feature = "setup-core")]
-#[rustfmt::skip] // the file is not in this repository; rustfmt would fail to resolve it
-pub mod setup_core;
 pub mod stack_packs;
 
 pub use agent_guardrails::AgentGuardrails;

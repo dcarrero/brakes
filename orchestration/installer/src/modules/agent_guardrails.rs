@@ -23,7 +23,7 @@ use crate::{
     Result,
     engine::{
         CiJob, Context, Module, Rendered,
-        answers::{Answers, Kind, Question, Schema},
+        answers::{Answers, Kind, Question, Schema, When},
         lock::Ownership,
         manual::ManualStep,
     },
@@ -458,6 +458,12 @@ impl Module for AgentGuardrails {
                     "Review findings that fail the required check: p0-p1 or p0.",
                     json!("p0-p1"),
                 ),
+                Question {
+                    description: "GitHub environment the reviewer's model job runs in, so its key is an environment secret (for example ci-review, with no branch restriction); unset, the key is a repository secret."
+                        .to_owned(),
+                    when: Some(When::Ne("review_family".to_owned(), "none".to_owned())),
+                    ..Question::new("review_environment", Kind::String)
+                },
             ]
             .into_iter()
             .chain(unattended::questions())

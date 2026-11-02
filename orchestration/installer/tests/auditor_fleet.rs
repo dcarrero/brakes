@@ -11,7 +11,7 @@ mod configured;
 use brakes::{
     Result,
     auditor::{
-        ContentsFiles, Files,
+        ContentsFiles, FLEET_CALL_BUDGET, Files,
         fleet::{Fleet, ISSUE_BODY_LIMIT, Options, audit_fleet, command, issue_body},
     },
     host::{CallBudget, RepoId, github::GitHub},
@@ -429,7 +429,7 @@ fn each_repository_spends_its_own_budget_and_exhaustion_marks_rules_unavailable(
     assert!(fleet.markdown().contains("8 of 8 calls, budget exhausted."));
     let (_, full) = user_fleet();
     for audited in &full.audited {
-        assert_eq!(audited.budget.limit, 60);
+        assert_eq!(audited.budget.limit, FLEET_CALL_BUDGET);
         assert!(!audited.budget.exhausted, "{}", audited.repo);
     }
 }
@@ -775,5 +775,28 @@ fn governance_rules_keep_their_file_reads_under_fleet_on_example_app() {
     }
     let example_app = &fleet.audited[1];
     assert_eq!(example_app.repo, "example-org/example-app");
-    assert!(example_app.budget.api_calls <= 60);
+    assert!(example_app.budget.api_calls <= FLEET_CALL_BUDGET);
+}
+
+/// #1318: on the example-app fleet fixture the 60 calls ran out (55 spent,
+/// the rest held back) and the minutes sample read 0 of 100 runs; within the
+/// fleet budget no rule of any block reports the budget exhausted.
+#[test]
+fn no_rule_of_the_example_app_fleet_fixture_reports_the_budget_exhausted() {
+    let fleet = organisation_fleet();
+    let example_app = &fleet.audited[1];
+    assert_eq!(example_app.repo, "example-org/example-app");
+    let starved: Vec<String> = example_app
+        .audit
+        .rules
+        .iter()
+        .filter_map(|e| {
+            let text = format!("{:?} {:?}", e.outcome.reason, e.outcome.evidence);
+            text.contains("exhausted")
+                .then(|| format!("{}: {text}", e.rule.id))
+        })
+        .collect();
+    assert!(starved.is_empty(), "{starved:#?}");
+    assert!(!example_app.budget.exhausted, "{:?}", example_app.budget);
+    assert_eq!(example_app.budget.limit, FLEET_CALL_BUDGET);
 }

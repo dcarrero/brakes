@@ -43,8 +43,6 @@ pub const CYCLE_RUNS: usize = 20;
 /// The fewest runs the median cycle is judged over when the call budget cuts
 /// its sample (SPEC-auditor.md, "Block allowances", #920).
 pub const CYCLE_MIN_RUNS: usize = 5;
-/// Runs whose timing the minutes sample reads, one call each.
-pub const MINUTES_SAMPLE_RUNS: usize = 10;
 /// More re-run runs than this percentage fails.
 pub const RERUN_MAX_PERCENT: f64 = 10.0;
 /// More cancelled runs than this percentage fails.
@@ -358,9 +356,12 @@ fn median_cycle(cx: &Cx<'_>, budget: f64, check: &str) -> Outcome {
     judged(within, evidence)
 }
 
-/// CI minutes this month as a labelled sample: the `run_duration_ms` of at
-/// most [`MINUTES_SAMPLE_RUNS`] of the latest completed runs created this
-/// month. Organisation billing is not read.
+/// CI minutes this month as a labelled sample, read from the listing of the
+/// latest runs the rates already hold: each completed run created this month,
+/// from its start (its creation when GitHub gives none) to its last update. No
+/// call per run (#1318): `actions/runs/{id}/timing` of the same runs whose
+/// jobs `ci.minutes-month` reads cost up to 10 calls a repository. Organisation
+/// billing is not read.
 fn minutes_sample(cx: &Cx<'_>) -> String {
     const LABEL: &str = "CI minutes this month (a sample, not billing)";
     let runs = match latest(cx, false, RECENT_RUNS) {
@@ -383,28 +384,22 @@ fn minutes_sample(cx: &Cx<'_>) -> String {
     if this_month.is_empty() {
         return format!("{LABEL}: no completed run this month among the latest {RECENT_RUNS}");
     }
-    let mut ms = 0;
-    let mut timed = 0;
-    let mut stopped = String::new();
-    for run in this_month.iter().take(MINUTES_SAMPLE_RUNS) {
-        match cx.host.run_timing(cx.repo, run.id) {
-            Ok(timing) => {
-                ms += timing.run_duration_ms;
-                timed += 1;
-            }
-            Err(e) => {
-                stopped = format!(
-                    "; stopped at run {}: {}",
-                    run.id,
-                    unread(&e).reason.unwrap_or_default()
-                );
-                break;
-            }
-        }
-    }
+    let durations: Vec<i64> = this_month
+        .iter()
+        .filter_map(|run| {
+            let start = seconds(
+                run.run_started_at
+                    .as_deref()
+                    .or(run.created_at.as_deref())?,
+            )?;
+            let end = seconds(run.updated_at.as_deref()?)?;
+            (end >= start).then_some(end - start)
+        })
+        .collect();
     format!(
-        "{LABEL}: {:.1} min, the run_duration_ms of the latest {timed} of {} runs listed{stopped}",
-        ms as f64 / 60_000.0,
+        "{LABEL}: {:.1} min, the wall-clock of {} of {} completed runs created this month among the latest {RECENT_RUNS} listed, from run start to last update",
+        durations.iter().sum::<i64>() as f64 / 60.0,
+        durations.len(),
         this_month.len()
     )
 }

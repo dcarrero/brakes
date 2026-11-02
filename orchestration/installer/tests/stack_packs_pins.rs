@@ -183,6 +183,7 @@ fn the_table_carries_the_owner_defaults() {
         "uv",
         "nextest",
         "coverage-py",
+        "pytest-cov",
         "cargo-llvm-cov",
         "java",
         "xcode",

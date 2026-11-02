@@ -9,7 +9,7 @@
 //! mints a `WriteToken` before the listing, and after the audit one `POST
 //! repos/{r}/issues` carries the report. A missing `fleet-audit` label is a
 //! finding, never a label write; earlier issues are never updated or closed.
-use super::{CALL_BUDGET, audit_remote, report::Audited};
+use super::{FLEET_CALL_BUDGET, audit_remote, report::Audited};
 use crate::{
     Result,
     host::{
@@ -101,14 +101,14 @@ pub fn publish(
 pub struct Options {
     /// Audit archived repositories instead of listing them under "Not audited".
     pub include_archived: bool,
-    /// Host calls each repository may spend; [`CALL_BUDGET`] outside tests.
+    /// Host calls each repository may spend; [`FLEET_CALL_BUDGET`] outside tests.
     pub call_budget: u32,
 }
 impl Default for Options {
     fn default() -> Self {
         Self {
             include_archived: false,
-            call_budget: CALL_BUDGET,
+            call_budget: FLEET_CALL_BUDGET,
         }
     }
 }

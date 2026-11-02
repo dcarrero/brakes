@@ -65,6 +65,8 @@ pub const VERDICT_MAX_BYTES: u32 = 60_000;
 pub const MAX_TURNS: u32 = 30;
 pub const REVIEW_FAMILIES: [&str; 4] = ["codex", "claude", "deepseek", "none"];
 pub const REVIEW_BLOCKING: [&str; 2] = ["p0-p1", "p0"];
+/// The longest environment name GitHub accepts.
+pub const MAX_ENVIRONMENT: usize = 255;
 
 const MODEL_JOB: &str =
     include_str!("../../../../../templates/agent-guardrails/cross-review-model.yml");
@@ -122,6 +124,23 @@ pub fn blocking(answers: &Answers) -> &'static str {
         Some("p0") => "P0",
         _ => "P0 P1",
     }
+}
+
+/// The GitHub environment `cross-review-model` runs in, from `review_environment`
+/// (#1320; owner, 2026-11-01): `None` when unanswered. The name is written into
+/// the workflow, so only `1..=MAX_ENVIRONMENT` letters, digits and `. _ -` pass
+/// (GitHub's own limit is 255 characters, "Managing environments for deployment").
+pub fn environment(answers: &Answers) -> Result<Option<&str>> {
+    let Some(name) = answers.get("review_environment").and_then(Value::as_str) else {
+        return Ok(None);
+    };
+    let plain = |c: char| c.is_ascii_alphanumeric() || "._-".contains(c);
+    if name.is_empty() || name.len() > MAX_ENVIRONMENT || !name.chars().all(plain) {
+        return refuse(format!(
+            "Module {AGENT_GUARDRAILS}: review_environment `{name}` must be 1 to {MAX_ENVIRONMENT} letters, digits and . _ -"
+        ));
+    }
+    Ok(Some(name))
 }
 
 /// The facts the render reads, all confirmed.
@@ -455,11 +474,13 @@ fn opencode_review(reviewer: &Reviewer, prompt: &str) -> String {
 /// The two jobs for `reviewer`, blocking at `blocking` (`P0 P1` or `P0`):
 /// `cross-review-model` on `runner` unless the reviewer needs a GitHub-hosted one,
 /// then `cross-review`, the gate, on the answered `runner` (it runs no sandbox).
-/// Refuses on an unconfirmed fact.
+/// `cross-review-model` declares `environment` when one is answered; the gate
+/// holds no secret and declares none. Refuses on an unconfirmed fact.
 pub fn jobs(
     reviewer: &Reviewer,
     blocking: &str,
     runner: &str,
+    environment: Option<&str>,
     pins: &PinTable,
 ) -> Result<Vec<CiJob>> {
     let facts = confirmed(reviewer)?;
@@ -529,6 +550,10 @@ pub fn jobs(
         &[
             ("runner", model_runner),
             ("timeout", &TIMEOUT_MINUTES.to_string()),
+            (
+                "environment",
+                &environment.map_or(String::new(), |e| format!("environment: {e}\n")),
+            ),
             ("permissions", &permissions),
             ("output", facts.findings_output),
             ("checkout", &pins.action("actions/checkout")?.uses()),
@@ -573,7 +598,13 @@ pub fn contributed(cx: &Context<'_>) -> Result<Vec<CiJob>> {
         return Ok(Vec::new());
     };
     let pins = PinTable::embedded()?;
-    jobs(reviewer, blocking(cx.answers), answered_runner(cx)?, &pins)
+    jobs(
+        reviewer,
+        blocking(cx.answers),
+        answered_runner(cx)?,
+        environment(cx.answers)?,
+        &pins,
+    )
 }
 
 /// The runner label `ci-baseline`'s `runner` answer names (the configured runner by default).
@@ -589,46 +620,58 @@ pub fn answered_runner(cx: &Context<'_>) -> Result<&'static str> {
     Ok(runner_label(runner))
 }
 
-/// The two stores the reviewer's secret must be in, as `(step id, probe scope,
-/// title)`: Actions for pull requests of people and agents, Dependabot for
-/// Dependabot's own pull requests, which read only that store (owner decision
-/// through the coordinator on #957).
-const SECRET_STORES: [(&str, &str, &str); 2] = [
-    ("review-secret-present", "repository", "Actions"),
-    (
-        "review-dependabot-secret-present",
-        "dependabot",
-        "Dependabot",
-    ),
-];
-
-/// One step per store, each probed by name only (host-adapter's `secret-present`);
-/// none without a reviewer. Each step names both commands, so either explains the pair.
+/// One step per store the reviewer's secret must be in, each probed by name only
+/// (host-adapter's `secret-present`): the Actions secrets, for pull requests of
+/// people and agents (the repository's, or `review_environment`'s since #1320),
+/// and Dependabot's, which Dependabot's own pull requests read and nothing else
+/// (owner decision through the coordinator on #957). None without a reviewer.
+/// Each step names both commands, so either explains the pair.
 pub fn steps(answers: &Answers) -> Vec<ManualStep> {
     let Some(reviewer) = reviewer(answers) else {
         return Vec::new();
     };
     let secret = reviewer.secret;
+    // An invalid name refuses the plan in `render`; here it is only text.
+    let environment = answers.get("review_environment").and_then(Value::as_str);
+    let (actions_scope, actions_store, actions_command) = match environment {
+        Some(e) => (
+            format!("environment:{e}"),
+            format!("{e} environment's"),
+            format!("gh secret set {secret} --env {e} --repo <owner>/<repo> (environment {e})"),
+        ),
+        None => (
+            "repository".to_owned(),
+            "Actions".to_owned(),
+            format!("gh secret set {secret} --repo <owner>/<repo> (Actions)"),
+        ),
+    };
     let instructions = format!(
-        "gh secret set {secret} --repo <owner>/<repo> (Actions) and gh secret set {secret} --app dependabot --repo <owner>/<repo> (Dependabot, for Dependabot's pull requests): the {} reviewer's credential, in both stores; the installer never reads it. Until it exists, cross-review fails with the action's own missing-secret message.",
+        "{actions_command} and gh secret set {secret} --app dependabot --repo <owner>/<repo> (Dependabot, for Dependabot's pull requests): the {} reviewer's credential, in both stores; the installer never reads it. Until it exists, cross-review fails with the action's own missing-secret message.",
         reviewer.family
     );
-    SECRET_STORES
-        .iter()
-        .map(|(id, scope, store)| ManualStep {
-            id: (*id).to_owned(),
-            title: format!("Create the {secret} secret for cross-review in the {store} secrets"),
-            owner: Owner::Owner,
-            instructions: instructions.clone(),
-            probe: Probe::Remote {
-                id: "secret-present".to_owned(),
-                args: [
-                    ("name".to_owned(), json!(secret)),
-                    ("scope".to_owned(), json!(scope)),
-                ]
-                .into(),
-            },
-            after: None,
-        })
-        .collect()
+    [
+        ("review-secret-present", actions_scope, actions_store),
+        (
+            "review-dependabot-secret-present",
+            "dependabot".to_owned(),
+            "Dependabot".to_owned(),
+        ),
+    ]
+    .into_iter()
+    .map(|(id, scope, store)| ManualStep {
+        id: id.to_owned(),
+        title: format!("Create the {secret} secret for cross-review in the {store} secrets"),
+        owner: Owner::Owner,
+        instructions: instructions.clone(),
+        probe: Probe::Remote {
+            id: "secret-present".to_owned(),
+            args: [
+                ("name".to_owned(), json!(secret)),
+                ("scope".to_owned(), json!(scope)),
+            ]
+            .into(),
+        },
+        after: None,
+    })
+    .collect()
 }

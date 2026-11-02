@@ -171,7 +171,7 @@ pub const SECURITY_SBOM_SCANNED: Rule = waits(
 
 // --- secret scanning and private vulnerability reporting ---------------------------
 
-fn visibility_name(visibility: Visibility) -> &'static str {
+pub(super) fn visibility_name(visibility: Visibility) -> &'static str {
     match visibility {
         Visibility::Public => "public",
         Visibility::Private => "private",

@@ -19,6 +19,17 @@ fn comment_only_lines_go_and_code_shebang_and_blank_lines_stay() {
     );
 }
 
+/// #1362: a shellcheck directive is a comment-only line that changes what the
+/// workflow lint reports (actionlint runs shellcheck on every `run:`), so it stays.
+#[test]
+fn shellcheck_directives_stay() {
+    let shell = "# gone\n# shellcheck disable=SC2016 # a jq program\njq '$x'\n    # shellcheck disable=SC2254\n    case a in $p) ;; esac\n";
+    assert_eq!(
+        strip(shell),
+        "# shellcheck disable=SC2016 # a jq program\njq '$x'\n    # shellcheck disable=SC2254\n    case a in $p) ;; esac\n"
+    );
+}
+
 #[test]
 fn an_apostrophe_in_a_comment_opens_no_quote() {
     let shell = "# the pull request's base\nx='a'\n# gone\necho \"$x\" # it's kept with its code\n# gone too\n";

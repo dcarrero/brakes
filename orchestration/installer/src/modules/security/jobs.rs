@@ -179,6 +179,28 @@ pub(super) fn runner(cx: &Context<'_>) -> Result<&'static str> {
     Ok(runner_label(runner))
 }
 
+/// `coverage_runner` (#1344): `large` names the configuration's `runners.linux_large`
+/// label; `standard` or unanswered is [`runner`]'s.
+pub(super) fn coverage_runner(cx: &Context<'_>) -> Result<String> {
+    let large = cx.answers.get("coverage_runner").and_then(Value::as_str) == Some(LARGE);
+    match crate::config::linux_large_runner() {
+        Some(r) if large => Ok(r.label.clone()),
+        _ => Ok(runner(cx)?.to_owned()),
+    }
+}
+
+/// The `coverage_runner` values: `large` only when the configuration names one.
+pub fn coverage_runners() -> Vec<&'static str> {
+    let mut out = vec![STANDARD];
+    if crate::config::linux_large_runner().is_some() {
+        out.push(LARGE);
+    }
+    out
+}
+
+const STANDARD: &str = "standard";
+const LARGE: &str = "large";
+
 /// The Semgrep registry packs a stack adds to `p/default` (SPEC-security.md,
 /// Contributed CI jobs; `p/rust` for Rust, Open question 6 resolved with the
 /// `semgrep` default for every stack).
@@ -564,6 +586,7 @@ pub fn contributed(cx: &Context<'_>) -> Result<Vec<CiJob>> {
         .to_string();
     let common = [
         ("runner", runner(cx)?.to_owned()),
+        ("coverage_runner", coverage_runner(cx)?),
         ("checkout", pins.action("actions/checkout")?.uses()),
         ("bypass_max_days", max_days),
         (

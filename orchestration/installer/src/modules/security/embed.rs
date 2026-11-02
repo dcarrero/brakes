@@ -1,7 +1,8 @@
 //! How a security shell fragment enters a rendered workflow (#1088; decision
 //! "Security shells are embedded without comment-only lines"): every line as
 //! written, except the lines whose first non-blank character is `#` outside a
-//! quoted string and a heredoc body. `#!` lines stay. The fragments under
+//! quoted string and a heredoc body. `#!` lines and `# shellcheck` directives
+//! stay (#1362). The fragments under
 //! `templates/security/fragments/` keep their comments; tests run them.
 //!
 //! The scan follows just enough of the shell grammar to know, at the start of
@@ -24,7 +25,11 @@ struct Heredoc {
     tabs: bool,
 }
 
-/// `shell` without its comment-only lines; every other line unchanged.
+/// The prefix of a shellcheck directive line, kept with the code it governs.
+const SHELLCHECK_DIRECTIVE: &str = "# shellcheck ";
+
+/// `shell` without its comment-only lines, shellcheck directives excepted;
+/// every other line unchanged.
 pub fn without_comment_lines(shell: &str) -> String {
     let mut out = String::with_capacity(shell.len());
     let mut quote = Quote::None;
@@ -47,7 +52,12 @@ pub fn without_comment_lines(shell: &str) -> String {
             continue;
         }
         let trimmed = text.trim_start();
-        if quote == Quote::None && trimmed.starts_with('#') && !trimmed.starts_with("#!") {
+        // A shellcheck directive is read by the workflow lint (#1362): it stays.
+        if quote == Quote::None
+            && trimmed.starts_with('#')
+            && !trimmed.starts_with("#!")
+            && !trimmed.starts_with(SHELLCHECK_DIRECTIVE)
+        {
             continue;
         }
         out.push_str(line);

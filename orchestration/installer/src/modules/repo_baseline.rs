@@ -394,10 +394,17 @@ impl RepoBaseline {
 }
 
 /// The contexts the ruleset requires unless the project declares others:
-/// ci-baseline's required checks when it is active (#1159), else `required`.
-fn standard_checks(cx: &Context<'_>) -> Result<Vec<String>> {
-    Ok(crate::modules::ci_baseline::model::required_checks(cx)?
-        .unwrap_or_else(ruleset::default_checks))
+/// ci-baseline's required checks when it is active (#1159), else `required`;
+/// they replace the declared ones when ci-baseline's switch will (#1299).
+fn standard_checks(cx: &Context<'_>) -> Result<ruleset::Standard> {
+    use crate::modules::ci_baseline::model;
+    let Some(checks) = model::required_checks(cx)? else {
+        return Ok(ruleset::default_checks());
+    };
+    Ok(ruleset::Standard {
+        checks,
+        replaces_declared: model::switches_required_check(cx)?,
+    })
 }
 
 /// Every declared bypass actor has a `ruleset-bypass-actor` entry of the

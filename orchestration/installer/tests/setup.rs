@@ -220,6 +220,62 @@ fn idempotent_installation() {
     f.apply();
     assert!(plan(&f.root, &f.source()).unwrap().is_empty());
 }
+/// The fixture's source at `revision`, clean or dirty (#1322).
+fn source_at(f: &Fixture, revision: Option<&str>, dirty: bool) -> Source {
+    Source {
+        revision: revision.map(str::to_owned),
+        dirty,
+        ..f.source()
+    }
+}
+fn apply_from(f: &Fixture, source: &Source) {
+    apply(&f.root, &plan(&f.root, source).unwrap()).unwrap();
+}
+#[test]
+fn a_clean_record_stays_when_only_the_source_commit_moves() {
+    let f = Fixture::new();
+    apply_from(&f, &source_at(&f, Some("aaa"), false));
+    let installed = f.read(LOCK);
+    for later in [
+        source_at(&f, Some("bbb"), false),
+        source_at(&f, Some("bbb"), true),
+        source_at(&f, None, false),
+    ] {
+        assert!(plan(&f.root, &later).unwrap().is_empty());
+    }
+    assert_eq!(f.read(LOCK), installed);
+    assert_eq!(f.value(LOCK)["source_commit"], "aaa");
+}
+#[test]
+fn a_dirty_or_commitless_record_is_replaced_by_a_clean_run() {
+    for (revision, dirty) in [(Some("aaa"), true), (None, false)] {
+        let f = Fixture::new();
+        apply_from(&f, &source_at(&f, revision, dirty));
+        let clean = source_at(&f, Some("bbb"), false);
+        let changes = plan(&f.root, &clean).unwrap();
+        assert_eq!(changes.keys().collect::<Vec<_>>(), [LOCK]);
+        apply_from(&f, &clean);
+        let lock = f.value(LOCK);
+        assert_eq!(lock["source_commit"], "bbb");
+        assert_eq!(lock["source_dirty"], false);
+    }
+}
+#[test]
+fn provenance_moves_with_the_recorded_content() {
+    let f = Fixture::new();
+    apply_from(&f, &source_at(&f, Some("aaa"), false));
+    let (name, _) = DOCUMENTS[0];
+    let today = today().format("%Y-%m-%d");
+    fs::write(
+        f.source_root.join("templates").join(name),
+        format!("# Guide\n\nLast verified: {today}\n\nchanged\n"),
+    )
+    .unwrap();
+    apply_from(&f, &source_at(&f, Some("bbb"), true));
+    let lock = f.value(LOCK);
+    assert_eq!(lock["source_commit"], "bbb");
+    assert_eq!(lock["source_dirty"], true);
+}
 #[test]
 fn profile_accepts_deploy_verification_keys_and_declared_lint() {
     let f = Fixture::new();

@@ -59,6 +59,10 @@ pub struct Runners {
     pub linux: Option<NamedRunner>,
     #[serde(default)]
     pub macos: Option<NamedRunner>,
+    /// A larger Linux runner `security`'s `coverage_runner: large` moves the
+    /// coverage jobs to (#1344); absent, they stay on `linux`.
+    #[serde(default)]
+    pub linux_large: Option<NamedRunner>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
@@ -318,6 +322,11 @@ pub fn refuse_denied_repository(text: &str) -> Result<()> {
 /// cannot load: only GitHub-hosted runners are then offered).
 pub fn linux_runner() -> Option<&'static NamedRunner> {
     current().ok().and_then(|c| c.runners.linux.as_ref())
+}
+
+/// The configured large Linux runner in effect, if any (#1344).
+pub fn linux_large_runner() -> Option<&'static NamedRunner> {
+    current().ok().and_then(|c| c.runners.linux_large.as_ref())
 }
 
 /// The configured macOS runner in effect, if any.

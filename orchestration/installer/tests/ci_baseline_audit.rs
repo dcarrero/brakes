@@ -885,9 +885,14 @@ fn each_fixture_shape_passes_with_the_heldout_job_and_the_gate() {
 }
 
 #[test]
-fn the_generated_workflow_without_heldout_has_the_gate_but_no_heldout_job() {
-    let all = findings_with(&[("ci.yml", &golden("single.yml"))], &[KEPT_TEST], None);
-    assert_eq!(brakes(&all), [HELDOUT_PRESENT]);
+fn the_default_workflow_wires_a_pending_heldout_job_that_needs_tests_to_pass() {
+    // #1362: the default install renders the job before any held-out test exists;
+    // the rule still fails until the directory holds one.
+    let ci = golden("single.yml");
+    let none = findings_with(&[("ci.yml", &ci)], &[], None);
+    assert_eq!(brakes(&none), [HELDOUT_PRESENT]);
+    let kept = findings_with(&[("ci.yml", &ci)], &[KEPT_TEST], None);
+    assert!(brakes(&kept).is_empty(), "{kept:#?}");
 }
 
 #[test]

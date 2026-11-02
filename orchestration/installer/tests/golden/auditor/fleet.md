@@ -5,11 +5,11 @@ Audited at 2026-10-28 over a 28-day window against the accepted standard, read a
 | Repository | Profile | Required | Reached | Gap | Posture failures | CI minutes (sample) | Deployment frequency | Lead time | Open incidents | Post-merge corrections | Cost per change | Unavailable | Waiting |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | example-org/docs-site | P1 unverified | Bronze | none | 6 | 1 | failed | unavailable | unavailable | waiting | unavailable | unavailable | 25 | 13 |
-| example-org/example-app | P1 unverified | Bronze | none | 4 | 4 | 0.0 min | passed | 0.2 h | waiting | unavailable | unavailable | 8 | 13 |
+| example-org/example-app | P1 unverified | Bronze | none | 4 | 4 | 120.5 min | passed | 0.2 h | waiting | unavailable | unavailable | 8 | 13 |
 
 ## example-org/docs-site
 
-Exit code 3; 35 of 60 calls.
+Exit code 3; 35 of 100 calls.
 
 ```text
 AUDIT example-org/docs-site: profile P1 unverified (humans unavailable, cadence unavailable, services unavailable, criticality undeclared); required Bronze; reached none
@@ -60,7 +60,7 @@ NEXT Basic: 6 rules (baseline.criticality-declared, baseline.purpose-declared, b
 
 ## example-org/example-app
 
-Exit code 3; 55 of 60 calls, budget exhausted.
+Exit code 3; 70 of 100 calls.
 
 ```text
 AUDIT example-org/example-app: profile P1 unverified (humans unavailable, cadence unavailable, services single, criticality undeclared); required Bronze; reached none

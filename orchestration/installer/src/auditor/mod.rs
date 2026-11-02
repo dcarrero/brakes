@@ -450,6 +450,11 @@ pub fn plan_gate(plan: Plan, feature: &Availability) -> Option<Outcome> {
 /// Host calls one repository's audit may spend (SPEC-auditor.md, "Fleet").
 pub const CALL_BUDGET: u32 = 60;
 
+/// Host calls one repository of `--fleet` may spend: [`CALL_BUDGET`] plus what
+/// a checkout reads for free and the fleet reads through the contents API
+/// (SPEC-auditor.md, "Fleet call budget", #1318).
+pub const FLEET_CALL_BUDGET: u32 = 100;
+
 /// The transport of an audit without `--remote`: every read answers that it is
 /// unavailable, so host-backed rules and measures report it and none passes.
 pub struct Offline;

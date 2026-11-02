@@ -1,7 +1,5 @@
 name: diff-coverage
-needs: scope
-if: needs.scope.outputs.tier != 'docs'
-runs-on: {{runner}}
+{{gate}}runs-on: {{coverage_runner}}
 timeout-minutes: {{timeout}}
 steps:
   - name: Check out

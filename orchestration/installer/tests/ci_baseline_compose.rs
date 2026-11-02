@@ -211,9 +211,9 @@ fn a_contributed_job_is_inserted_needed_by_required_and_handed_to_scope() {
     );
     assert_eq!(
         required_needs(&workflow),
-        "needs: [scope, checks, workflow-lint, gate-job, scan-job]"
+        "needs: [scope, checks, heldout, workflow-lint, gate-job, scan-job]"
     );
-    assert_eq!(docs_skippable(&workflow), ["checks", "scan-job"]);
+    assert_eq!(docs_skippable(&workflow), ["checks", "heldout", "scan-job"]);
     // Contributed jobs come after the built-ins and before `required`, in module order.
     let order: Vec<usize> = ["workflow-lint:", "gate-job:", "scan-job:", "required:"]
         .iter()
@@ -227,7 +227,7 @@ fn a_non_skippable_contributor_never_appears_in_skippable() {
     let repo = Repo::new();
     let workflow = repo.workflow(&[&gate()]);
     assert!(job(&workflow, "gate-job").len() > 1);
-    assert_eq!(docs_skippable(&workflow), ["checks"]);
+    assert_eq!(docs_skippable(&workflow), ["checks", "heldout"]);
     assert!(required_needs(&workflow).contains("gate-job"));
 }
 
@@ -316,7 +316,7 @@ fn a_non_kebab_id_refuses() {
 }
 
 #[test]
-fn required_sh_is_unchanged_and_embedded_verbatim() {
+fn required_sh_is_unchanged_and_embedded_without_its_comment_lines() {
     // Re-pinned when the spec added rule 3, the protected-paths gate (#943), and
     // when rule 3 began reading who added the label (#1255); contributors never
     // change it.
@@ -326,7 +326,8 @@ fn required_sh_is_unchanged_and_embedded_verbatim() {
     );
     let repo = Repo::new();
     let workflow = repo.workflow(&[&gate(), &scanner()]);
-    let indented: String = REQUIRED_SH
+    // Embedded without its comment-only lines (#1088, amended by #1362).
+    let indented: String = brakes::modules::security::embed::without_comment_lines(REQUIRED_SH)
         .lines()
         .map(|l| {
             if l.is_empty() {
@@ -395,11 +396,11 @@ fn agent_guardrails_contributes_cross_review_to_required() {
     let workflow = planned.changes[WORKFLOW].clone().unwrap();
     assert_eq!(
         required_needs(&workflow),
-        "needs: [scope, checks, workflow-lint, cross-review-model, cross-review]"
+        "needs: [scope, checks, heldout, workflow-lint, cross-review-model, cross-review]"
     );
     assert_eq!(
         docs_skippable(&workflow),
-        ["checks", "cross-review-model", "cross-review"]
+        ["checks", "heldout", "cross-review-model", "cross-review"]
     );
     assert_eq!(
         job(&workflow, "cross-review-model")[1],

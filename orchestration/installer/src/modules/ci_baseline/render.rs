@@ -18,6 +18,7 @@ use super::{
 use crate::{
     Result,
     engine::Context,
+    modules::security::embed::without_comment_lines,
     modules::security::pins::{ACTIONLINT, INSTALL_TOOL},
     modules::stack_packs::{PinTable, required_packs},
     refuse,
@@ -57,6 +58,11 @@ pub const DECLARED_SH: &str =
 pub const HELDOUT_SH: &str =
     include_str!("../../../../../templates/ci-baseline/fragments/heldout.sh");
 /// The step that draws, prints and records the held-out seed.
+/// The pending held-out job's timeout (#1362): it only lists a directory.
+pub const HELDOUT_PENDING_TIMEOUT: u32 = 5;
+/// The held-out job's step while no held-out test exists (#1362).
+pub const HELDOUT_PENDING_SH: &str =
+    include_str!("../../../../../templates/ci-baseline/fragments/heldout-pending.sh");
 pub const HELDOUT_SEED_SH: &str =
     include_str!("../../../../../templates/ci-baseline/fragments/heldout-seed.sh");
 /// The step that runs the held-out properties' command with the seed.
@@ -235,7 +241,7 @@ fn expr(text: &str) -> String {
 fn declared(command: Command) -> Step {
     Step::new(format!("Run declared {}", command.as_str()))
         .env("NAME", command.as_str())
-        .run(DECLARED_SH)
+        .run(without_comment_lines(DECLARED_SH))
 }
 
 /// The declared-command steps of one app, run in its directory so the
@@ -389,7 +395,7 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
     } else {
         scope_step.env("APP_JOBS", app_jobs.join("\n"))
     }
-    .run(scope::script(!app_jobs.is_empty()));
+    .run(without_comment_lines(&scope::script(!app_jobs.is_empty())));
     let mut jobs = vec![Job {
         needs: Vec::new(),
         outputs: ["tier", "skippable", "protected"]
@@ -463,7 +469,7 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
                 let shard = Step::new("Run declared shard")
                     .env("SHARD", expr("matrix.shard"))
                     .env("COUNT", count.to_string())
-                    .run(SHARD_SH);
+                    .run(without_comment_lines(SHARD_SH));
                 jobs.push(Job {
                     name: format!("shard {}/{count}", expr("matrix.shard")),
                     matrix: Some(Matrix {
@@ -480,10 +486,28 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
     if let Some(command) = &answers.heldout_command {
         let run = Step::new("Run held-out tests")
             .env("HELDOUT_COMMAND", command)
-            .run(HELDOUT_SH);
+            .run(without_comment_lines(HELDOUT_SH));
         jobs.push(Job {
             timeout_minutes: timeout,
             ..verification(HELDOUT_JOB, vec![run])
+        });
+    } else if answers.heldout {
+        // Pending (#1362): passes, saying so, only while the directory holds no
+        // file. It runs `find` alone, so it sets up no stack and no service.
+        let run = Step::new("Check held-out tests are pending")
+            .env("HELDOUT_DIR", &answers.heldout_dir)
+            .run(without_comment_lines(HELDOUT_PENDING_SH));
+        jobs.push(Job {
+            condition: Some(format!(
+                "needs.scope.outputs.tier != '{}'",
+                scope::TIER_DOCS
+            )),
+            skippable: Skippable::When(SkipWhen::TierDocs),
+            ..job(
+                HELDOUT_JOB,
+                HELDOUT_PENDING_TIMEOUT,
+                vec![checkout.clone(), run],
+            )
         });
     }
     // The held-out properties (#980): a fresh seed per run, printed and
@@ -493,7 +517,7 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
         let examples = answers.heldout_examples.to_string();
         let draw = Step::new("Draw the held-out seed")
             .id("seed")
-            .run(HELDOUT_SEED_SH);
+            .run(without_comment_lines(HELDOUT_SEED_SH));
         let run = super::model::property_recipes(cx)?
             .iter()
             .flat_map(|recipe| recipe.seed_env.iter())
@@ -511,7 +535,7 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
                     )
                 },
             )
-            .run(HELDOUT_PROPERTIES_SH);
+            .run(without_comment_lines(HELDOUT_PROPERTIES_SH));
         let mut upload = Step::new("Upload persisted property failures")
             .uses(pins.action("actions/upload-artifact")?)
             .with("name", HELDOUT_PROPERTIES_ARTIFACT)
@@ -558,7 +582,7 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
             .fold(Step::new("Install actionlint"), |step, (k, v)| {
                 step.env(k, v)
             })
-            .run(INSTALL_TOOL);
+            .run(without_comment_lines(INSTALL_TOOL));
         jobs.push(Job {
             condition: Some(
                 "contains(fromJSON(needs.scope.outputs.skippable), 'workflow-lint') == false"
@@ -623,7 +647,7 @@ pub fn workflow(cx: &Context<'_>, answers: &CiBaselineAnswers) -> Result<Option<
                     .env("EVENT_LABEL", expr("github.event.label.name"))
                     .env("SENDER_LOGIN", expr("github.event.sender.login"))
                     .env("SENDER_TYPE", expr("github.event.sender.type"))
-                    .run(REQUIRED_SH),
+                    .run(without_comment_lines(REQUIRED_SH)),
             ],
         )
     });

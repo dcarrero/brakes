@@ -12,6 +12,10 @@
 # that is not a redacted gitleaks JSON report fails on every event.
 # Prints `history: <base>..<head>`, `history: pushed <before>..<after>` or
 # `history: full` before scanning; the report is SARIF with every secret redacted.
+# After the scan it prints one `::error file=<path>,line=<n>::<rule>` per finding,
+# read from that report: rule, path and line only, never a message or snippet
+# (#1317, "A gate never re-publishes a secret"), then the count; it exits with
+# gitleaks' status, or 1 when gitleaks exited 0 with findings or no readable report.
 # Inputs, through `env:` only:
 #   EVENT        github.event_name
 #   BASE_SHA     github.event.pull_request.base.sha (empty outside pull requests)
@@ -59,9 +63,10 @@ case "${EVENT:-}" in
   push) range_of "${PUSH_BEFORE:-}" "${PUSH_AFTER:-}" && claim="pushed $range" ;;
 esac
 
+status=0
 if [ -n "$range" ]; then
   echo "history: $claim"
-  "${scan[@]}" --log-opts "$range" .
+  "${scan[@]}" --log-opts "$range" . || status=$?
 else
   echo "history: full"
   case "${EVENT:-}" in
@@ -72,5 +77,32 @@ else
       fi
       ;;
   esac
-  "${scan[@]}" .
+  "${scan[@]}" . || status=$?
 fi
+
+report=gitleaks.sarif
+if ! jq -e 'type == "object"' "$report" >/dev/null 2>&1; then
+  echo "::error::gitleaks wrote no readable report (exit $status)"
+  if [ "$status" -eq 0 ]; then
+    exit 1
+  fi
+  exit "$status"
+fi
+
+# Path and rule id are data from the change under review: escaped as workflow
+# command properties and message, so neither can end the line or the command.
+findings='[.runs[]?.results[]? | [(.locations[0].physicalLocation.artifactLocation.uri // "unknown"), (.locations[0].physicalLocation.region.startLine // 0), (.ruleId // "unknown")] | map(tostring)]'
+escape='def data: gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
+  def property: data | gsub(":"; "%3A") | gsub(","; "%2C");'
+jq -r "$escape $findings"' | .[] | "::error file=\(.[0] | property),line=\(.[1] | property)::\(.[2] | data)"' "$report"
+count=$(jq "$findings | length" "$report")
+
+if [ "$count" -gt 0 ]; then
+  echo "::error::$count gitleaks finding(s); values withheld from the log, rotate any real credential"
+  if [ "$status" -eq 0 ]; then
+    exit 1
+  fi
+elif [ "$status" -eq 0 ]; then
+  echo "gitleaks: no findings"
+fi
+exit "$status"

@@ -17,6 +17,10 @@
       "name": "example-cloud",
       "label": "example-cloud-2"
     },
+    "linux_large": {
+      "name": "example-cloud-large",
+      "label": "example-cloud-8"
+    },
     "macos": {
       "name": "example-mac",
       "label": "example-mac"

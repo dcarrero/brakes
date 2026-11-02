@@ -3,7 +3,7 @@ needs: scope
 if: needs.scope.outputs.tier != 'docs'
 runs-on: {{runner}}
 timeout-minutes: {{timeout}}
-permissions:
+{{environment}}permissions:
 {{permissions}}
 cache-mode: none
 outputs:

@@ -9,8 +9,8 @@
 //! against reports and results recorded with the pinned tools ("Property
 //! recipe", "Mutation recipe").
 use brakes::modules::stack_packs::{
-    App, ContainerSupport, CoverageInstall, DEFAULT_BRANCH_CONDITION, Evidence, MutationScope,
-    OtelKind, PackageManager, PinTable, StackId, StackPack, detect,
+    App, ContainerSupport, CoverageInstall, CoverageRecipe, DEFAULT_BRANCH_CONDITION, Evidence,
+    MutationScope, OtelKind, PackageManager, PinTable, StackId, StackPack, detect,
     packs::{self, node::NodeRunner},
 };
 use std::{collections::BTreeMap, fs, path::Path, process::Command};
@@ -1059,7 +1059,7 @@ fn the_coverage_recipes_match_the_spec() {
     assert_eq!(python.report, "coverage.json");
     assert_eq!(
         python.render_command(&table, None).unwrap(),
-        "uv run --frozen --all-extras --with coverage==7.17.0 coverage run -m pytest -q \
+        "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report= \
          && uv run --frozen --all-extras --with coverage==7.17.0 coverage json -q -i -o coverage.json"
     );
     assert_eq!(python.install_step(&table).unwrap(), None);
@@ -1189,7 +1189,7 @@ fn the_diff_reports_are_cobertura_for_python_uv_and_lcov_for_rust() {
     assert_eq!(python.diff_report, "coverage.xml");
     assert_eq!(
         python.render_diff_command(&table, None).unwrap(),
-        "uv run --frozen --all-extras --with coverage==7.17.0 coverage run -m pytest -q \
+        "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report= \
          && uv run --frozen --all-extras --with coverage==7.17.0 coverage xml -q -i -o coverage.xml"
     );
     let rust = packs::pack(StackId::Rust).coverage.unwrap();
@@ -1220,8 +1220,68 @@ fn an_answered_test_selection_replaces_the_pack_default() {
         python
             .render_diff_command(&table, Some("tests/unit"))
             .unwrap(),
-        "uv run --frozen --all-extras --with coverage==7.17.0 coverage run -m pytest -q tests/unit \
+        "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage==7.17.0 --with pytest-cov==7.1.0 python -m pytest -q --cov --cov-report= tests/unit \
          && uv run --frozen --all-extras --with coverage==7.17.0 coverage xml -q -i -o coverage.xml"
+    );
+}
+
+#[test]
+fn the_combine_commands_merge_the_project_ci_parts() {
+    // #1349: coverage_source project-ci; the project's own test jobs upload the data.
+    let table = pins();
+    let python = packs::pack(StackId::PythonUv).coverage.unwrap();
+    assert_eq!(
+        python
+            .render_combine(&table, "/w/.coverage-parts/api")
+            .unwrap(),
+        "find /w/.coverage-parts/api -type f -name '.coverage*' -print0 | sort -z \
+         | xargs -0 uv run --frozen --all-extras --with coverage==7.17.0 coverage combine --keep \
+         && uv run --frozen --all-extras --with coverage==7.17.0 coverage xml -q -i -o coverage.xml"
+    );
+    let rust = packs::pack(StackId::Rust).coverage.unwrap();
+    let merge = rust
+        .render_combine(&table, "/w/.coverage-parts/root")
+        .unwrap();
+    assert!(
+        merge
+            .starts_with("# shellcheck disable=SC2016\nfind /w/.coverage-parts/root -type f -name '*.info' | sort | xargs awk "),
+        "{merge}"
+    );
+    assert!(merge.ends_with("> lcov.info"), "{merge}");
+}
+
+#[test]
+fn a_pin_placeholder_renders_every_occurrence_and_refuses_a_missing_key() {
+    // #1342: `{{pin:<key>}}` names another tool's pinned version.
+    let table = pins();
+    let python = packs::pack(StackId::PythonUv).coverage.unwrap();
+    let twice = CoverageRecipe {
+        command: "a {{pin:pytest-cov}} b {{pin:diff-cover}} {{version}}",
+        ..python
+    };
+    assert_eq!(
+        twice.render_command(&table, None).unwrap(),
+        "a 7.1.0 b 10.6.0 7.17.0"
+    );
+    let missing = CoverageRecipe {
+        command: "uv run --with x=={{pin:absent-tool}} pytest",
+        ..python
+    };
+    assert_eq!(
+        missing
+            .render_command(&table, None)
+            .unwrap_err()
+            .to_string(),
+        "stack-packs: tool `absent-tool` is not in templates/stack-packs/pins.json; add it with its version before rendering"
+    );
+    // An unterminated placeholder is left as written, never a panic.
+    let open = CoverageRecipe {
+        command: "x {{pin:pytest-cov",
+        ..python
+    };
+    assert_eq!(
+        open.render_command(&table, None).unwrap(),
+        "x {{pin:pytest-cov"
     );
 }
 

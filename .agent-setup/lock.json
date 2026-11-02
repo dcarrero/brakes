@@ -1,7 +1,7 @@
 {
   "schema": 2,
-  "version": "0.5.0",
-  "source_commit": "a408038c038e64fdc593fc88e6e18aa672cac525",
+  "version": "0.5.1",
+  "source_commit": "7a0c8ad7536497a8a8e8390de2b33ac29245d645",
   "source_dirty": false,
   "personal_owner": "gemba-app/brakes",
   "modules": {
@@ -179,9 +179,13 @@
     ".github/workflows/agentic-ci.yml": {
       "module": "ci-baseline",
       "class": "managed",
-      "digest": "21fadd8c5fc5470da0f076cbeb9eb1c34b1921bebb49ea030c7760bf19a1cda3"
+      "digest": "d7c30f437de0c2e149641f6ecb24746dee41d928b56f7e8ca466f03068d6b69f"
     },
     ".github/workflows/neutrality.yml": {
+      "module": "ci-baseline",
+      "class": "never-touch"
+    },
+    ".github/workflows/release.yml": {
       "module": "ci-baseline",
       "class": "never-touch"
     },
@@ -229,7 +233,7 @@
     "docs/agent-setup/guardrails.md": {
       "module": "agent-guardrails",
       "class": "managed",
-      "digest": "52cdb76e1e4c85765af769e310eff612b6df494c5de2c075280db500be8e1c2b"
+      "digest": "4b15f101321443cd73b7618b349dbdf5fe6f92b985004f95d7e69216eda3205b"
     },
     "docs/agent-setup/rfc-template.md": {
       "module": "repo-baseline",
@@ -239,7 +243,7 @@
     "docs/agent-setup/security-gates.md": {
       "module": "security",
       "class": "managed",
-      "digest": "f284c876383a3266813073f64741b3c327286228f76ec8e925f9c6a33a932167"
+      "digest": "99f56d65dd426e3b0e77ef2e7aeecc10a541020a1d6b601ddf9710bc64ba10a7"
     },
     "docs/agent-setup/technical-debt.md": {
       "module": "agent-guardrails",

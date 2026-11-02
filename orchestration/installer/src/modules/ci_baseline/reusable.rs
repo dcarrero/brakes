@@ -108,7 +108,9 @@ pub fn callee_with(linux: Option<&NamedRunner>) -> Result<String> {
             .env("PROFILE_PATH", input("profile-path"))
             .env("STACKS", stacks.join(" "))
             .env("LABELS", labels.join(" "))
-            .run(INPUTS_SH),
+            .run(crate::modules::security::embed::without_comment_lines(
+                INPUTS_SH,
+            )),
         Step::new("Check out")
             .uses(pins.action("actions/checkout")?)
             .with("persist-credentials", "false"),
@@ -121,7 +123,9 @@ pub fn callee_with(linux: Option<&NamedRunner>) -> Result<String> {
             .working_directory(WORKING_DIRECTORY)
             .env("COMMANDS", input("commands"))
             .env("PROFILE_PATH", input("profile-path"))
-            .run(VERIFY_SH),
+            .run(crate::modules::security::embed::without_comment_lines(
+                VERIFY_SH,
+            )),
     );
     let mut result = Step::new("Report the result")
         .id("result")

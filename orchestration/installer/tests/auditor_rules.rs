@@ -4,7 +4,7 @@
 //! block. The host is a fake that spends a real `CallBudget`; no `gh` runs.
 use brakes::{
     auditor::{
-        Audit, CALL_BUDGET, Cx, Dimensions, LocalFiles, audit,
+        Audit, CALL_BUDGET, Cx, Dimensions, FLEET_CALL_BUDGET, LocalFiles, audit,
         cached::Cached,
         catalogue::{ci_health, dora, governance, operations, posture},
         counters::{self, Counter, Counters},
@@ -68,6 +68,8 @@ struct FakeHost {
     files: BTreeMap<u64, R<Vec<PullFile>>>,
     collaborators: R<Vec<Collaborator>>,
     org_owners: R<Vec<String>>,
+    /// `GET repos/{r}`: the visibility `production-environment-guarded` reads.
+    repository: R<brakes::host::types::RepositorySettings>,
     /// The operations read, in order.
     calls: RefCell<Vec<&'static str>>,
 }
@@ -102,6 +104,7 @@ impl Default for FakeHost {
             files: BTreeMap::new(),
             collaborators: Err(unsupported("collaborators")),
             org_owners: Err(unsupported("org_owners")),
+            repository: Err(unsupported("repository")),
             calls: RefCell::default(),
         }
     }
@@ -132,6 +135,7 @@ impl FakeHost {
             files: BTreeMap::new(),
             collaborators: Err(error.clone()),
             org_owners: Err(error.clone()),
+            repository: Err(error.clone()),
             calls: RefCell::default(),
         }
     }
@@ -153,7 +157,7 @@ impl Host for FakeHost {
         HostKind::GitHub
     }
     fn repository(&self, _: &RepoId) -> R<brakes::host::types::RepositorySettings> {
-        Err(unsupported("repository"))
+        self.read("repository", &self.repository)
     }
     fn features(&self, _: &RepoId) -> R<Features> {
         panic!("posture rules never probe features (eight calls)")
@@ -1286,9 +1290,21 @@ fn production(policy: DeploymentBranchPolicy) -> Environment {
         ..environment("production")
     }
 }
+/// `GET repos/{r}` answering `visibility`.
+fn settings(visibility: &str) -> R<brakes::host::types::RepositorySettings> {
+    Ok(serde_json::from_value(serde_json::json!({
+        "id": "R_1", "default_branch": "main", "visibility": visibility,
+        "archived": false, "fork": false,
+    }))
+    .unwrap())
+}
 fn guarded(env: Environment, profile: Profile) -> Outcome {
+    guarded_in(env, profile, "public")
+}
+fn guarded_in(env: Environment, profile: Profile, visibility: &str) -> Outcome {
     let host = FakeHost {
         environments: Ok(vec![environment("staging"), env]),
+        repository: settings(visibility),
         ..FakeHost::default()
     };
     outcome(
@@ -1377,6 +1393,88 @@ fn at_p2_a_branch_policy_alone_does_not_guard_production() {
     failed(
         &guarded(zero_timer, Profile::P2),
         &["production has neither required reviewers nor a wait timer"],
+    );
+}
+
+/// GitHub, "Deployments and environments": on Free, Pro and Team, required
+/// reviewers and wait timers are only available for public repositories, and
+/// deployment branches are available for private ones on Pro and Team (#1321).
+#[test]
+fn at_p2_a_private_repository_without_reviewers_is_not_required_for_the_plan() {
+    for (visibility, profile) in [("private", Profile::P2), ("internal", Profile::P3)] {
+        let o = guarded_in(
+            production(DeploymentBranchPolicy::Custom {
+                patterns: vec!["main".to_owned()],
+            }),
+            profile,
+            visibility,
+        );
+        assert_eq!(o.status, Status::NotRequired, "{o:?}");
+        assert_eq!(
+            o.reason.as_deref(),
+            Some(format!(
+                "requires plan Enterprise Cloud: required reviewers and wait timers are only available for public repositories on Free, Pro and Team, and this repository is {visibility}; production deploys only from main"
+            ))
+            .as_deref()
+        );
+    }
+}
+
+#[test]
+fn the_catalogue_says_reviewers_on_a_private_repository_need_enterprise_cloud() {
+    let rule = posture::PRODUCTION_ENVIRONMENT_GUARDED;
+    assert_eq!(
+        rule.plan,
+        Some(brakes::auditor::rules::Plan::EnterpriseCloud)
+    );
+    assert!(rule.checks.contains("Enterprise Cloud"), "{}", rule.checks);
+}
+
+#[test]
+fn at_p2_a_private_repository_open_to_every_branch_still_fails() {
+    failed(
+        &guarded_in(
+            production(DeploymentBranchPolicy::Unrestricted),
+            Profile::P2,
+            "private",
+        ),
+        &[
+            "production has no deployment branch policy: any branch may deploy",
+            "production has neither required reviewers nor a wait timer, which a private repository has only on Enterprise Cloud",
+        ],
+    );
+}
+
+#[test]
+fn at_p2_a_private_repository_with_reviewers_passes_without_reading_visibility() {
+    let reviewers = Environment {
+        reviewers: vec!["octo".to_owned()],
+        ..production(DeploymentBranchPolicy::Unrestricted)
+    };
+    let host = FakeHost {
+        environments: Ok(vec![reviewers]),
+        ..FakeHost::default()
+    };
+    let audit = run_as(&host, &[], Profile::P2);
+    passed(
+        &outcome(&audit, "posture.production-environment-guarded"),
+        &["production requires review by octo"],
+    );
+}
+
+#[test]
+fn at_p2_an_unreadable_visibility_is_unavailable() {
+    let host = FakeHost {
+        environments: Ok(vec![production(DeploymentBranchPolicy::ProtectedBranches)]),
+        repository: Err(HostError::new(HostErrorKind::NotFound, "repository gone")),
+        ..FakeHost::default()
+    };
+    unavailable(
+        &outcome(
+            &run_as(&host, &[], Profile::P2),
+            "posture.production-environment-guarded",
+        ),
+        "repository gone",
     );
 }
 
@@ -2468,7 +2566,6 @@ fn budget_host() -> FakeHost {
             (27, vec![job_done("required", 12)]),
             (25, vec![job_done("required", 20)]),
         ]),
-        timing: BTreeMap::from([(30, 600_000), (29, 120_000), (28, 60_000)]),
         ..FakeHost::default()
     }
 }
@@ -2479,18 +2576,9 @@ fn a_median_cycle_within_the_budget_passes_with_the_minutes_sample() {
     queued.status = "queued".to_owned();
     let mut listed = vec![queued];
     listed.extend(budget_host().runs.unwrap());
-    // Only completed runs are timed: the queued one is neither listed nor read.
+    // Only completed runs count toward the sample: the queued one does not.
     let host = FakeHost {
         runs: Ok(listed),
-        timing: BTreeMap::from([
-            (30, 600_000),
-            (29, 120_000),
-            (28, 60_000),
-            (27, 0),
-            (26, 0),
-            (25, 0),
-            (24, 0),
-        ]),
         ..budget_host()
     };
     passed(
@@ -2506,10 +2594,62 @@ fn a_median_cycle_within_the_budget_passes_with_the_minutes_sample() {
         ),
         &[
             "median 12.0 min from run creation to job required over 3 first-attempt push runs of CI on main ≤ the cycle budget of 15 min",
-            "CI minutes this month (a sample, not billing): 13.0 min, the run_duration_ms of the latest 7 of 7 runs listed",
+            "CI minutes this month (a sample, not billing): 0.0 min, the wall-clock of 0 of 7 completed runs created this month among the latest 100 listed, from run start to last update",
         ],
     );
     assert_eq!(host.count("jobs"), 3, "{:?}", host.calls);
+}
+
+/// The minutes sample is read from the listing the rates already hold: each
+/// completed run of the month from its start to its last update, no call per
+/// run (#1318: the `timing` of the same runs `ci.minutes-month` reads the jobs
+/// of cost up to 10 calls a repository).
+#[test]
+fn the_minutes_sample_reads_the_listing_and_spends_no_call_per_run() {
+    let timed = |id, start: Option<&str>, end: Option<&str>| {
+        let mut run = wrun(id, "CI", "main", Some("success"), 1);
+        run.run_started_at = start.map(str::to_owned);
+        run.updated_at = end.map(str::to_owned);
+        run
+    };
+    let mut queued = wrun(31, "CI", "feature", None, 1);
+    queued.status = "queued".to_owned();
+    let mut september = timed(
+        20,
+        Some("2026-09-30T10:00:00Z"),
+        Some("2026-09-30T11:00:00Z"),
+    );
+    september.created_at = Some("2026-09-30T10:00:00Z".to_owned());
+    let host = FakeHost {
+        runs: Ok(vec![
+            queued,
+            timed(
+                30,
+                Some("2026-10-27T10:00:00Z"),
+                Some("2026-10-27T10:10:00Z"),
+            ),
+            // No start: from its creation, 2026-10-27T10:00:00Z.
+            timed(29, None, Some("2026-10-27T10:03:00Z")),
+            // No end, or an end before the start: listed, not timed.
+            timed(28, Some("2026-10-27T10:00:00Z"), None),
+            timed(
+                27,
+                Some("2026-10-27T10:05:00Z"),
+                Some("2026-10-27T10:00:00Z"),
+            ),
+            september,
+        ]),
+        ..FakeHost::default()
+    };
+    let o = outcome(
+        &ci_audit(&host, &[(".github/workflows/ci.yml", CI_YML)]),
+        "ci-health.minutes-budget",
+    );
+    assert_eq!(
+        o.evidence[2],
+        "CI minutes this month (a sample, not billing): 13.0 min, the wall-clock of 2 of 4 completed runs created this month among the latest 100 listed, from run start to last update"
+    );
+    assert_eq!(host.count("run_timing"), 0, "{:?}", host.calls);
 }
 
 #[test]
@@ -2528,7 +2668,7 @@ fn a_median_cycle_over_the_budget_fails() {
         ),
         &[
             "median 12.0 min from run creation to job required over 3 first-attempt push runs of CI on main > the cycle budget of 11.5 min",
-            "CI minutes this month (a sample, not billing): 13.0 min, the run_duration_ms of the latest 3 of 7 runs listed; stopped at run 27: run_timing is not supported on acme/shop by this host adapter",
+            "CI minutes this month (a sample, not billing): 0.0 min, the wall-clock of 0 of 7 completed runs created this month among the latest 100 listed, from run start to last update",
         ],
     );
 }
@@ -2621,11 +2761,7 @@ fn the_median_reads_at_most_twenty_runs() {
         "median 5.0 min from run creation to job required over 20 first-attempt push runs of CI on main ≤ the cycle budget of 15 min"
     );
     assert_eq!(host.count("jobs"), 20);
-    assert_eq!(
-        host.count("run_timing"),
-        1,
-        "the sample stops at the first unreadable timing"
-    );
+    assert_eq!(host.count("run_timing"), 0, "the sample reads the listing");
 }
 
 // ci-health: every remote rule unavailable on a failed read and on the budget
@@ -2782,13 +2918,14 @@ fn example_app_recorded_ci_health() {
         &outcome(&audit, "ci-health.minutes-budget"),
         &[
             "median 5.2 min from run creation to job all-checks-passed over 20 first-attempt push runs of CI on main ≤ the cycle budget of 20 min",
-            "CI minutes this month (a sample, not billing): 13.7 min, the run_duration_ms of the latest 10 of 100 runs listed",
+            "CI minutes this month (a sample, not billing): 120.5 min, the wall-clock of 100 of 100 completed runs created this month among the latest 100 listed, from run start to last update",
         ],
     );
     // 1 push listing (workflow-exists, then the median), 1 listing of the
-    // latest runs (both rates, then the minutes sample), 20 jobs, 10 timings:
-    // 35 before #917 read each listing once per rule.
-    assert_eq!(calls, 32);
+    // latest runs (both rates, then the minutes sample), 20 jobs: 35 before
+    // #917 read each listing once per rule, 32 before the minutes sample read
+    // the listing instead of 10 timings (#1318).
+    assert_eq!(calls, 22);
 }
 
 #[test]
@@ -2907,9 +3044,10 @@ fn one_audit_of_example_app_reads_each_endpoint_once() {
     let repeated: Vec<_> = served.iter().filter(|(_, n)| **n > 1).collect();
     assert!(repeated.is_empty(), "read more than once: {repeated:?}");
     assert_eq!(host.budget().used() as usize, replay.gets.borrow().len());
-    // 10 for posture, 32 for ci-health and 13 for DORA; 22 + 35 + 23 = 80
-    // before #917. The measures and the repository read come on top.
-    assert_eq!(host.budget().used(), 55);
+    // 10 for posture, 22 for ci-health and 13 for DORA; 22 + 35 + 23 = 80
+    // before #917, 55 before the minutes sample read the listing (#1318).
+    // The measures and the repository read come on top.
+    assert_eq!(host.budget().used(), 45);
     // The outcomes are those of each block audited alone.
     passed(
         &outcome(&audit, "posture.serialised-merges"),
@@ -4448,17 +4586,23 @@ fn the_allowances_name_registry_rules_and_sum_per_block_as_specified() {
 }
 
 /// SPEC-auditor.md, "Fleet file reads" (#935): under `--fleet` governance
-/// adds the files its rules read through the contents API; no other block
-/// changes and the sum stays within the budget.
+/// adds the files its rules read through the contents API, and baseline the
+/// lock (#1318: the measures read only the profile, so seven baseline rules
+/// found the lock unreadable on the live fleet run); the sum stays within the fleet
+/// budget.
 #[test]
-fn the_fleet_allowances_add_the_governance_file_reads() {
+fn the_fleet_allowances_add_the_governance_file_reads_and_the_lock() {
     for (id, _) in FLEET_FILE_READS {
         let rule = REGISTRY.iter().find(|r| r.id == *id);
         assert!(
-            rule.is_some_and(|r| r.block == Block::Governance),
-            "{id} is not a governance rule of the registry"
+            rule.is_some_and(|r| r.block == Block::Governance || r.block == Block::Baseline),
+            "{id} is not a governance or baseline rule of the registry"
         );
     }
+    // The lock's call sits on the first baseline rule, so it passes on to the
+    // first that reads the lock whichever features are built.
+    assert_eq!(REGISTRY[0].id, "baseline.purpose-declared");
+    assert_eq!(fleet_allowance("baseline.purpose-declared"), 1);
     let block = |b: Block| -> u32 {
         REGISTRY
             .iter()
@@ -4483,11 +4627,17 @@ fn the_fleet_allowances_add_the_governance_file_reads() {
         .map(block),
         // ci keeps its 7 (#783): minutes-month reads under --fleet too, and
         // workflow-lint's call is held though its static half is not-required.
-        [0, 12, 7, 7, 0, 16, 7, 0, 0, 0, 0]
+        [1, 12, 7, 7, 0, 16, 7, 0, 0, 0, 0]
     );
     let total: u32 = REGISTRY.iter().map(|r| fleet_allowance(r.id)).sum();
-    assert_eq!(total, 49);
-    assert!(total <= CALL_BUDGET, "{total} > {CALL_BUDGET}");
+    assert_eq!(total, 50);
+    // The measures read first from what the allowances leave: 7 to 24 calls on
+    // the repositories of the live fleet run (#1318: the profile, the collaborators, a
+    // page per 100 pull requests closed in 56 days, the workflows one by one,
+    // the Dockerfile, the environments), more than the 9 that 60 leaves.
+    const MEASURES_RECORDED: u32 = 24;
+    assert!(total + MEASURES_RECORDED > CALL_BUDGET);
+    assert!(total + MEASURES_RECORDED <= FLEET_CALL_BUDGET);
 }
 
 #[test]
@@ -4637,7 +4787,7 @@ fn every_block_reports_a_verdict_within_60_calls_in_the_worst_case() {
         &outcome(&audit, "ci-health.minutes-budget"),
         &[
             "median 5.2 min from run creation to job all-checks-passed over 5 first-attempt push runs of CI on main (a sample: the call budget stopped it at 5 of 20 runs) ≤ the cycle budget of 20 min",
-            "CI minutes this month (a sample, not billing): 0.0 min, the run_duration_ms of the latest 0 of 100 runs listed; stopped at run 40868002113: budget exhausted: call budget of 60 exhausted, 21 held back",
+            "CI minutes this month (a sample, not billing): 120.5 min, the wall-clock of 100 of 100 completed runs created this month among the latest 100 listed, from run start to last update",
         ],
     );
     passed(
@@ -5082,13 +5232,13 @@ fn example_app_recorded_counters_within_the_allowance() {
 }
 
 #[test]
-/// A checkout holds the counters' 6 beside the rules' 32; `--fleet` holds
-/// none for them (its 47 leave the measures 13), so the sum stays 47 there.
-fn counters_allowance_brings_the_checkout_sum_to_40_and_leaves_the_fleet_at_49() {
+/// A checkout holds the counters' 6 beside the rules' 34; `--fleet` holds
+/// none for them, so the sum stays 50 there (49 and the lock, #1318).
+fn counters_allowance_brings_the_checkout_sum_to_40_and_leaves_the_fleet_at_50() {
     let rules: u32 = ALLOWANCES.iter().map(|(_, calls)| calls).sum();
     assert_eq!(rules + counters::ALLOWANCE, 40);
     let fleet: u32 = REGISTRY.iter().map(|r| fleet_allowance(r.id)).sum();
-    assert_eq!(fleet, 49);
+    assert_eq!(fleet, 50);
     assert!(rules + counters::ALLOWANCE <= CALL_BUDGET);
 }
 

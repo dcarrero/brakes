@@ -68,10 +68,19 @@ pub const PYTHON_UV: StackPack = StackPack {
     // neither `uv sync --frozen` nor `uv run` installs unless asked.
     // `-i` (#1239): a file a test generated, ran and deleted is a warning, not
     // a failed report, so a measured run always writes its report.
+    // pytest-cov (#1342): `coverage run` measures only pytest's own process, so a
+    // project running pytest-xdist recorded nothing; pytest-cov gathers every
+    // worker into `.coverage` and the report step reads it. `python -m` keeps the
+    // working directory on `sys.path`, as `coverage run -m` did.
+    // `COVERAGE_CORE=sysmon` (#1370): the default settrace core made a 3.12 xdist
+    // suite 3-4x slower. Where sys.monitoring cannot serve (Python < 3.12, branch
+    // coverage on 3.12/3.13) coverage.py uses its default core and warns
+    // `no-sysmon` (changes 7.4.2 and 7.11.3, read 2026-11-02 for 7.17.0).
     coverage: Some(CoverageRecipe {
         tool: "coverage-py",
         install: CoverageInstall::InCommand,
-        command: "uv run --frozen --all-extras --with coverage=={{version}} coverage run -m pytest -q{{tests}} \
+        command: "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage=={{version}} --with pytest-cov=={{pin:pytest-cov}} \
+                  python -m pytest -q --cov --cov-report={{tests}} \
                   && uv run --frozen --all-extras --with coverage=={{version}} coverage json -q -i -o coverage.json",
         // Every test pytest collects unless the project answers a selection (#1177).
         default_tests: "",
@@ -79,9 +88,16 @@ pub const PYTHON_UV: StackPack = StackPack {
         metric: "if .totals.num_statements == 0 then 0 \
                  else .totals.covered_lines * 100 / .totals.num_statements end",
         // Cobertura, which diff-cover reads (its README, read 2026-10-29).
-        diff_command: "uv run --frozen --all-extras --with coverage=={{version}} coverage run -m pytest -q{{tests}} \
+        diff_command: "COVERAGE_CORE=sysmon uv run --frozen --all-extras --with coverage=={{version}} --with pytest-cov=={{pin:pytest-cov}} \
+                       python -m pytest -q --cov --cov-report={{tests}} \
                        && uv run --frozen --all-extras --with coverage=={{version}} coverage xml -q -i -o coverage.xml",
         diff_report: "coverage.xml",
+        // One data file per test job (`.coverage`, or `.coverage.<suffix>` with
+        // `parallel`); `coverage combine` takes them by name (#1349), through
+        // xargs -0 so no unquoted expansion splits them (SC2046, #1352).
+        combine: "find {{parts}} -type f -name '.coverage*' -print0 | sort -z \
+                  | xargs -0 uv run --frozen --all-extras --with coverage=={{version}} coverage combine --keep \
+                  && uv run --frozen --all-extras --with coverage=={{version}} coverage xml -q -i -o coverage.xml",
     }),
     // Hypothesis's `ci` profile (active whenever `CI` is set) derandomizes;
     // the seeded conftest under the held-out directory turns randomness back
