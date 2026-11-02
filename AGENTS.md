@@ -42,3 +42,7 @@ changing a module, and [`docs/decisions.md`](docs/decisions.md) before changing 
 | `orchestration/installer/src/guard/` | the never-merge-on-red hook |
 | `templates/` | module data: fragments, seeds, goldens, presets and the shared pin table |
 | `orchestration/installer/tests/` | integration tests, synthetic fixtures and goldens |
+
+<!-- brakes:begin -->
+Before imitating neighbouring code, read `docs/agent-setup/technical-debt.md`: it lists the patterns not to copy.
+<!-- brakes:end -->

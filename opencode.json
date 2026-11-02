@@ -1,0 +1,48 @@
+{
+  "permission": {
+    "edit": {
+      "*/.agent-setup/lock.json": "deny",
+      "*/.env": "deny",
+      "*/.env.local": "deny",
+      "*/secrets/*": "deny",
+      "*/tests/heldout/*": "deny",
+      ".agent-setup/lock.json": "deny",
+      ".env": "deny",
+      ".env.local": "deny",
+      "secrets/*": "deny",
+      "tests/heldout/*": "deny"
+    },
+    "read": {
+      "*.key": "deny",
+      "*.p12": "deny",
+      "*.pem": "deny",
+      "*/*.key": "deny",
+      "*/*.p12": "deny",
+      "*/*.pem": "deny",
+      "*/.env": "deny",
+      "*/.env.development": "deny",
+      "*/.env.local": "deny",
+      "*/.env.production": "deny",
+      "*/.env.staging": "deny",
+      "*/.env.test": "deny",
+      "*/id_ed25519*": "deny",
+      "*/id_rsa*": "deny",
+      "*/keystore.properties": "deny",
+      "*/local.properties": "deny",
+      "*/secrets/*": "deny",
+      "*/tests/heldout/*": "deny",
+      ".env": "deny",
+      ".env.development": "deny",
+      ".env.local": "deny",
+      ".env.production": "deny",
+      ".env.staging": "deny",
+      ".env.test": "deny",
+      "id_ed25519*": "deny",
+      "id_rsa*": "deny",
+      "keystore.properties": "deny",
+      "local.properties": "deny",
+      "secrets/*": "deny",
+      "tests/heldout/*": "deny"
+    }
+  }
+}

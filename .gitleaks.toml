@@ -1,0 +1,7 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# gitleaks reads it in CI (security-gate) and in the pre-commit hook.
+# Every [allowlist] entry is a bypass: register it in
+# .agent-setup/security-exceptions.json with kind `allowlist` and target
+# `.gitleaks.toml#<key>:<value>` (docs/agent-setup/security-gates.md).
+[extend]
+useDefault = true

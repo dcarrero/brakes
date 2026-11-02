@@ -1,0 +1,9 @@
+# Test fixtures of the auditor model workflows without a `permissions:` block on
+# purpose: the auditor's tests read that absence. zizmor audits every workflow in
+# the tree, so these three lines are ignored; every other workflow keeps the rule.
+rules:
+  excessive-permissions:
+    ignore:
+      - ci.yml:4
+      - deploy.yml:6
+      - preview.yaml:4

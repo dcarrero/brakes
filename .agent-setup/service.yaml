@@ -1,0 +1,12 @@
+# Service card (brakes repo-baseline seed): yours to edit. The auditor
+# validates it against .agent-setup/service.schema.json; owner is never "unknown".
+name: gemba-app/brakes              # owner/name of origin; <owner>/<name> when there is no origin to read
+owner: gemba-app/brakes            # GitHub login or team; never "unknown"
+tier: 3                     # 1 critical … 3 internal
+criticality: internal # mirrors .agent-setup/project.json#criticality, which decides the level
+runbook: null               # URL or path
+dashboard: null
+alerts: null
+slo: null
+on_call: null               # person, rotation or "owner"
+security_contact: null      # where SECURITY.md sends reports

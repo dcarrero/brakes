@@ -1,0 +1,19 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# Serves `pre-commit` and `prek`. The installer never runs `pre-commit install`
+# or `prek install`: installing a hook writes under .git/, which is the owner's
+# step (docs/agent-setup/security-gates.md). gitleaks runs the release CI pins.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e  # frozen: v8.30.1
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+      - id: check-merge-conflict
+  - repo: https://github.com/rhysd/actionlint
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # frozen: v1.7.12
+    hooks:
+      - id: actionlint

@@ -1,0 +1,11 @@
+{
+  "module": "stack-packs",
+  "version": "1.0.0",
+  "answers": {
+    "apps.root.container": false,
+    "apps.root.path": ".",
+    "apps.root.stack": "rust",
+    "apps.root.toolchain": true,
+    "base_image_family": "distroless"
+  }
+}

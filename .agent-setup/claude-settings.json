@@ -1,0 +1,56 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/merge_guard.sh\"",
+            "onFailure": "block",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_verify.sh\"",
+            "statusMessage": "Running verify",
+            "timeout": 630,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "ask": [
+      "Bash(gh pr edit * --add-label human-approved)"
+    ],
+    "deny": [
+      "Read(//**/.env)",
+      "Read(//**/.env.local)",
+      "Read(//**/.env.development)",
+      "Read(//**/.env.production)",
+      "Read(//**/.env.test)",
+      "Read(//**/.env.staging)",
+      "Read(//**/secrets/**)",
+      "Read(//**/*.pem)",
+      "Read(//**/*.key)",
+      "Read(//**/*.p12)",
+      "Read(//**/id_rsa*)",
+      "Read(//**/id_ed25519*)",
+      "Read(//**/local.properties)",
+      "Read(//**/keystore.properties)",
+      "Edit(//**/.env)",
+      "Edit(//**/.env.local)",
+      "Edit(//**/secrets/**)",
+      "Edit(//**/.agent-setup/lock.json)",
+      "Edit(//**/tests/heldout/**)",
+      "Read(//**/tests/heldout/**)"
+    ]
+  }
+}

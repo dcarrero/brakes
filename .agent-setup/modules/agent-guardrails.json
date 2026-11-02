@@ -1,0 +1,18 @@
+{
+  "module": "agent-guardrails",
+  "version": "1.0.0",
+  "answers": {
+    "agent_environments": [],
+    "mcp_servers": [],
+    "protected_paths": [
+      ".agent-setup/lock.json",
+      "tests/heldout/**"
+    ],
+    "review_blocking": "p0-p1",
+    "review_family": "none",
+    "secret_paths": [],
+    "stop_verify": true,
+    "unattended": false,
+    "verify_timeout": 600
+  }
+}

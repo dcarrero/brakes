@@ -1,0 +1,10 @@
+# Seeded by brakes (security); this file is the project's from now on.
+# Trivy reads it with --ignorefile. Every entry needs `expired_at` and an issue
+# in `statement`, or security-gate fails (docs/agent-setup/security-gates.md).
+# Quote `statement`: unquoted, YAML ends it at ` #`, and the issue is lost.
+#
+# vulnerabilities:
+#   - id: CVE-2026-1234
+#     statement: "not reachable from our code; tracked in #123"
+#     expired_at: 2026-12-01
+vulnerabilities: []

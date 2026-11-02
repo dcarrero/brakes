@@ -33,5 +33,6 @@
     "required_checks": [
       "required"
     ]
-  }
+  },
+  "criticality": "internal"
 }

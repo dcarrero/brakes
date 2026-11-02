@@ -1,0 +1,346 @@
+{
+  "schema": 2,
+  "version": "0.5.0",
+  "source_commit": "15dbd3018cce211d26e46a4f31a89300c66fe5dc",
+  "source_dirty": false,
+  "personal_owner": "gemba-app/brakes",
+  "modules": {
+    "agent-guardrails": {
+      "version": "1.0.0",
+      "answers_digest": "8b8d71bd4018c06655c832830a724bb918cc499240487509068934de5d887800"
+    },
+    "ci-baseline": {
+      "version": "1.0.0",
+      "answers_digest": null
+    },
+    "merge-guard": {
+      "version": "1.0.0",
+      "answers_digest": null
+    },
+    "repo-baseline": {
+      "version": "1.0.0",
+      "answers_digest": null
+    },
+    "security": {
+      "version": "1.0.0",
+      "answers_digest": null
+    },
+    "stack-packs": {
+      "version": "1.0.0",
+      "answers_digest": "ea08c4c841e5356fb9256c6f68f7bfd3202b7ae7cc9b10b42a67d3606ae9cdd1"
+    }
+  },
+  "files": {
+    ".agent-setup/claude-settings.json": {
+      "module": "agent-guardrails",
+      "class": "managed",
+      "digest": "152b39c5b59607cdc9a3ea8d178936bf6fa7db81be912e110c417db6ad55e4d9"
+    },
+    ".agent-setup/mcp-allowlist.json": {
+      "module": "agent-guardrails",
+      "class": "managed",
+      "digest": "5ce88458ea23a00e2d34b1eee44bae2e46ad9cdef7c031a2288338ffe6595cdf"
+    },
+    ".agent-setup/security-exceptions.json": {
+      "module": "security",
+      "class": "seed"
+    },
+    ".agent-setup/service.schema.json": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "4db13e1649be78b214af1ab94551be0c26a75e371be2b108e6693893ccf56332"
+    },
+    ".agent-setup/service.yaml": {
+      "module": "repo-baseline",
+      "class": "seed"
+    },
+    ".claude/hooks/merge_guard.sh": {
+      "module": "merge-guard",
+      "class": "managed",
+      "digest": "d65f3f3bb7209f151ec457f1c6becc003bbae3b4b3af82009b694efcc914cde0"
+    },
+    ".claude/hooks/stop_verify.sh": {
+      "module": "agent-guardrails",
+      "class": "managed",
+      "digest": "67491b5e4561fe9a9dfcdab175bae358bfeef65e466b9753bf3fd582c100cdd0"
+    },
+    ".claude/settings.json": {
+      "module": "agent-guardrails",
+      "class": "managed-entries",
+      "digest": "152b39c5b59607cdc9a3ea8d178936bf6fa7db81be912e110c417db6ad55e4d9",
+      "entries": {
+        "hooks": {
+          "PreToolUse": [
+            {
+              "hooks": [
+                {
+                  "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/merge_guard.sh\"",
+                  "onFailure": "block",
+                  "timeout": 60,
+                  "type": "command"
+                }
+              ],
+              "matcher": "Bash"
+            }
+          ],
+          "Stop": [
+            {
+              "hooks": [
+                {
+                  "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop_verify.sh\"",
+                  "statusMessage": "Running verify",
+                  "timeout": 630,
+                  "type": "command"
+                }
+              ]
+            }
+          ]
+        },
+        "permissions": {
+          "ask": [
+            "Bash(gh pr edit * --add-label human-approved)"
+          ],
+          "deny": [
+            "Read(//**/.env)",
+            "Read(//**/.env.local)",
+            "Read(//**/.env.development)",
+            "Read(//**/.env.production)",
+            "Read(//**/.env.test)",
+            "Read(//**/.env.staging)",
+            "Read(//**/secrets/**)",
+            "Read(//**/*.pem)",
+            "Read(//**/*.key)",
+            "Read(//**/*.p12)",
+            "Read(//**/id_rsa*)",
+            "Read(//**/id_ed25519*)",
+            "Read(//**/local.properties)",
+            "Read(//**/keystore.properties)",
+            "Edit(//**/.env)",
+            "Edit(//**/.env.local)",
+            "Edit(//**/secrets/**)",
+            "Edit(//**/.agent-setup/lock.json)",
+            "Edit(//**/tests/heldout/**)",
+            "Read(//**/tests/heldout/**)"
+          ]
+        }
+      }
+    },
+    ".github/ISSUE_TEMPLATE/checkpoint.yml": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "5f57ef49dc3194a757c15383a236df485f45e595b44a19c5615e2ce672371c62"
+    },
+    ".github/ISSUE_TEMPLATE/config.yml": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "1f103c6a9dd07cd13a9a6f17ace6b813f47747eb9cb7e00488cb2073caaf91bb"
+    },
+    ".github/ISSUE_TEMPLATE/incident.yml": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "04ffb788dee94263f4b249800c5d3e169150150e245996ffc6c116e9d98dea66"
+    },
+    ".github/ISSUE_TEMPLATE/post-mortem-action.yml": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "7e3655f1cd96a7875154cd8a4f7c777374e96c9b058c177c24baf4fe5ae6e0e1"
+    },
+    ".github/ISSUE_TEMPLATE/task.yml": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "4bc61f3705272b5f84fc30a93bd4ee02981b060c6e135f008f980745fe7c0795"
+    },
+    ".github/SECURITY.md": {
+      "module": "repo-baseline",
+      "class": "seed"
+    },
+    ".github/actionlint.yaml": {
+      "module": "ci-baseline",
+      "class": "never-touch"
+    },
+    ".github/dependabot.yml": {
+      "module": "repo-baseline",
+      "class": "seed"
+    },
+    ".github/pull_request_template.md": {
+      "module": "repo-baseline",
+      "class": "managed-block",
+      "digest": "29452320cf9965de2cc6bfd514caf21e91aa65c4cfcec9002fe8d4da9cfb34c6"
+    },
+    ".github/rulesets/main.json": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "e79c55cc8e9074143eb6b0c0e2303088e0e61616affa67e559b9d61f12702642"
+    },
+    ".github/workflows/_reusable-verify.yml": {
+      "module": "ci-baseline",
+      "class": "never-touch"
+    },
+    ".github/workflows/agentic-ci.yml": {
+      "module": "ci-baseline",
+      "class": "managed",
+      "digest": "21fadd8c5fc5470da0f076cbeb9eb1c34b1921bebb49ea030c7760bf19a1cda3"
+    },
+    ".github/workflows/neutrality.yml": {
+      "module": "ci-baseline",
+      "class": "never-touch"
+    },
+    ".github/workflows/stack-packs-pins.yml": {
+      "module": "ci-baseline",
+      "class": "never-touch"
+    },
+    ".github/workflows/workflow-lint.yml": {
+      "module": "ci-baseline",
+      "class": "never-touch"
+    },
+    ".gitleaks.toml": {
+      "module": "security",
+      "class": "seed"
+    },
+    ".mcp.json": {
+      "module": "agent-guardrails",
+      "class": "seed"
+    },
+    ".pre-commit-config.yaml": {
+      "module": "security",
+      "class": "seed"
+    },
+    ".semgrepignore": {
+      "module": "security",
+      "class": "seed"
+    },
+    ".trivyignore.yaml": {
+      "module": "security",
+      "class": "seed"
+    },
+    ".worktreeinclude": {
+      "module": "agent-guardrails",
+      "class": "seed"
+    },
+    "AGENTS.md": {
+      "module": "agent-guardrails",
+      "class": "managed-block",
+      "digest": "1846b0b4ebc0c3b5cf6144b51cb32a3b5d236cd7d099efcff2d1af5b33bd3db4"
+    },
+    "Cargo.toml": {
+      "module": "stack-packs",
+      "class": "never-touch"
+    },
+    "docs/agent-setup/guardrails.md": {
+      "module": "agent-guardrails",
+      "class": "managed",
+      "digest": "52cdb76e1e4c85765af769e310eff612b6df494c5de2c075280db500be8e1c2b"
+    },
+    "docs/agent-setup/rfc-template.md": {
+      "module": "repo-baseline",
+      "class": "managed",
+      "digest": "340d0f2b7cb6868ca692d7d2799ffd3c6d703ea5790a80b0442faf3942fe89dc"
+    },
+    "docs/agent-setup/security-gates.md": {
+      "module": "security",
+      "class": "managed",
+      "digest": "f284c876383a3266813073f64741b3c327286228f76ec8e925f9c6a33a932167"
+    },
+    "docs/agent-setup/technical-debt.md": {
+      "module": "agent-guardrails",
+      "class": "seed"
+    },
+    "github:classic-protection-retire": {
+      "module": "repo-baseline",
+      "class": "remote"
+    },
+    "github:dependabot-alerts": {
+      "module": "repo-baseline",
+      "class": "remote"
+    },
+    "github:dependabot-security-updates": {
+      "module": "repo-baseline",
+      "class": "remote"
+    },
+    "github:labels": {
+      "module": "repo-baseline",
+      "class": "remote"
+    },
+    "github:private-vulnerability-reporting": {
+      "module": "security",
+      "class": "remote"
+    },
+    "github:repo-settings": {
+      "module": "repo-baseline",
+      "class": "remote"
+    },
+    "github:ruleset-main": {
+      "module": "repo-baseline",
+      "class": "remote"
+    },
+    "github:secret-scanning": {
+      "module": "security",
+      "class": "remote"
+    },
+    "github:switch-required-check": {
+      "module": "ci-baseline",
+      "class": "remote"
+    },
+    "opencode.json": {
+      "module": "agent-guardrails",
+      "class": "managed-entries",
+      "digest": "eb255bbb9b2b538279e67e688afc70636512e1a2d004ebf9876619d652a0ccff",
+      "entries": {
+        "permission": {
+          "edit": {
+            "*/.agent-setup/lock.json": "deny",
+            "*/.env": "deny",
+            "*/.env.local": "deny",
+            "*/secrets/*": "deny",
+            "*/tests/heldout/*": "deny",
+            ".agent-setup/lock.json": "deny",
+            ".env": "deny",
+            ".env.local": "deny",
+            "secrets/*": "deny",
+            "tests/heldout/*": "deny"
+          },
+          "read": {
+            "*.key": "deny",
+            "*.p12": "deny",
+            "*.pem": "deny",
+            "*/*.key": "deny",
+            "*/*.p12": "deny",
+            "*/*.pem": "deny",
+            "*/.env": "deny",
+            "*/.env.development": "deny",
+            "*/.env.local": "deny",
+            "*/.env.production": "deny",
+            "*/.env.staging": "deny",
+            "*/.env.test": "deny",
+            "*/id_ed25519*": "deny",
+            "*/id_rsa*": "deny",
+            "*/keystore.properties": "deny",
+            "*/local.properties": "deny",
+            "*/secrets/*": "deny",
+            "*/tests/heldout/*": "deny",
+            ".env": "deny",
+            ".env.development": "deny",
+            ".env.local": "deny",
+            ".env.production": "deny",
+            ".env.staging": "deny",
+            ".env.test": "deny",
+            "id_ed25519*": "deny",
+            "id_rsa*": "deny",
+            "keystore.properties": "deny",
+            "local.properties": "deny",
+            "secrets/*": "deny",
+            "tests/heldout/*": "deny"
+          }
+        }
+      }
+    },
+    "osv-scanner.toml": {
+      "module": "security",
+      "class": "seed"
+    },
+    "rust-toolchain.toml": {
+      "module": "stack-packs",
+      "class": "seed"
+    }
+  }
+}

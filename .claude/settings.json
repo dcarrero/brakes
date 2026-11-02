@@ -4,17 +4,6 @@
       {
         "hooks": [
           {
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/main_checkout_guard.py\" pre-edit",
-            "onFailure": "block",
-            "timeout": 30,
-            "type": "command"
-          }
-        ],
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit"
-      },
-      {
-        "hooks": [
-          {
             "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/merge_guard.sh\"",
             "onFailure": "block",
             "timeout": 60,
@@ -24,28 +13,7 @@
         "matcher": "Bash"
       }
     ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/main_checkout_guard.py\" session-start",
-            "statusMessage": "Updating the main checkout",
-            "timeout": 60,
-            "type": "command"
-          }
-        ]
-      }
-    ],
     "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/main_checkout_guard.py\" stop",
-            "timeout": 30,
-            "type": "command"
-          }
-        ]
-      },
       {
         "hooks": [
           {
