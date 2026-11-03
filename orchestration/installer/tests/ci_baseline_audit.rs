@@ -160,9 +160,10 @@ fn a_sharded_rust_workflow_passes_the_static_rules_but_workflow_lint() {
             "WARNING: ci.workflow-lint: Workflow lint absent",
             "WARNING: ci.heldout-present: No held-out test job: the agent can edit every test it is measured against",
             "WARNING: ci.protected-paths-gate: Protected paths are not gated: a workflow or held-out change can merge without a human",
-            "WARNING: ci.project-ci-stale: .agent-setup/project.json ci.required_checks disagree with the ci-baseline answers; the answers govern (Decision 4)",
         ]
     );
+    // The declared checks hold the aggregate; `Rust (macos)` and `promote` are the
+    // project's own, not stale (decision 2026-11-03).
 }
 
 #[test]
@@ -564,6 +565,39 @@ fn stale_ci_fields_are_one_warning_naming_them() {
     );
 }
 
+/// Decision 2026-11-03: a declared `ci.required_checks` is stale only when it misses
+/// a check the answers require; checks it adds are the project's own, which
+/// `repo-baseline` renders verbatim. Under `workflow: seed` the answers require
+/// `required` and `agentic-required`.
+#[test]
+fn declared_required_checks_are_stale_only_when_they_miss_a_required_one() {
+    let workflow = format!("{HEAD}{GATE}");
+    let stale = |checks: Value, answers: Value| {
+        let profile = if checks.is_null() {
+            json!({"ci": {}})
+        } else {
+            json!({"ci": {"required_checks": checks}})
+        };
+        let all = findings(&[("ci.yml", &workflow)], profile, Some(answers));
+        !rule_lines(&all, "ci.project-ci-stale").is_empty()
+    };
+    let seed = json!({"workflow": "seed"});
+    assert!(!stale(
+        json!(["required", "agentic-required"]),
+        seed.clone()
+    ));
+    assert!(!stale(
+        json!(["required", "agentic-required", "neutrality"]),
+        seed.clone()
+    ));
+    assert!(stale(json!(["required", "neutrality"]), seed.clone()));
+    assert!(stale(json!([]), seed.clone()));
+    assert!(!stale(Value::Null, seed), "an absent field is not judged");
+    let existing = json!({"workflow": "existing", "aggregate_check": "gate"});
+    assert!(!stale(json!(["gate", "promote"]), existing.clone()));
+    assert!(stale(json!(["promote"]), existing));
+}
+
 // --- doctor --------------------------------------------------------------------------
 
 #[test]
@@ -620,10 +654,13 @@ fn doctor_on_this_repository_under_existing_reports_the_stale_fields_not_the_agg
     // The stale fields follow the tree's profile: this repository's, or the
     // import's overlay (`export/.agent-setup/project.json`, laid over it by the
     // export, which never carries `export/`), whose required check is the aggregate;
-    // the import also declares `neutrality`, a required check of its own workflow.
+    // the import also declares `neutrality`, a required check of its own workflow,
+    // which is not stale: only a missing required check is (decision 2026-11-03).
     let declared: Value = serde_json::from_str(&files[0].1).unwrap();
-    let only_aggregate = declared["ci"]["required_checks"] == json!([aggregate]);
-    let stale = if root.join("export").is_dir() || !only_aggregate {
+    let holds_aggregate = declared["ci"]["required_checks"]
+        .as_array()
+        .is_some_and(|checks| checks.iter().any(|c| c == aggregate));
+    let stale = if root.join("export").is_dir() || !holds_aggregate {
         "ci.runners, ci.required_checks"
     } else {
         "ci.runners"

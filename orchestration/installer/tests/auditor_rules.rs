@@ -6573,6 +6573,27 @@ mod ci_remote {
         );
     }
 
+    /// Decision 2026-11-03: under an answered `workflow: seed` the default branch
+    /// requires `required` and `agentic-required`, as the plan renders the ruleset;
+    /// `required` alone leaves the judges unrequired.
+    #[test]
+    fn required_is_aggregate_expects_agentic_required_under_workflow_seed() {
+        let files = [(ANSWERS, answers(r#"{"workflow": "seed"}"#))];
+        let files: Vec<(&str, &str)> = files.iter().map(|(p, t)| (*p, t.as_str())).collect();
+        let host = requiring(&["required", "agentic-required"]);
+        let audit = audited(&host, &files, None, REQUIRED_IS_AGGREGATE);
+        passed(
+            &outcome(&audit, "ci.required-is-aggregate"),
+            &["main requires only agentic-required, required"],
+        );
+        let host = requiring(&["required"]);
+        let audit = audited(&host, &files, None, REQUIRED_IS_AGGREGATE);
+        failed(
+            &outcome(&audit, "ci.required-is-aggregate"),
+            &["Required checks are required; expected only agentic-required, required"],
+        );
+    }
+
     /// #32: under `workflow: generate`, once the lock records ci-baseline's
     /// `github:switch-required-check`, the default branch requires what the
     /// switch leaves: a declared `ci.required_checks` that names `required`

@@ -4,6 +4,33 @@ These are the decisions the design of `brakes` depends on. They were taken durin
 earlier development, imported into this repository and rewritten in neutral terms; each keeps
 its original date and is marked "imported". Newer decisions are added above them, newest first.
 
+## A declared `ci.required_checks` is stale only when it misses a check the answers require — 2026-11-03
+
+Decided by the owner. Context: `ci.project-ci-stale` (Bronze) warned whenever
+`.agent-setup/project.json` `ci.required_checks` was not exactly the list of checks the
+`ci-baseline` answers require. `repo-baseline` renders the ruleset from that same declared list,
+verbatim, so that no repository loses a check it requires today. A project that requires a check
+of its own beside the aggregates (this repository requires `neutrality`) therefore failed Bronze
+for a list the ruleset relies on. The audit also left out `agentic-required`, which
+`workflow: seed` always requires. So the seed's own declared list
+`[required, agentic-required]` was judged stale as well.
+
+1. **Missing, not different.** The declared list is stale when it lacks a check the answers
+   require. Checks it declares beyond them belong to the project and are not stale. An empty
+   declared list lacks the aggregate and stays stale. An absent field is not judged.
+2. **The audit requires what the plan requires.** Under an answered `workflow: seed` the answers
+   require `required` and `agentic-required`, as `model::required_checks` gives them to the
+   ruleset. A seed declaring `["required"]` alone is therefore stale. This also changes
+   `ci.required-is-aggregate` (Silver), which reads the same list: under seed it expects both
+   checks and no longer fails a ruleset the plan rendered. An unanswered `workflow` is still read
+   by the audit as `generate`, unlike the plan; that is #65.
+3. **Unchanged:** the rules' ids, levels and messages; `ci.runners` and `ci.tiers` are judged as
+   before.
+
+Rejected: a new `ci-baseline` answer for the project's extra checks, which would keep exact
+equality. It is a larger change for the same ruleset. Also rejected: deleting `neutrality` from
+the profile, which would drop it from the rendered ruleset.
+
 ## An action bump here is one grouped Dependabot pull request, completed on its branch — 2026-11-03
 
 Decided by the owner (#29). Context: every `uses:` of this repository comes from

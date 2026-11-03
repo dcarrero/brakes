@@ -148,12 +148,15 @@ pub fn findings(root: &Path, profile: &Value, answers: Option<&Answers>) -> Vec<
 }
 
 /// The checks the default branch requires for these answers (#1159): the
-/// aggregate, followed under `workflow: existing` by `agentic-required` when
-/// the installed `lock` records ci-baseline's `github:add-agentic-required-check`,
-/// as `model::required_checks` gives them to the ruleset at plan time.
+/// aggregate, followed by `agentic-required` under `workflow: seed`, and under
+/// `workflow: existing` when the installed `lock` records ci-baseline's
+/// `github:add-agentic-required-check`, as `model::required_checks` gives them
+/// to the ruleset at plan time.
 fn required_checks(a: &Recorded, lock: Option<&str>) -> Vec<String> {
     let mut checks = vec![a.aggregate.clone()];
-    if a.workflow == WorkflowMode::Existing && records(lock, super::brownfield::ADD_CHECK) {
+    if a.workflow == WorkflowMode::Seed
+        || a.workflow == WorkflowMode::Existing && records(lock, super::brownfield::ADD_CHECK)
+    {
         checks.push(CONTRIBUTED_AGGREGATE_CHECK.to_owned());
     }
     checks
@@ -663,6 +666,9 @@ fn hosted_macos_message(configured: Option<&crate::config::NamedRunner>) -> Stri
 
 /// Decision 4: `ci.runners`, `ci.required_checks` and `ci.tiers` of the
 /// profile are superseded by the answers; one warning names those that disagree.
+/// A declared `ci.required_checks` disagrees only when it misses a check the
+/// answers require: the checks it adds are the project's own, which
+/// `repo-baseline` renders verbatim (decision 2026-11-03).
 fn project_ci_stale(profile: &Value, required: &[String], a: &Recorded, out: &mut Vec<String>) {
     let ci = &profile["ci"];
     let runners = &ci["runners"];
@@ -679,7 +685,8 @@ fn project_ci_stale(profile: &Value, required: &[String], a: &Recorded, out: &mu
     let runners_stale = values.iter().any(|v| v.contains("self-hosted"))
         || linux.is_some_and(|l| !provider.iter().any(|p| l.contains(p)));
     let checks = &ci["required_checks"];
-    let checks_stale = !checks.is_null() && strings(checks) != required;
+    let declared = strings(checks);
+    let checks_stale = !checks.is_null() && required.iter().any(|c| !declared.contains(c));
     let tiers = &ci["tiers"];
     let tiers_stale = !tiers.is_null() && (tiers != &Value::Bool(false)) != a.tiers;
     let stale: Vec<&str> = [
