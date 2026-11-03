@@ -2194,6 +2194,72 @@ fn an_empty_directory_stays_pending_and_any_file_in_it_refuses() {
     assert_eq!(repo.refusal(json!({})), HELDOUT_MISSING);
 }
 
+/// #17: the held-out path is read through the scope guard: a symlink in any of
+/// its components refuses the plan, so nothing outside the repository is read.
+#[cfg(unix)]
+#[test]
+fn a_symlink_in_the_heldout_path_refuses_the_plan() {
+    use std::os::unix::fs::symlink;
+    let outside = tempfile::tempdir().unwrap();
+    fs::create_dir_all(outside.path().join("heldout")).unwrap();
+    for linked in ["tests", "tests/heldout"] {
+        let repo = rust_repo("cargo test --locked");
+        let link = repo.root.join(linked);
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        let target = if linked == "tests" {
+            outside.path().to_path_buf()
+        } else {
+            outside.path().join("heldout")
+        };
+        symlink(target, &link).unwrap();
+        let refused = format!("Symlink refused: {}", link.display());
+        assert_eq!(repo.refusal(json!({})), refused, "{linked}");
+        assert_eq!(
+            repo.refusal(json!({"workflow": "existing"})),
+            refused,
+            "{linked}"
+        );
+    }
+}
+
+/// #17: what `heldout-pending.sh` counts as a file, the plan counts too: a
+/// regular file at `heldout_dir`, a link under it and a directory it cannot
+/// read each refuse the pending job, and each turns the fragment red.
+#[cfg(unix)]
+#[test]
+fn the_plan_and_the_pending_fragment_agree_on_links_files_and_unreadable_directories() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    let red = |repo: &Repo| {
+        let out = run_pending(&repo.root, Some("tests/heldout"));
+        assert!(!out.status.success(), "{out:?}");
+    };
+    let repo = rust_repo("cargo test --locked");
+    repo.file("tests/heldout");
+    assert_eq!(repo.refusal(json!({})), HELDOUT_MISSING);
+    red(&repo);
+
+    let repo = rust_repo("cargo test --locked");
+    fs::create_dir_all(repo.root.join("tests/heldout/empty")).unwrap();
+    symlink(
+        repo.root.join("tests/heldout/empty"),
+        repo.root.join("tests/heldout/link"),
+    )
+    .unwrap();
+    assert_eq!(repo.refusal(json!({})), HELDOUT_MISSING);
+    red(&repo);
+
+    let repo = rust_repo("cargo test --locked");
+    let locked = repo.root.join("tests/heldout/locked");
+    fs::create_dir_all(&locked).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    // A process that reads it anyway (root) cannot show the case.
+    if fs::read_dir(&locked).is_err() {
+        assert_eq!(repo.refusal(json!({})), HELDOUT_MISSING);
+        red(&repo);
+    }
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
 #[test]
 fn under_workflow_existing_a_default_install_still_renders_nothing() {
     let repo = rust_repo("cargo test --locked");

@@ -492,16 +492,20 @@ impl CiBaselineAnswers {
         let heldout_dir = heldout_dir(text("heldout_dir").unwrap_or(DEFAULT_HELDOUT_DIR))?;
         let answered_heldout = a.get("heldout").and_then(Value::as_bool);
         // Under existing the directory still decides: no silent new required check.
-        let heldout = answered_heldout.unwrap_or_else(|| {
-            workflow != WorkflowMode::Existing || cx.root.join(&heldout_dir).is_dir()
-        });
-        // No held-out tests yet (#1362): the default job is pending, never an
-        // invented command; a test in the directory needs the answer.
+        // Read through the scope guard (#17): a symlink in any component of the
+        // path refuses, so nothing outside the repository is read.
+        let heldout_path = || crate::scope::location(cx.root, &heldout_dir);
+        let heldout = match answered_heldout {
+            Some(answered) => answered,
+            None => workflow != WorkflowMode::Existing || heldout_path()?.is_dir(),
+        };
+        // No held-out tests yet: the default job is pending, never an invented
+        // command; a test in the directory needs the answer.
         let pending = heldout
             && answered_heldout.is_none()
             && workflow != WorkflowMode::Existing
             && text("heldout_command").is_none()
-            && !holds_files(&cx.root.join(&heldout_dir));
+            && !holds_files(&heldout_path()?);
         let heldout_command = if heldout && !pending {
             Some(heldout_command(text("heldout_command"))?)
         } else {
@@ -624,14 +628,26 @@ pub fn heldout_dir(dir: &str) -> Result<String> {
     Ok(trimmed.to_owned())
 }
 
-/// True when `dir` holds a file at any depth (#1362): a pending held-out job
-/// passes only on a directory without one, as `heldout-pending.sh` checks.
+/// True when `dir` holds a file at any depth: a pending held-out job passes
+/// only on a directory without one, as `heldout-pending.sh` checks with `[ -e ]`
+/// and `find ! -type d`. A symlink under `dir` is a file and is never followed
+/// (#17), so the walk ends; the caller passes a path the scope guard admitted.
+/// What cannot be read counts as a file, as `find` fails the script red on it.
 fn holds_files(dir: &std::path::Path) -> bool {
-    std::fs::read_dir(dir).is_ok_and(|entries| {
-        entries
-            .flatten()
-            .any(|entry| !entry.path().is_dir() || holds_files(&entry.path()))
-    })
+    dir.exists() && holds_file(dir)
+}
+
+/// `path` is, or holds at any depth, anything but a directory, read with
+/// `symlink_metadata`; an unreadable directory or entry counts as a file, a
+/// path gone mid-walk does not.
+fn holds_file(path: &std::path::Path) -> bool {
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) if meta.is_dir() => std::fs::read_dir(path).map_or(true, |mut entries| {
+            entries.any(|entry| entry.map_or(true, |entry| holds_file(&entry.path())))
+        }),
+        Ok(_) => true,
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    }
 }
 
 /// The default of the `heldout_examples` answer (coordinator, unsourced).
@@ -878,4 +894,57 @@ fn unrun_commands(profile: &Value, prefix: &str, answered: &[Command]) -> Vec<(S
             })
         })
         .collect()
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::holds_files;
+    use std::os::unix::fs::symlink;
+
+    /// #17: a symlink under `heldout_dir` is a file, as `heldout-pending.sh`'s
+    /// `find ! -type d` counts it, and is never followed.
+    #[test]
+    fn holds_files_counts_a_symlink_as_a_file_without_following_it() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("heldout");
+        std::fs::create_dir_all(dir.join("empty")).unwrap();
+        assert!(!holds_files(&dir));
+        symlink(temp.path().join("elsewhere"), dir.join("empty/dangling")).unwrap();
+        assert!(holds_files(&dir), "a dangling symlink is a file");
+        std::fs::remove_file(dir.join("empty/dangling")).unwrap();
+        std::fs::create_dir(temp.path().join("outside")).unwrap();
+        symlink(temp.path().join("outside"), dir.join("linked")).unwrap();
+        assert!(
+            holds_files(&dir),
+            "a symlink to an empty directory is a file"
+        );
+    }
+
+    /// #17: a symlink loop under `heldout_dir` returns at once instead of walking
+    /// every path the loop spells.
+    #[test]
+    fn holds_files_returns_promptly_on_a_symlink_loop() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("heldout");
+        std::fs::create_dir(&dir).unwrap();
+        for name in ["a", "b", "c"] {
+            symlink(&dir, dir.join(name)).unwrap();
+        }
+        let started = std::time::Instant::now();
+        assert!(holds_files(&dir));
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
+    }
+
+    /// #17: `heldout_dir` itself as a symlink is not read through, as
+    /// `find <link> ! -type d` lists the link; a dangling one is absent, as
+    /// the script's `[ -e ]` finds it.
+    #[test]
+    fn holds_files_does_not_read_through_a_symlinked_heldout_dir() {
+        let temp = tempfile::tempdir().unwrap();
+        std::fs::create_dir(temp.path().join("outside")).unwrap();
+        symlink(temp.path().join("outside"), temp.path().join("heldout")).unwrap();
+        assert!(holds_files(&temp.path().join("heldout")));
+        symlink(temp.path().join("missing"), temp.path().join("dangling")).unwrap();
+        assert!(!holds_files(&temp.path().join("dangling")));
+    }
 }
