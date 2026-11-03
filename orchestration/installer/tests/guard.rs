@@ -628,6 +628,37 @@ fn an_app_session_is_told_its_label_never_counts() {
     );
 }
 
+/// #28: the guide `agent-guardrails` renders says what the guard does. While no
+/// real session has proved the prompt, it states that the canonical form is
+/// denied too, and never promises that the ask rule puts it to the person.
+#[test]
+fn the_rendered_guide_states_the_canonical_approval_is_denied_until_proven() {
+    assert_eq!(PROMPT_EVIDENCE, None);
+    // Rendered verbatim at `GUIDE_PATH` by every agent-guardrails plan.
+    let row = brakes::modules::agent_guardrails::GUIDE
+        .lines()
+        .find(|l| l.starts_with("| `human-approved` is set only by a person |"))
+        .expect("the human-approved row");
+    assert!(!row.contains("puts to you"), "{row}");
+    // A brake over what it can read, never "every route" (#28 review).
+    assert!(!row.contains("every route"), "{row}");
+    assert!(row.contains("a brake and not a barrier"), "{row}");
+    assert!(
+        row.contains(
+            "`gh pr edit <n> [--repo <owner>/<repo>] --add-label human-approved` included"
+        ),
+        "{row}"
+    );
+    assert!(
+        row.contains("a session on your own token counts as you"),
+        "{row}"
+    );
+    assert!(
+        row.contains("set the label on GitHub under your own login"),
+        "{row}"
+    );
+}
+
 #[test]
 fn canonical_approval_is_denied_until_proven() {
     // #1152: no real session has shown the person the prompt yet, so the

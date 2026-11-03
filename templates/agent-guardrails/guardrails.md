@@ -1,6 +1,6 @@
 # Agent guardrails
 
-Last verified: 2026-10-30
+Last verified: 2026-11-03
 
 Instructions in `AGENTS.md`, `CLAUDE.md` and skills are read by agents; they are not
 enforced. This guide lists the rules the agent host enforces in this repository, what
@@ -26,7 +26,7 @@ guarantee from this setup: for them the server-side required check is the barrie
 | No writes to `.git` and the host's own configuration | Documented: no deny rule for them in this setup | Configured: in `workspace-write`, `.git`, `.agents`, `.codex` and `.aws` are read-only, recursively | Documented |
 | Network | Configured by the project (Claude Code sandbox), not by this setup | Configured: `workspace-write` runs with network off unless enabled | Documented |
 | Merge only on green | Enforced: server-side required check and the merge-guard hook | Enforced: server-side required check | Enforced: server-side required check |
-| `human-approved` is set only by a person | Enforced: the merge-guard hook denies every route but `gh pr edit <n> [--repo <owner>/<repo>] --add-label human-approved`, which the explicit `permissions.ask` rule puts to you in every permission mode, `bypassPermissions` included; headless runs (`claude -p`, CI) are denied; `required` counts the label only when its last `labeled` event is a person's, not an App's or a bot's | Enforced in CI: `required` counts the label only when a person added it; set it on GitHub under your own login | Enforced in CI: `required` counts the label only when a person added it; `--auto` approves `ask`, so set it on GitHub under your own login |
+| `human-approved` is set only by a person | Enforced over the commands it can read, a brake and not a barrier: the merge-guard hook denies the commands it can read that set the label, `gh pr edit <n> [--repo <owner>/<repo>] --add-label human-approved` included, because in a real session under `bypassPermissions` the `permissions.ask` rule showed no prompt; a command it cannot read is not stopped. `required` counts the label only when its last `labeled` event is a person's, not an App's or a bot's, so a session on your own token counts as you: run agent sessions on the agents' App token, and set the label on GitHub under your own login | Enforced in CI: `required` counts the label only when a person added it; set it on GitHub under your own login | Enforced in CI: `required` counts the label only when a person added it; `--auto` approves `ask`, so set it on GitHub under your own login |
 
 Deny rules cover the agent's file tools (`Read`, `Grep`, `Glob`, `Edit`, `Write`,
 `MultiEdit`, `NotebookEdit`) and the file commands Claude Code recognizes in Bash, such
