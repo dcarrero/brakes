@@ -764,6 +764,30 @@ fn accept_commands_without_apply_prints_the_diff_and_writes_nothing() {
     assert_eq!(repo.tree(), before);
 }
 
+/// #55: `--accept-commands` plans like every other plan: when its `--apply`
+/// would be refused, the last line says so and why.
+#[test]
+fn accept_commands_without_apply_says_when_the_apply_would_be_refused() {
+    let repo = Repo::installed(Some("rust-root"));
+    repo.declare("verify", "bash scripts/check.sh");
+    assert!(
+        Command::new("git")
+            .arg("-C")
+            .arg(&repo.root)
+            .args(["remote", "add", "origin", "../project-origin"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let out = repo.stdout(&["configure", "<repo>", "stack-packs", "--accept-commands"]);
+    assert!(
+        out.lines().last().is_some_and(
+            |l| l.starts_with("APPLY REFUSED: Remote is not a GitHub URL: ../project-origin;")
+        ),
+        "{out}"
+    );
+}
+
 #[cfg_attr(
     not(feature = "setup-core"),
     ignore = "lists setup-core or its guides; product-boundary T7a"

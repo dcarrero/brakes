@@ -5,7 +5,11 @@ use brakes::{
     host::{CallBudget, RepoId, github::GitHub, probes::HostRunner},
     modules, personal_scope, questions, read_scope, refuse, remote,
 };
-use std::{io::IsTerminal, path::PathBuf, process::ExitCode};
+use std::{
+    io::IsTerminal,
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 const USAGE: &str = "Usage: brakes <install|doctor> <project> [--apply] [--new-personal] [--source <checkout>] [--module <id>]... [--profile P1|P2|P3] [--preset <name>] [--answers <file.json>]... [--no-input] [--remote] [--json] [--propose] [--now <YYYY-MM-DD>] [--report <file.md>]\n       brakes doctor --fleet <org-or-user> [--json] [--report <file.md>] [--include-archived] [--now <YYYY-MM-DD>] [--publish-issue <owner/repo>]\n       brakes adopt <project> [--apply] [--json]\n       brakes configure <project> <module-id> [--set key=value]... [--answers <file.json>]... [--preset <name>] [--interactive | --no-input] [--apply]\n       brakes configure <project> stack-packs --accept-commands [<app-id>] [--apply]\n       brakes ci init <project> [--answers <file.json>]... [--no-input] [--apply]\n       brakes presets [<module-id>] [--source <checkout>]\n       brakes mcp\n       brakes remove <project> <module-id> [--apply]\n       brakes apply <project> [--remote]\n       brakes guard pre-bash\n       brakes host features <owner/repo> [--json]\n       brakes host repos <owner> [--json] [--call-budget <n>]\n       brakes host org <org> [--json]\n       brakes host probe <owner/repo> <probe-id> [--arg key=value]... [--json]\n       Any command: --config <file.json> (the configuration; one embedded at build time wins)";
 /// `--config <file.json>` anywhere: the explicit lookup step, installed before any
@@ -17,7 +21,7 @@ fn install_config(args: &mut Vec<std::ffi::OsString>) -> Result<()> {
             return refuse("--config needs a file");
         };
         args.drain(at..=at + 1);
-        brakes::config::install_from(std::path::Path::new(&path))?;
+        brakes::config::install_from(Path::new(&path))?;
     }
     Ok(())
 }
@@ -423,6 +427,9 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
             apply(&root, &[(accepted.path, Some(accepted.after))].into())?;
         }
         println!("{}", outcome(changed, apply_changes));
+        if !apply_changes {
+            print_apply_refusal(&project, new_personal);
+        }
         return Ok(0);
     }
     inputs.catalogue = source.clone();
@@ -486,6 +493,9 @@ fn run(raw: Vec<std::ffi::OsString>) -> Result<u8> {
     println!("{}", outcome(!planned.changes.is_empty(), apply_changes));
     if let Some(block) = &proposals {
         print!("{block}");
+    }
+    if !apply_changes {
+        print_apply_refusal(&project, new_personal);
     }
     Ok(0)
 }
@@ -577,6 +587,7 @@ fn ci_cli(args: &[std::ffi::OsString]) -> Result<u8> {
     for line in &setup.next {
         println!("{line}");
     }
+    print_apply_refusal(&project, false);
     Ok(0)
 }
 
@@ -642,6 +653,15 @@ fn outcome(changed: bool, apply_changes: bool) -> &'static str {
         "Applied; fill/review project profile and run doctor."
     } else {
         "Plan only; no writes. Review before using --apply."
+    }
+}
+
+/// A plan runs under the read scope; `--apply` passes the write scope first. When
+/// the write scope would refuse, the plan says so as its last line, so the plan
+/// and the apply agree (#55). Information only: the plan's exit code is unchanged.
+fn print_apply_refusal(project: &Path, new_personal: bool) {
+    if let Err(error) = personal_scope(project, new_personal) {
+        println!("APPLY REFUSED: {error}");
     }
 }
 

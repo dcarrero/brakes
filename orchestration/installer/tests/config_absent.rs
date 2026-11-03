@@ -99,13 +99,21 @@ fn without_configuration_doctor_and_plans_run_and_write_nothing() {
             git(&repo, &["remote", "add", "origin", url]);
         }
         let path = repo.to_str().unwrap();
+        let (_, out) = unconfigured(&["doctor", path], &config_home);
+        assert!(!out.contains("REFUSED"), "doctor: {out}");
+        // A plan is not refused; its last line says the apply would be, and why (#55).
         for args in [
             vec!["install", path],
             vec!["install", path, "--module", "repo-baseline"],
-            vec!["doctor", path],
         ] {
-            let (_, out) = unconfigured(&args, &config_home);
-            assert!(!out.contains("REFUSED"), "{args:?}: {out}");
+            let (ok, out) = unconfigured(&args, &config_home);
+            assert!(ok, "{args:?}: {out}");
+            assert_eq!(out.matches("REFUSED").count(), 1, "{args:?}: {out}");
+            assert_eq!(
+                out.lines().last(),
+                Some(format!("APPLY REFUSED: {}", brakes::config::NO_CONFIGURATION).as_str()),
+                "{args:?}: {out}"
+            );
         }
         let (ok, out) = unconfigured(&["install", path], &config_home);
         assert!(ok && out.contains("Plan only; no writes."), "{out}");

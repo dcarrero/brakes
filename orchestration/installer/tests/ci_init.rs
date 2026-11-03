@@ -387,3 +387,29 @@ fn ci_takes_only_init() {
         stderr(&out)
     );
 }
+
+/// #55: the guided setup's plan ends, as `install`'s does, by saying the apply
+/// would be refused and why; a plan the write scope accepts says nothing.
+#[test]
+fn the_plan_says_when_the_apply_would_be_refused() {
+    let repo = Repo::rust();
+    let text = stdout(&repo.run(&["ci", "init", ".", "--no-input"]));
+    assert!(!text.contains("APPLY REFUSED"), "{text}");
+    assert!(
+        Command::new("git")
+            .args(["remote", "set-url", "origin", "../toy-origin"])
+            .current_dir(&repo.root)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let out = repo.run(&["ci", "init", ".", "--no-input"]);
+    let text = stdout(&out);
+    assert_eq!(out.status.code(), Some(0), "{text}{}", stderr(&out));
+    assert!(
+        text.lines().last().is_some_and(
+            |l| l.starts_with("APPLY REFUSED: Remote is not a GitHub URL: ../toy-origin;")
+        ),
+        "{text}"
+    );
+}

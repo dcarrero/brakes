@@ -157,7 +157,22 @@ pub(crate) fn github_path(remote: &str) -> Result<String> {
     let path = if let Some(path) = remote.strip_prefix("git@github.com:") {
         path.to_owned()
     } else {
-        let url = url::Url::parse(remote)?;
+        // A path, a `file:` URL or any other text that is not a URL (#55): named,
+        // with the fix. A URL that fails to parse otherwise may carry a
+        // credential, so its text is never printed.
+        let not_github = |named: &str| {
+            refuse(format!(
+                "Remote is not a GitHub URL: {named}; the write scope names the repository by its GitHub remote (git remote set-url <remote> https://github.com/<owner>/<name>.git)"
+            ))
+        };
+        let url = match url::Url::parse(remote) {
+            Ok(url) => url,
+            Err(url::ParseError::RelativeUrlWithoutBase) => return not_github(remote),
+            Err(error) => return not_github(&format!("it does not parse ({error})")),
+        };
+        if url.scheme() == "file" {
+            return not_github(url.path());
+        }
         if url.host_str() != Some("github.com") {
             return refuse("Remote is not an allowed personal GitHub repository");
         }
@@ -209,6 +224,41 @@ mod tests {
         ] {
             let error = remote_identity_in(&empty, remote).unwrap_err().to_string();
             assert_eq!(error, crate::config::NO_CONFIGURATION, "{remote}");
+        }
+    }
+
+    #[test]
+    fn a_remote_that_is_not_a_url_is_refused_naming_it_and_the_fix() {
+        // #55: a clone of a local path has a path for its origin; `url` answered
+        // "relative URL without a base", which named neither the remote nor the fix.
+        let config = Config::for_test("example-owner", &["example-owner/*"], &[]);
+        let hint = "the write scope names the repository by its GitHub remote (git remote set-url <remote> https://github.com/<owner>/<name>.git)";
+        for (remote, named) in [
+            ("/srv/clones/app", "/srv/clones/app"),
+            ("../app", "../app"),
+            ("file-less-path", "file-less-path"),
+            ("file:///srv/clones/app", "/srv/clones/app"),
+        ] {
+            let error = remote_identity_in(&config, remote).unwrap_err().to_string();
+            assert_eq!(
+                error,
+                format!("Remote is not a GitHub URL: {named}; {hint}"),
+                "{remote}"
+            );
+        }
+        // A URL that fails to parse for another reason may carry a credential:
+        // it is refused without its text.
+        for remote in [
+            "https://x-access-token:secret-token@github.com:99999/o/r.git",
+            "https://user:secret-token@git hub.com/o/r",
+        ] {
+            let error = remote_identity_in(&config, remote).unwrap_err().to_string();
+            assert!(!error.contains("secret-token"), "{error}");
+            assert!(
+                error.starts_with("Remote is not a GitHub URL: it does not parse ("),
+                "{error}"
+            );
+            assert!(error.ends_with(hint), "{error}");
         }
     }
 

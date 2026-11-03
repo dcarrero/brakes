@@ -31,6 +31,13 @@ command, never calls the network during a local plan, never writes outside the
 repository root or follows a symbolic link out of it, and writes at most one repository
 per invocation. Writes are refused unless the configuration allows the repository
 (below); there is no fleet-wide write and no change to home-level settings.
+A plan runs under the read scope and `--apply` under the write scope, which names the
+repository by its GitHub remotes. When the write scope would refuse, the plan of
+`install`, `configure`, `remove` and `ci init` ends with `APPLY REFUSED: <reason>`, the
+reason the apply will give, and still exits 0 (#55). A remote that is not a URL, such
+as the local path of a clone, or a `file:` URL is refused by name with the
+`git remote set-url` that fixes it; a URL that fails to parse for another reason is
+refused without its text, which may carry a credential.
 
 ## Configuration contract
 

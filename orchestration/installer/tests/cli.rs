@@ -1344,3 +1344,60 @@ fn a_minimal_profile_installs_modules() {
     }
     assert!(repo.root.join(".agent-setup/lock.json").is_file());
 }
+
+/// #55: a clone whose `origin` is a local path is outside the write scope. The plan
+/// says the apply will refuse and why; the apply refuses naming the remote.
+#[test]
+fn a_local_path_origin_is_named_by_the_plan_and_by_the_apply_refusal() {
+    let repo = Repo::new();
+    let origin = repo._temp.path().join("origin");
+    let origin = origin.to_str().unwrap();
+    assert!(
+        Command::new("git")
+            .arg("-C")
+            .arg(&repo.root)
+            .args(["remote", "add", "origin", origin])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let refusal = format!("Remote is not a GitHub URL: {origin};");
+    let plan = repo.run(&["install", "--no-input"]);
+    let stdout = String::from_utf8_lossy(&plan.stdout);
+    assert_eq!(plan.status.code(), Some(0), "{stdout}");
+    let last = stdout.lines().last().unwrap_or_default();
+    assert!(
+        last.starts_with(&format!("APPLY REFUSED: {refusal}")),
+        "{stdout}"
+    );
+    let applied = repo.run(&["install", "--apply", "--no-input"]);
+    let stderr = String::from_utf8_lossy(&applied.stderr);
+    assert_eq!(applied.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains(&format!("REFUSED: {refusal}")), "{stderr}");
+    assert!(!stderr.contains("relative URL"), "{stderr}");
+    assert!(!repo.root.join(".agent-setup").exists());
+}
+
+/// A plan the write scope accepts says nothing about it.
+#[test]
+fn a_plan_the_apply_would_accept_prints_no_apply_refusal() {
+    let repo = Repo::new();
+    assert!(
+        Command::new("git")
+            .arg("-C")
+            .arg(&repo.root)
+            .args([
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/example-owner/app.git"
+            ])
+            .status()
+            .unwrap()
+            .success()
+    );
+    let plan = repo.run(&["install", "--no-input"]);
+    let stdout = String::from_utf8_lossy(&plan.stdout);
+    assert_eq!(plan.status.code(), Some(0), "{stdout}");
+    assert!(!stdout.contains("APPLY REFUSED"), "{stdout}");
+}
