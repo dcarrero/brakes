@@ -4,6 +4,29 @@ These are the decisions the design of `brakes` depends on. They were taken durin
 earlier development, imported into this repository and rewritten in neutral terms; each keeps
 its original date and is marked "imported". Newer decisions are added above them, newest first.
 
+## An action bump here is one grouped Dependabot pull request, completed on its branch — 2026-11-03
+
+Decided by the owner (#29). Context: every `uses:` of this repository comes from
+`templates/stack-packs/pins.json`, and a test ties the table to every workflow, so an action bump
+moves the table, its `last_verified`, every workflow that uses the action and the goldens rendered
+from them. Dependabot bumps only the workflow lines, one pull request per action or group, so its
+pull requests (#4, #6) could never pass: `test` fails on the pin test, and `neutrality` fails closed
+because a run Dependabot triggers gets no repository secrets.
+
+1. **One pull request.** `.github/dependabot.yml` keeps one `github-actions` entry with one group
+   that takes every action and every update type, majors included. A test holds it.
+2. **Completed on its branch.** The pull request is the pin-table task. A maintainer pushes the
+   rest of the bump to Dependabot's branch (the table and `last_verified`, the workflows the bump
+   missed, the goldens rerun with `UPDATE_GOLDENS=1`, managed files through `brakes install .
+   --apply`) and merges it when every check is green.
+3. **`neutrality` on it.** The owner keeps `NEUTRALITY_HMAC_KEY` also as a Dependabot secret, the
+   only secret Dependabot-triggered runs can read, so the check runs instead of failing closed. A
+   bumped action could read the key from that job's runner as it could on `main`; the key only
+   hides which tokens are forbidden.
+4. **Rejected.** Excluding the workflows from Dependabot leaves nothing to say a pin is old (and
+   GitHub does not document `exclude-paths` for `github-actions`). A separate pull request from
+   `main` leaves Dependabot's pull request red until it is superseded.
+
 ## A module the lock records and this build does not ship is released, not refused — 2026-11-02
 
 Decided upstream by the owner when the installer's earlier copy was retired. Context: repositories

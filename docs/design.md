@@ -584,7 +584,13 @@ the modules that render pinned steps (`ci-baseline`, `security`, `agent-guardrai
 table to this repository's workflow `uses:` lines and to the `FROM` lines of
 `templates/stack-packs/pins/Dockerfile`, the never-built file that exists so
 Dependabot's `docker` ecosystem bumps the digests; a bump of either fails until the
-table and its `last_verified` follow. `doctor` reports `stack.pin-table-stale` (a
+table and its `last_verified` follow. Here Dependabot's `github-actions` updates, majors
+included, arrive as one grouped pull request (a test holds the group), and that pull request
+is the pin-table task: a maintainer pushes the rest to its branch (the table and
+`last_verified`, the workflows the bump missed, goldens rerun with `UPDATE_GOLDENS=1`,
+managed files through `brakes install . --apply`) and merges it green. `neutrality` reads
+`NEUTRALITY_HMAC_KEY` there from the Dependabot secrets, the only ones a run Dependabot
+triggers gets; without it the check fails closed (#29). `doctor` reports `stack.pin-table-stale` (a
 warning without a level) once `last_verified` is more than 30 days old, reading the
 checkout's table in this repository and the embedded one elsewhere. The other
 `stack.*` rules (`lockfile-present`, `lockfile-not-enforced`, `toolchain-pinned`,

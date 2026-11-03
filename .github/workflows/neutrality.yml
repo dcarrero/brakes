@@ -1,8 +1,8 @@
 # The forbidden-token check, a required check of the default branch next to
 # `required`. It checks the tokens, keyed (neutrality/forbidden.hmac), over the tree,
 # its paths and every commit message. It fails closed without the
-# NEUTRALITY_HMAC_KEY secret (so on pull requests from forks) and never prints the
-# key or a token. It is hand-written: ci-baseline renders `required`, not this check.
+# NEUTRALITY_HMAC_KEY secret (so on pull requests from forks, and on Dependabot's
+# unless the key is also a Dependabot secret; #29) and never prints the key or a token. It is hand-written: ci-baseline renders `required`, not this check.
 name: Neutrality
 on:
   push:

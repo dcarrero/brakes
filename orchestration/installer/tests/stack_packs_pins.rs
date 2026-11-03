@@ -621,3 +621,36 @@ fn a_malformed_binary_pin_refuses_naming_the_key() {
         assert!(PinTable::parse(&bad).is_err(), "unknown format or field");
     }
 }
+
+/// #29: an action bump here is a pin-table bump (the table, every workflow that uses
+/// the action and the goldens move together), which Dependabot alone cannot make.
+/// Its `github-actions` updates, majors included, therefore arrive as one grouped
+/// pull request: the task a maintainer completes on that branch (design.md, "One
+/// shared pin table"), never one pull request per action that can never pass.
+#[test]
+fn dependabot_groups_every_action_bump_into_one_pull_request() {
+    use yaml_rust2::{Yaml, YamlLoader};
+    let text = fs::read_to_string(repo_root().join(".github/dependabot.yml")).unwrap();
+    let doc = &YamlLoader::load_from_str(&text).unwrap()[0];
+    let actions: Vec<&Yaml> = doc["updates"]
+        .as_vec()
+        .unwrap()
+        .iter()
+        .filter(|u| u["package-ecosystem"].as_str() == Some("github-actions"))
+        .collect();
+    assert_eq!(actions.len(), 1, "one github-actions entry");
+    let groups = actions[0]["groups"]
+        .as_hash()
+        .expect("github-actions has groups");
+    assert_eq!(groups.len(), 1, "one group: {groups:?}");
+    let group = groups.values().next().unwrap();
+    assert_eq!(
+        group["patterns"],
+        Yaml::Array(vec![Yaml::String("*".into())]),
+        "the group takes every action"
+    );
+    assert!(
+        group["update-types"].is_badvalue(),
+        "the group takes every update type, majors included: {group:?}"
+    );
+}

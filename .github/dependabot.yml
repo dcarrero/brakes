@@ -1,6 +1,8 @@
 # Dependency updates (brakes repo-baseline seed): yours to edit. The auditor
 # checks that every entry keeps a cooldown, that github-actions stays and that
 # minor and patch updates stay grouped. Reviewers come from CODEOWNERS.
+# Here every action bump, majors included, is one pull request: the pin-table
+# task completed on its branch (docs/decisions.md, 2026-11-03; #29).
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -10,7 +12,6 @@ updates:
     cooldown:
       default-days: 7
     groups:
-      compatible-updates:
+      pin-table:
         patterns: ["*"]
-        update-types: ["minor", "patch"]
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 1
